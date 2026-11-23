@@ -14,6 +14,7 @@
   --ws-muted: #c5d6e6;
   --ws-error: #ffb9cb;
   --ws-accent-ink: #0b1b2d;
+  --ws-primary: #ffc96f;
   --ws-shadow: #06080a48;
   min-height: calc(100svh - var(--bar));
   background: radial-gradient(ellipse at 90% 0%, #33486824, transparent 38%), var(--ws-bg);
@@ -30,7 +31,8 @@
   --ws-text: #0c233a;
   --ws-muted: #425a70;
   --ws-error: #982746;
-  --ws-accent-ink: #fffafa;
+  --ws-accent-ink: #fbfdff;
+  --ws-primary: #82510a;
   --ws-shadow: #2d3d5412;
   background: var(--ws-bg);
 }
@@ -119,7 +121,7 @@
 .ws-theorem p { margin: 7px 0 0 12px; }
 .ws-theorem summary { cursor: pointer; }
 .ws-actions { margin-top: 14px; }
-#workspace .primary { background: var(--ws-accent); color: var(--ws-accent-ink); border-color: transparent; }
+#workspace .primary { background: var(--ws-primary); color: var(--ws-accent-ink); border-color: transparent; }
 #workspace .primary:hover { filter: brightness(1.09); }
 #workspace .secondary { background: var(--ws-chip); border-color: var(--ws-line); color: var(--ws-text); }
 #workspace .secondary:hover { border-color: var(--ws-accent); }

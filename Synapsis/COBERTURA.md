@@ -7,7 +7,7 @@
 | Programa 5, quinto y sexto sistemáticos, segundo examen | Matrices muestra productos por entrada, menores/cofactores, determinante y sus efectos de fila, adjunta, inversa y productos de comprobación. |
 | Programa 6 | LU y PLU muestran multiplicadores, eliminación, factores y producto. La resolución por LU sigue las dos etapas y verifica el sistema original. |
 | Séptimo sistemático y segundo examen | Subespacios y transformaciones enseñan los criterios, la reducción, núcleos, bases de la imagen y rango–nulidad. |
-| Programa 7 y octavo sistemático | Bisección comprueba el intervalo, registra los signos, cotas y errores y muestra la gráfica. Errores y bases cubren precisión, propagación y desarrollo posicional. |
+| Programa 7 y octavo sistemático | Bisección comprueba el intervalo, registra los signos, cotas y errores y muestra la gráfica. El contraste independiente usa SciPy si está instalado y mpmath en el entorno estándar. Errores y bases cubren precisión, propagación y desarrollo posicional. |
 | Programa 8 y sesión 21 | El comparador utiliza la misma semilla, método de parada y datos en Jacobi y Gauss-Seidel. Muestra sustituciones, gráficas de error y referencia cuando la solución exacta es única. |
 | Programa 9 y sesión 22 | Newton-Raphson expone la derivada, cada sustitución, error y residuo. Identifica derivadas problemáticas y límites de iteración. Permite indicar multiplicidad. |
 

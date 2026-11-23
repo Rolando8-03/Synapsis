@@ -209,6 +209,12 @@ def transformation(data, ctx):
         ctx.emit("componente",f"Ordenar y analizar la componente {i}.",{"grado":int(poly.total_degree()),"constante":str(poly.TC())},
                  rf"T_{{{i}}}="+sp.latex(component))
         if poly.total_degree() > 1 or poly.TC() != 0:
+            scale = sp.Symbol("lambda", real=True)
+            changed = component.xreplace({v:scale*v for v in variables})
+            failure = sp.expand(changed-scale*component)
+            ctx.emit("demostrar_no_lineal","Restar los lados de la condición de homogeneidad.",
+                     {"diferencia":str(failure)},
+                     rf"T_{{{i}}}(\lambda x)-\lambda T_{{{i}}}(x)={sp.latex(failure)}\not\equiv0")
             result.update(lineal=False, componente=i,
                           motivo='Aparece un término de grado mayor que uno.' if poly.total_degree() > 1 else 'La imagen del cero no es el cero.',
                           formula_latex=rf'T_{{{i}}}=' + sp.latex(component))
@@ -513,6 +519,11 @@ def machine(data):
     rationalized = (2*b)/(sqrt(a+b) + sqrt(a-b))
     return {'epsilon': v.epsilon, 'maximo_finito': v.max, 'minimo_normal': v.min,
             'minimo_subnormal': ulp(0.0), 'resta_directa': direct, 'forma_racionalizada': rationalized,
+            'demostraciones': {
+                'suma_binaria':repr(.1+.2), 'igual_a_0_3':.1+.2 == .3,
+                'overflow':str(v.max*2), 'underflow':str(ulp(0.0)/2),
+                'primer_numero_mayor_a_uno':repr(1+v.epsilon),
+            },
             'formula_latex': r'\sqrt{a+b}-\sqrt{a-b}=\frac{2b}{\sqrt{a+b}+\sqrt{a-b}}'}
 
 

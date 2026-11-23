@@ -91,6 +91,15 @@ class ProceduresTest(unittest.TestCase):
         if r["status"]=="ok" and rows[-1]["error_porcentual"] is not None:
             self.assertLessEqual(Fraction(rows[-1]["error_porcentual"]),Fraction(3,2))
 
+    def test_bisection_reference_and_domain(self):
+        args={"expresion":"x^2-2","inferior":"1","superior":"2"}
+        result=calculate("raices.biseccion",args)
+        reference=result["verification"]["contraste_independiente"]
+        self.assertLess(float(reference["diferencia_absoluta"]),2e-8)
+        self.assertEqual("invalid_input",calculate("raices.biseccion",{**args,"expresion":"x^2+1"})["status"])
+        interrupted=calculate("raices.biseccion",{"expresion":"1/x","inferior":"-1","superior":"1"})
+        self.assertFalse(interrupted["result"])
+
     def test_Newton_convergence_failures_and_multiplicity(self):
         r=calculate("raices.newton",{"expresion":"(x-1)^3","inicial":"1.75","multiplicidad":"3"})
         self.assertAlmostEqual(1,float(r["result"]["aproximacion_decimal"]))

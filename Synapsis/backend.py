@@ -27,7 +27,7 @@ from relaciones_vectoriales import ejecutar_relaciones
 from calculo_basico import ejecutar_calculo
 from formato_latex import lista_soluciones_latex, operacion_latex
 from temario import SESSIONS
-from procedimientos import (calculus_trace, compare_iterations, error_trace, legacy_trace,
+from procedimientos import (calculus_trace, compare_bisection, compare_iterations, error_trace, legacy_trace,
                             original_extra, original_rows, root_visual)
 
 EXACT = "Exacto · fracciones"
@@ -342,6 +342,14 @@ def calculate(operation, data, steps=True):
                 response["result"]["grafico_raiz"] = root_visual(data,response["result"])
             except (DomainError,ValueError,ArithmeticError):
                 response["result"]["grafico_raiz"] = None
+        if operation=="raices.biseccion" and response.get("status")=="ok":
+            out=response["result"]
+            try:
+                comparison=compare_bisection(data,out)
+            except (ValueError,ArithmeticError,RuntimeError):
+                comparison=None
+            if comparison:
+                response["verification"]["contraste_independiente"]=serializar(comparison)
         if response.get("result") and steps:
             context = Context()
             if operation in {"calculadora.evaluar","calculo.derivar","calculo.definida","calculo.primitiva"}:

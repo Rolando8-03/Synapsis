@@ -143,6 +143,8 @@ def error_trace(op, data, out, ctx):
     elif op=="errores.maquina":
         ctx.emit("limites","Consultar la precisión y los extremos del formato binario de Python.",
                  {k:out[k] for k in ("epsilon","maximo_finito","minimo_normal","minimo_subnormal")})
+        ctx.emit("ejemplos_flotantes","Probar la suma binaria y los extremos del formato.",
+                 out["demostraciones"],r"0.1+0.2\approx0.30000000000000004")
         ctx.emit("cancelacion","Evaluar la resta directa y racionalizarla multiplicando por su conjugado.",
                  {"directa":out["resta_directa"],"racionalizada":out["forma_racionalizada"]},out["formula_latex"])
 
@@ -272,8 +274,8 @@ def root_visual(data, out):
     points,tangents,markers=[],[],[]
     with localcontext() as arithmetic:
         arithmetic.prec=26
-        for i in range(241):
-            x=begin+(end-begin)*i/240
+        for i in range(801):
+            x=begin+(end-begin)*i/800
             try:
                 y=float(f.value(Decimal(str(x))))
                 points.append([x,y if isfinite(y) else None])
@@ -290,3 +292,33 @@ def root_visual(data, out):
             markers.append([real(row["x"]),real(row["fx"])])
     return {"points":points,"tangents":tangents,"markers":[*markers,[middle,0]],
             "caption":"Función, aproximaciones y tangentes de Newton" if tangents else "Función y aproximaciones"}
+
+
+def compare_bisection(data, output):
+    """Obtiene un contraste independiente sobre el intervalo verificado."""
+    from decimal import Decimal, localcontext
+    from math import isfinite
+    from nexolineal.algorithms.numerical.functions import Function
+
+    f=Function(data["expresion"],Context())
+    a,b=map(lambda value:float(Fraction(value)),output["intervalo_inicial"])
+    if not (isfinite(a) and isfinite(b) and a<b):
+        return None
+    with localcontext() as arithmetic:
+        arithmetic.prec=40
+        def function(x):
+            return float(f.value(Decimal(str(x))))
+        try:
+            from scipy.optimize import bisect
+            reference=bisect(function,a,b,xtol=1e-13,maxiter=250)
+            source="SciPy · scipy.optimize.bisect"
+        except ImportError:
+            from mpmath import mp
+            arithmetic_mp=mp.clone()
+            with arithmetic_mp.workdps(24):
+                reference=float(arithmetic_mp.findroot(function,(a,b),solver="bisect",
+                                                       tol=arithmetic_mp.mpf("1e-13"),maxsteps=200))
+            source="mpmath · bisección de referencia"
+        approximation=float(Fraction(output["aproximacion"]))
+    return {"motor_de_referencia":source,"raiz_de_referencia":reference,
+            "diferencia_absoluta":abs(approximation-reference)}

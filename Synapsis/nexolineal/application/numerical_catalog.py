@@ -29,7 +29,7 @@ def spec(id, title, fields, description, category="Métodos numéricos"):
 
 EXPRESSION = field("expresion", "Función f(x)", "expression", "x^2-2", True)
 TOLS = [
-    field("tolerancia_x", "Tolerancia absoluta en x", default="1e-8"),
+    field("tolerancia_x", "Tolerancia en x · fracción si el criterio es relativo", default="1e-8"),
     field("tolerancia_f", "Tolerancia absoluta del residual", default="1e-8"),
     field("max_iteraciones", "Máximo de iteraciones", "integer", "100"),
 ]
