@@ -7,11 +7,11 @@ from entrada_datos import leer_matriz_texto
 from analisis_sistema import resolver_sistema
 
 
-def resolver_desde_interfaz(datos):
+def resolver_desde_interfaz(datos, *, solo_escalonada=False):
     """Convierte los datos de la ventana y resuelve el sistema. Recibe datos."""
     A, b = leer_matriz_texto(
         datos["textos_A"],
         datos["textos_b"],
     )
 
-    return resolver_sistema(A, b)
+    return resolver_sistema(A, b, solo_escalonada=solo_escalonada)

@@ -46,7 +46,8 @@ V = field("v", "Vector v", "vector", "1 2 3")
 U = field("u", "Vector u", "vector", "2 -1 3")
 BOUNDS = [field("from", "Desde", default="-6"), field("to", "Hasta", default="6")]
 EXTRA = {
-    "original.sistema": spec("Resolver y clasificar", "Ingresá la matriz aumentada. La reducción exacta se actualiza al completar las celdas.", []),
+    "original.sistema": spec("Resolver y clasificar", "Ingresá la matriz aumentada. La reducción exacta se actualiza al completar las celdas.", [
+        field("objetivo", "Resultado solicitado", "select", "completo", choices=["completo", "escalonada"])]),
     "original.inversa_adjunta": spec("Inversa por adjugata", "Desarrollo con cofactores y comprobación del producto.", [A]),
     "original.propiedades_det": spec("Propiedades del determinante", "Comprobá propiedades con las matrices y las operaciones elementales elegidas.", [A, B,
         field("eje", "Operar sobre", "select", "fila", choices=["fila", "columna"]), field("fila_i", "Primer índice", "integer", "1"),
@@ -176,7 +177,13 @@ def solve_original(data):
             return str(Fraction(int(numerator), int(denominator)))
         return value
     checked = [[check_cell(x) for x in row] for row in rows]
-    result = resolver_desde_interfaz({"textos_A": [r[:-1] for r in checked], "textos_b": [r[-1] for r in checked]})
+    objetivo = data.get("objetivo", "completo")
+    if objetivo not in ("completo", "escalonada"):
+        raise ValueError("Elegí el análisis completo o la forma escalonada.")
+    result = resolver_desde_interfaz(
+        {"textos_A": [r[:-1] for r in checked], "textos_b": [r[-1] for r in checked]},
+        solo_escalonada=objetivo == "escalonada",
+    )
     expressions = result.get("expresiones_rref")
     if expressions:
         result["latex_solucion"] = lista_soluciones_latex(

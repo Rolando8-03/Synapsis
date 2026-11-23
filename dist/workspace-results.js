@@ -106,8 +106,13 @@ function matrixLabels(columns) {
   return [...Array.from({length: columns}, (_, i) => `x${i + 1}`), 'b'];
 }
 
-function systemResult(out, choices) {
+function systemResult(out, choices, steps) {
   const headings = matrixLabels(out.numero_variables);
+  if (out.objetivo === 'escalonada') {
+    const panels = [['Forma escalonada', matrixView(out.matriz_escalonada, 'Forma escalonada · Gauss', true, headings)]];
+    if (steps?.length) panels.push(['Procedimiento', () => procedureView(steps)]);
+    return panels;
+  }
   const summary = node('div', 'ws-result-stack');
   summary.append(node('p', 'ws-feature', out.clasificacion), node('p', 'ws-muted', out.conclusion));
   const panels = [['Resumen', summary]];
@@ -331,7 +336,7 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
   if (response.error) target.append(node('p', 'result-error', response.error.message));
   for (const warning of response.warnings ?? []) target.append(node('p', 'ws-warning', isScalar(warning) ? scalar(warning) : warning.message ?? JSON.stringify(warning)));
   if (!response.result) return;
-  const panels = originalSystem ? systemResult(response.result, choices) : genericResult(response);
+  const panels = originalSystem ? systemResult(response.result, choices, response.steps) : genericResult(response);
   const results = node('div', 'ws-result-body');
   const tabs = node('div', 'ws-result-tabs');
   tabs.setAttribute('role', 'tablist');

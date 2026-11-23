@@ -116,7 +116,7 @@ def comprobar_solucion(A, b, solucion):
     return comprobaciones
 
 
-def resolver_sistema(A, b):
+def resolver_sistema(A, b, *, solo_escalonada=False):
     """Coordina los métodos y devuelve los datos para la interfaz. Recibe A, b."""
 
     validar_sistema(A, b)
@@ -133,6 +133,21 @@ def resolver_sistema(A, b):
     matriz_inicial = construir_matriz_aumentada(A, b)
 
     matriz_escalonada, pasos_gauss = aplicar_gauss(A, b)
+
+    resultado_gauss = {
+        "numero_variables": numero_variables,
+        "matriz_inicial": [
+            [str(v) for v in fila]
+            for fila in matriz_inicial
+        ],
+        "matriz_escalonada": [
+            [str(v) for v in fila]
+            for fila in matriz_escalonada
+        ],
+        "pasos_gauss": _serializar_pasos(pasos_gauss),
+    }
+    if solo_escalonada:
+        return {"objetivo": "escalonada", **resultado_gauss}
 
     rango_A, rango_aumentada = calcular_rangos(
         matriz_escalonada,
@@ -184,20 +199,11 @@ def resolver_sistema(A, b):
         "A": [[str(v) for v in fila] for fila in A],
         "b": [str(v) for v in b],
         "numero_ecuaciones": len(A),
-        "numero_variables": numero_variables,
-        "matriz_inicial": [
-            [str(v) for v in fila]
-            for fila in matriz_inicial
-        ],
-        "matriz_escalonada": [
-            [str(v) for v in fila]
-            for fila in matriz_escalonada
-        ],
+        **resultado_gauss,
         "matriz_rref": [
             [str(v) for v in fila]
             for fila in matriz_rref
         ],
-        "pasos_gauss": _serializar_pasos(pasos_gauss),
         "pasos_jordan": _serializar_pasos(pasos_jordan),
         "rango_A": rango_A,
         "rango_aumentada": rango_aumentada,

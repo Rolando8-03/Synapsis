@@ -48,7 +48,8 @@ function historyEntries() {
 }
 
 function optionLabel(value) {
-  return ({gauss_jordan:'Gauss-Jordan', gauss:'Gauss', falsa_posicion:'Falsa posición',
+  return ({completo:'Análisis completo', escalonada:'Solo escalonada (Gauss)',
+    gauss_jordan:'Gauss-Jordan', gauss:'Gauss', falsa_posicion:'Falsa posición',
     gauss_seidel:'Gauss-Seidel', residual_y_paso:'Residual y paso', rref:'RREF',
     infinito:'Norma ∞', uno:'Norma 1', dos:'Norma 2 (euclidiana)', lu:'LU', plu:'PLU', sarrus:'Sarrus',
     reduccion:'Reducción por filas', cofactores:'Expansión por cofactores', cota:'Cota del intervalo',
@@ -199,6 +200,11 @@ export function bindWorkspace(setOpen) {
 
   function setConditions() {
     const values = snapshot().values;
+    if (state.op === 'original.sistema') {
+      const partial = values.objetivo === 'escalonada';
+      fields.querySelector('.ws-options').hidden = partial;
+      fields.querySelector('.ws-theorem').hidden = partial;
+    }
     for (const [,control] of controls) {
       const condition = control.definition?.when;
       const enabled = !condition || Object.entries(condition).every(([name, allowed]) => allowed.includes(values[name]));
@@ -359,17 +365,18 @@ export function bindWorkspace(setOpen) {
         }
         const value = control.value();
         const def = control.definition ?? {};
-        const isRequired = original || def.required || (def.required_when && Object.entries(def.required_when)
+        const augmented = original && name === 'matrix';
+        const isRequired = augmented || def.required || (def.required_when && Object.entries(def.required_when)
           .every(([k,v]) => v.includes(draft.values[k])));
-        if ((value === '' || (original && !control.ready())) && isRequired) {
-          throw new Error(original ? 'Completá todas las celdas de la matriz aumentada, incluido b. Ingresá 0 cuando corresponda.' : `Completá «${def.label}».`);
+        if ((value === '' || (augmented && !control.ready())) && isRequired) {
+          throw new Error(augmented ? 'Completá todas las celdas de la matriz aumentada, incluido b. Ingresá 0 cuando corresponda.' : `Completá «${def.label}».`);
         }
         if (value !== '') input[name] = value;
       }
       button.disabled = reveal;
       status.textContent = 'Calculando…';
       const http = await fetch('/api/calcular',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({operation,input,steps:draft.options.steps})});
+        body:JSON.stringify({operation,input,steps:input.objetivo === 'escalonada' || draft.options.steps})});
       const response = await http.json();
       if (controller.signal.aborted || state?.op !== operation) return;
       status.textContent = '';
@@ -391,7 +398,10 @@ export function bindWorkspace(setOpen) {
   function example(override = {}) {
     if (!state) return;
     if (state.op === 'original.sistema') controls.get('matrix').set(override.matrix ?? exampleMatrix);
-    for (const f of catalog.operations[state.op].fields) controls.get(f.name).set(override[f.name] ?? f.default);
+    for (const f of catalog.operations[state.op].fields) {
+      if (state.op === 'original.sistema' && f.name === 'objetivo' && override.objetivo === undefined) continue;
+      controls.get(f.name).set(override[f.name] ?? f.default);
+    }
     setConditions();
     remember();
     calculate();

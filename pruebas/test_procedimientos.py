@@ -2,6 +2,7 @@
 from fractions import Fraction
 import json
 import unittest
+from unittest.mock import patch
 
 from backend import calculate, catalog
 
@@ -83,6 +84,28 @@ class ProceduresTest(unittest.TestCase):
             calculate("factorizacion.resolver", {"A": A, "b": [5]})
         with self.assertRaisesRegex(ValueError, "Elegí LU o PLU"):
             calculate("factorizacion.resolver", {"A": A, "b": [5, 11], "metodo": "otro"})
+
+    def test_system_stops_at_requested_echelon_form(self):
+        cases = [
+            ([[1, 1, 3], [2, 3, 8]], [["1", "1", "3"], ["0", "1", "2"]]),
+            ([[0, "1/2", 1], [0, 1, 3], [0, 0, 0]],
+             [["0", "1/2", "1"], ["0", "0", "1"], ["0", "0", "0"]]),
+        ]
+        for matrix, expected in cases:
+            with self.subTest(matrix=matrix):
+                data = {"matrix": matrix, "objetivo": "escalonada"}
+                with patch("analisis_sistema.aplicar_gauss_jordan", side_effect=AssertionError):
+                    response = calculate("original.sistema", data)
+                result = response["result"]
+                self.assertEqual(expected, result["matriz_escalonada"])
+                self.assertEqual(expected, result["pasos_gauss"][-1]["matriz"])
+                self.assertEqual(len(result["pasos_gauss"]) + 1, len(response["steps"]))
+                self.assertEqual({"metodo", "fila_original"}, {step["kind"] for step in response["steps"]})
+                self.assertNotIn("matriz_rref", result)
+                self.assertNotIn("clasificacion", result)
+                full = calculate("original.sistema", {"matrix": matrix, "objetivo": "completo"})
+                self.assertIn("matriz_rref", full["result"])
+                self.assertEqual(full, calculate("original.sistema", {"matrix": matrix}))
 
     def test_homogeneous_parameters_and_rank(self):
         r=calculate("original.sistema",{"matrix":[[1,2,3,4,5,10],[0,1,1,1,1,3],[0,0,1,2,3,4],[0,0,0,1,1,2]]})

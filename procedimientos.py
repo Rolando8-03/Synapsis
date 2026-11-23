@@ -16,9 +16,12 @@ def original_rows(ctx, steps):
 
 def legacy_trace(op, out, ctx):
     if op == "original.sistema":
-        for method, name in (("pasos_gauss","Gauss"),("pasos_jordan","Gauss-Jordan")):
-            ctx.emit("metodo", "Comenzar la fase de "+name+".", {})
-            original_rows(ctx,out[method])
+        ctx.emit("metodo", "Comenzar la fase de Gauss.", {})
+        original_rows(ctx, out["pasos_gauss"])
+        if out.get("objetivo") == "escalonada":
+            return
+        ctx.emit("metodo", "Comenzar la fase de Gauss-Jordan.", {})
+        original_rows(ctx, out["pasos_jordan"])
         if out.get("latex_solucion"):
             ctx.emit("solucion","Despejar y parametrizar las variables libres.",{},out["latex_solucion"])
         else:
