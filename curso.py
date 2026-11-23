@@ -260,13 +260,27 @@ def transformation(data, ctx):
         ctx.emit("componente",f"Ordenar y analizar la componente {i}.",{"grado":int(poly.total_degree()),"constante":str(poly.TC())},
                  rf"T_{{{i}}}="+sp.latex(component))
         if poly.total_degree() > 1 or poly.TC() != 0:
-            scale = sp.Symbol("lambda", real=True)
+            scale = sp.Dummy("lambda", real=True)
             changed = component.xreplace({v:scale*v for v in variables})
             failure = sp.expand(changed-scale*component)
             ctx.emit("demostrar_no_lineal","Restar los lados de la condición de homogeneidad.",
                      {"diferencia":str(failure)},
                      rf"T_{{{i}}}(\lambda x)-\lambda T_{{{i}}}(x)={sp.latex(failure)}\not\equiv0")
-            result.update(lineal=False, componente=i,
+            values = {}
+            remaining = failure
+            for symbol in (scale, *variables):
+                degree = int(sp.degree(remaining, symbol))
+                choice = next(k for k in range(2, degree + 3) if remaining.subs(symbol, k) != 0)
+                values[symbol] = choice
+                remaining = remaining.subs(symbol, choice)
+            point = {v: values[v] for v in variables}
+            image_scaled = component.subs({v: values[scale] * values[v] for v in variables})
+            scaled_image = values[scale] * component.subs(point)
+            witness = {"vector": list(point.values()), "escalar": values[scale],
+                       "T_del_vector_escalado": str(image_scaled), "escalar_por_T": str(scaled_image)}
+            ctx.emit("contraejemplo", "Sustituir valores concretos que rompen la homogeneidad.",
+                     witness, sp.latex(image_scaled) + r"\ne " + sp.latex(scaled_image))
+            result.update(lineal=False, componente=i, contraejemplo=witness,
                           motivo='Aparece un término de grado mayor que uno.' if poly.total_degree() > 1 else 'La imagen del cero no es el cero.',
                           formula_latex=rf'T_{{{i}}}=' + sp.latex(component))
             return result
@@ -317,6 +331,10 @@ def subspace(data, ctx):
                       justificacion='Si Au=Av=0, entonces A(αu+βv)=αAu+βAv=0.')
     else:
         result['justificacion'] = 'El vector cero no satisface una o más ecuaciones.' if affine['rango_A'] == affine['rango_aumentada'] else 'El conjunto es vacío.'
+        failed, rhs = next((i, value) for i, value in enumerate(b, 1) if value)
+        ctx.emit("testigo_subespacio", "El origen incumple una de las restricciones.",
+                 {"vector_cero": [0] * len(variables), "ecuacion": failed, "obtenido": 0, "requerido": str(rhs)},
+                 r"0\ne " + sp.latex(rhs))
     return result
 
 
@@ -404,6 +422,9 @@ def economy(data, ctx):
     if any(value < 0 for row in M for value in row):
         raise ValueError('Las participaciones deben ser no negativas.')
     A = [[entry / scale for entry in row] for row in M]
+    ctx.emit("unidades_economia", "Leer las columnas como sectores productores y las filas como sectores receptores.",
+             {"unidades_de_entrada": data["unidades"], "divisor": scale, "proporciones": A},
+             r"m_{ij}=	ext{parte de la producción de }j	ext{ que recibe }i")
     for i in range(n):
         total = sum(A[j][i] for j in range(n) if i != j)
         if total > 1:
@@ -424,6 +445,8 @@ def economy(data, ctx):
     from motor_matematico.algorithms.linear.reduction import solve
     ctx.emit("modelo","Trasladar la producción distribuida y añadir el precio de referencia cuando esté indicado.",
              {"tabla_intercambio":A,"matriz":rows_text(C.row_join(b)),"separador":C.cols},r"(I-M)p=0")
+    from procedimientos import model_rows
+    model_rows(ctx, rows_text(C), list(map(str, b)), "p", "equilibrio", "precio en la unidad monetaria de referencia")
     solve(matrix(rows_text(C)),vector(list(map(str,b))),ctx)
     return {'tabla_intercambio': A, 'modelo': rows_text(C.row_join(b)),
             'equilibrio': analyze_affine(C,b), 'formula_latex': r'(I-M)p=0'}
@@ -435,6 +458,9 @@ def balance(data, ctx):
         raise ValueError('La matriz de átomos debe contener cantidades enteras con signo.')
     S = sp.Matrix(A)
     from motor_matematico.algorithms.linear.reduction import solve
+    from procedimientos import model_rows
+    model_rows(ctx, A, [Fraction(0)] * len(A), "c", "conservación",
+               "átomos por compuesto; positivo en reactivos, negativo en productos")
     solved = solve(A,[Fraction(0)]*len(A),ctx)
     basis = [sp.Matrix(v) for v in solved["direcciones"]]
     out = {'matriz_de_balance': A, 'dimension_del_nucleo': len(basis),
@@ -468,6 +494,9 @@ def nonnegative(data, ctx):
         raise ValueError('Este análisis admite hasta 8 variables de flujo.')
     out = analyze_affine(S,d)
     from motor_matematico.algorithms.linear.reduction import solve
+    from procedimientos import model_rows
+    model_rows(ctx, A, b, "x", "balance de flujos",
+               "cada flujo y término independiente se expresa en la misma unidad por período")
     solve(A,b,ctx)
     ctx.emit("restricciones","Restringir la familia a flujos no negativos.",{},r"x_i\ge0")
     from sympy.solvers.simplex import InfeasibleLPError, UnboundedLPError, linprog

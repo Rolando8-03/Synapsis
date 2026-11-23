@@ -115,6 +115,17 @@ def legacy_trace(op, out, ctx):
             ctx.emit("igualdad","Comparar los miembros de "+prop["nombre"]+".",prop)
 
 
+def model_rows(ctx, A, b, symbol, model, units):
+    for index, (row, rhs) in enumerate(zip(A, b), 1):
+        terms = [
+            rf"({tex(value)}){symbol}_{{{j}}}"
+            for j, value in enumerate(row, 1) if Fraction(value)
+        ]
+        ctx.emit("ecuacion_modelo", f"Construir la ecuación {index} de {model} con sus signos.",
+                 {"coeficientes": row, "independiente": rhs, "unidades": units},
+                 ("+".join(terms) or "0") + "=" + tex(rhs))
+
+
 def matvec_steps(ctx,A,v,w,label):
     for i,(row,value) in enumerate(zip(A,w),1):
         ctx.emit("matriz_vector",f"Multiplicar la fila {i} por el vector.",{"fila":row,"vector":v,"valor":value},

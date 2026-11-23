@@ -35,6 +35,8 @@ def fundamental(A, ctx):
         else [[F(0)] * len(A[0]) for _ in A]
     )
     row_equivalence = multiply(reduced["E"], A, ctx) == R
+    ctx.emit("columnas_imagen", "Tomar las columnas pivote de A original para construir la base de la imagen.",
+             {"A": A, "pivotes": pivots, "base_imagen": col}, r"\dim\operatorname{im}(A)=" + str(r))
     verified = (
         r + len(null) == len(A[0])
         and all(not any(v) for v in images)
@@ -239,7 +241,12 @@ def change_basis(source, target, ambient, ctx, v=None):
         raise LinearFailure(
             "not_applicable", "Las bases deben generar el mismo subespacio."
         )
-    cols = [coordinates(target, s, ambient, ctx)[0]["coordenadas"] for s in source]
+    cols = []
+    for index, vector in enumerate(source, 1):
+        coeff = coordinates(target, vector, ambient, ctx)[0]["coordenadas"]
+        cols.append(coeff)
+        ctx.emit("columna_transicion", f"Expresar el vector {index} de la base origen en la base destino.",
+                 {"vector_origen": vector, "columna_de_P": coeff}, rf"T P_{{:{index}}}=S_{{:{index}}}")
     transition = transpose(cols)
     S, T = columns(source, ambient), columns(target, ambient)
     reconstructed = multiply(T, transition, ctx) if source else T
@@ -264,5 +271,11 @@ def change_basis(source, target, ambient, ctx, v=None):
         result.update(
             {"coordenadas_origen": origin, "coordenadas_destino": destination}
         )
-        checks["passed"] = checks["passed"] and mapped == destination
+        from_origin = matvec(S, origin, ctx) if source else [F(0)] * ambient
+        from_destination = matvec(T, destination, ctx) if source else [F(0)] * ambient
+        checks.update(reconstruccion_origen=from_origin, reconstruccion_destino=from_destination)
+        checks["passed"] = checks["passed"] and mapped == destination and from_origin == from_destination == v
+        ctx.emit("reconstruccion", "Reconstruir el mismo vector en el espacio original con cada base.",
+                 {"desde_origen": from_origin, "desde_destino": from_destination, "vector": v},
+                 r"S[v]_S=T[v]_T=v")
     return result, checks
