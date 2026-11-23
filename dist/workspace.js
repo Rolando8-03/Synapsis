@@ -6,6 +6,7 @@ const OPTIONS = [
   ['solution','Solución'], ['ranks','Rangos y clasificación'], ['forms','Matrices escalonadas'],
   ['steps','Procedimiento'], ['verify','Comprobación'],
 ];
+const visualExpressionOps = new Set(['calculo.derivar', 'calculo.primitiva']);
 const HISTORY_KEY = 'synapsis-historial-escritorio';
 const exampleMatrix = [['2','1','-1','8'],['-3','-1','2','-11'],['-2','1','2','-3']];
 
@@ -82,7 +83,7 @@ export function bindWorkspace(setOpen) {
   }));
   for (const [id, card] of cards) sections.add(new Option(card.name,id));
 
-  let derivativeField;
+  let expressionField;
   let catalogPromise;
   let catalog;
   let state;
@@ -215,8 +216,17 @@ export function bindWorkspace(setOpen) {
 
   function elementField(definition, value) {
     const {name, label, kind, choices} = definition;
-    if (state.op === 'calculo.derivar' && name === 'expresion') {
-      return derivativeField(definition, value, queueAutomatic);
+    if (visualExpressionOps.has(state.op) && name === 'expresion') {
+      const differential = catalog.operations[state.op].fields.find(field => field.name === 'variable');
+      return expressionField(definition, value, queueAutomatic, differential?.default);
+    }
+    if (state.op === 'calculo.primitiva' && name === 'variable') {
+      // La plantilla muestra dx. Enviá esa misma variable también al recuperar un historial antiguo.
+      const input = node('input');
+      input.type = 'hidden';
+      const set = () => { input.value = definition.default; };
+      set();
+      return {definition, element:input, set, raw:() => input.value, value:() => input.value};
     }
     if (['matrix','vector','vectors'].includes(kind)) {
       const control = gridField(label,value,{vector:kind === 'vector',required:definition.required,onChange:queueAutomatic});
@@ -494,11 +504,11 @@ export function bindWorkspace(setOpen) {
     if (revision !== generation) return;
     const ids = catalog.modules[module].flatMap(([, ids]) => ids);
     const op = ids.includes(requested) ? requested : ids[0];
-    if (op === 'calculo.derivar' && !derivativeField) {
+    if (visualExpressionOps.has(op) && !expressionField) {
       try {
-        ({derivativeField} = await import('./derivative-field.js'));
+        ({expressionField} = await import('./derivative-field.js'));
       } catch {
-        if (revision === generation) status.textContent = 'No se pudo abrir el editor matemático. Volvé a abrir Derivar.';
+        if (revision === generation) status.textContent = 'No se pudo abrir el editor matemático. Volvé a abrir la operación.';
         return;
       }
       if (revision !== generation) return;

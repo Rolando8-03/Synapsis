@@ -280,3 +280,10 @@
 .ws-power-keys { display: flex; flex-wrap: wrap; gap: 4px; }
 .ws-power-keys button { min-width: 36px; padding: 4px 8px; }
 .ws-derivative > button { justify-self: start; }
+
+.ws-integral-template {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center;
+  gap: .55rem; color: var(--ws-text);
+}
+.ws-integral-template input { min-width: 0; }
+.ws-integral-template .ws-math { font-size: 1.25rem; }

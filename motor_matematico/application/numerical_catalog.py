@@ -222,7 +222,10 @@ NUMERICAL_DATA.extend(
         spec(
             "calculo.primitiva",
             "Primitiva de reglas admitidas",
-            [field("expresion", "Función f(x)", "expression", "x^2", True)],
+            [
+                field("expresion", "Integrando", "expression", "x^2", True),
+                field("variable", "Variable de integración", "select", "x", choices=["x"]),
+            ],
             "Polinomios de grado hasta 30, sumas y múltiplos constantes, sin/cos/exp de argumento afín y 1/x. Se añade la constante C.",
             "Herramientas",
         ),

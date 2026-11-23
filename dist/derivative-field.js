@@ -1,4 +1,5 @@
 import { MathfieldElement, convertAsciiMathToLatex, convertLatexToAsciiMath } from './vendor/mathlive/mathlive.min.mjs';
+import { math as formula } from './math-format.js';
 import { node } from './matrix-input.js';
 
 MathfieldElement.fontsDirectory = new URL('./vendor/katex/fonts/', import.meta.url).href;
@@ -50,7 +51,7 @@ function visualLatex(text) {
   return null;
 }
 
-export function derivativeField(definition, initial, onChange) {
+export function expressionField(definition, initial, onChange, differential) {
   const element = node('div', 'ws-field ws-full-field ws-derivative');
   const label = node('label', '', definition.label);
   const math = new MathfieldElement();
@@ -74,7 +75,7 @@ export function derivativeField(definition, initial, onChange) {
     ['□⁄□', ['insert', '\\frac{#0}{#?}'], 'Fracción'],
     ['√□', ['insert', '\\sqrt{#0}'], 'Raíz cuadrada'],
     ...Array.from('1234567890', digit => [digit, ['insert', digit]]),
-    ['−', ['insert', '-']], ['×', ['insert', '\\cdot'], 'Multiplicar'],
+    ['+', ['insert', '+']], ['−', ['insert', '-']], ['×', ['insert', '\\cdot'], 'Multiplicar'],
     ['⇥', 'moveToNextPlaceholder', 'Siguiente hueco'],
     ['→', 'moveToNextChar', 'Avanzar'], ['⌫', 'deleteBackward', 'Borrar'],
   ]) {
@@ -95,7 +96,18 @@ export function derivativeField(definition, initial, onChange) {
   toggle.type = 'button';
   const feedback = node('span', 'ws-field-help');
   feedback.setAttribute('role', 'status');
-  element.append(label, math, text, keys, toggle, feedback);
+  element.append(label);
+  if (differential) {
+    const row = node('div', 'ws-integral-template');
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', `Integral indefinida respecto de ${differential}`);
+    row.append(formula('\\displaystyle\\int', '∫'), math, text,
+      formula(`\\mathrm{d}${differential}`, `d${differential}`));
+    element.append(row);
+  } else {
+    element.append(math, text);
+  }
+  element.append(keys, toggle, feedback);
 
   function useVisual(visual) {
     math.hidden = keys.hidden = !visual;

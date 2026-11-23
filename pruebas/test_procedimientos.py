@@ -47,6 +47,18 @@ class ProceduresTest(unittest.TestCase):
                     self.assertTrue(result.get("result"),result.get("error"))
                     self.assertTrue(result["steps"])
 
+    def test_primitiva_respects_the_differential_and_older_inputs(self):
+        op = "calculo.primitiva"
+        integrand = {"expresion": "x/2"}
+        for data in (integrand, {**integrand, "variable": "x"}):
+            with self.subTest(data=data):
+                answer = calculate(op, data)
+                self.assertEqual("ok", answer["status"])
+                self.assertEqual("(1/4)*x^2 + C", answer["result"]["expresion"])
+        for data in ({"expresion": "x", "variable": "y"}, {"expresion": "y", "variable": "x"}):
+            with self.subTest(data=data):
+                self.assertTrue(calculate(op, data).get("error"))
+
     def test_matrix_product_contains_each_entry(self):
         r = calculate("matrices.producto", {"A":"1 2 3\n4 5 6","B":"1 0\n2 1\n0 3"})
         self.assertEqual([["5","11"],["14","23"]],r["result"]["matrix"])
