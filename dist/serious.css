@@ -11,10 +11,8 @@
   --muted: #c8d6e9;
   --accent: var(--blue-accent);
   --line: #d1e0f535;
-  --menu-highlight: #202e41;
   --menu-bar: #112034;
   --menu-hover: #d1e0f515;
-  --menu-elevation: #05090f40;
   --menu-surface-low: #131c28;
   --menu-table: #1f2c3f;
   --menu-input: #101f34;
@@ -35,10 +33,8 @@
   --accent-hover: #143a73;
   --on-accent: #fbfdff;
   --line: #445e833d;
-  --menu-highlight: #dae5f4;
   --menu-bar: #f4f7fc;
   --menu-hover: #42669814;
-  --menu-elevation: #24385412;
   --menu-surface-low: #eff4fb;
   --menu-table: #e2eaf4;
   --menu-input: #fbfdff;
@@ -55,9 +51,10 @@
 
 .serious main {
   min-height: calc(100svh - var(--bar) - 1px);
-  background: radial-gradient(ellipse 75% 72% at 50% -15%, var(--menu-highlight), transparent 84%), var(--canvas);
+  background: var(--canvas);
 }
 .serious .topbar {
+  backdrop-filter: none;
   background: var(--menu-bar);
   border-color: var(--line);
 }
@@ -73,56 +70,52 @@
   padding: clamp(26px, 6vh, 76px) 0 clamp(32px, 7vh, 82px);
 }
 .serious #modulos > .shell { max-width: 1112px; }
-.serious #modulos:focus-visible .card:first-child { outline: 2px solid var(--accent); outline-offset: 4px; }
-.serious .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(12px, 1.65vw, 21px); }
+.subject-heading { display: none; }
+.serious .cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+.serious .subject-heading {
+  display: block;
+  grid-column: 1 / -1;
+  margin-block: 16px 2px;
+  font-size: 1.16rem;
+  color: var(--muted);
+}
+.serious .subject-heading:first-child { margin-top: 0; }
 .serious .card {
-  --module-accent: var(--accent);
-  --card-line: var(--line);
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 5em;
   align-items: center;
-  gap: clamp(12px, 2vw, 23px);
-  min-height: 122px;
-  padding: 16px clamp(13px, 1.5vw, 23px);
-  border-radius: 16px;
+  column-gap: 12px;
+  min-height: 66px;
+  padding: 12px clamp(12px, 2vw, 22px);
+  border: 1px solid var(--line);
+  border-radius: 10px;
   background: var(--surface);
-  box-shadow: 0 5px 17px var(--menu-elevation);
-  transition: border-color .18s ease, box-shadow .18s ease;
+  box-shadow: none;
+  transition: none;
 }
 .serious .card:has(.card-open:hover), .serious .card:focus-within {
   transform: none;
-  border-color: var(--module-accent);
-  box-shadow: 0 8px 21px var(--menu-elevation);
+  border-color: var(--accent);
 }
+.serious .card-copy { grid-area: 1 / 1; padding: 0; }
+.serious .card h3 { font-size: clamp(1rem, 1.65vw, 1.25rem); }
 .serious .art {
-  width: clamp(55px, 7vw, 83px);
-  height: clamp(53px, 5.7vw, 69px);
+  grid-area: 1 / 2;
+  justify-items: start;
   min-height: 0;
-  border-radius: 12px;
-  color: var(--module-accent);
-  border: 1px solid color-mix(in srgb, var(--module-accent) 26%, transparent);
-  background: color-mix(in srgb, var(--module-accent) 9%, var(--surface));
-  overflow: hidden;
+  background: none;
+  perspective: none;
 }
-.serious .art::before {
-  background: radial-gradient(currentColor .55px, transparent .75px) 0 1px / 8px 8px;
-  mask-image: none;
-  opacity: .17;
+.serious .formula {
+  position: static;
+  color: var(--accent);
+  font: 1.06rem/1.3 Georgia, serif;
+  white-space: nowrap;
 }
-.serious .formula { display: none; }
-.serious .art > svg { width: 93%; height: 93%; filter: none; margin: 0; }
-.serious .card-copy { padding: 0 37px 0 0; }
-.serious .card h3 { font-size: clamp(1.12rem, 1.9vw, 1.46rem); }
-.serious .card p { color: var(--muted); margin-top: 5px; font-size: .91rem; }
-.serious .card-plus {
-  width: 28px; height: 28px; bottom: calc(50% - 14px);
-  right: clamp(12px, 1.7vw, 24px);
-  background: var(--surface); color: var(--module-accent);
-  border-color: color-mix(in srgb, var(--module-accent) 32%, transparent);
-}
-.serious .card-open:is(:hover, :focus-visible) .card-plus {
-  color: var(--surface); background: var(--module-accent); transform: none;
-}
+.serious .art::before, .serious :is(.art > svg, .card p, .card-plus) { display: none; }
 
 .serious dialog { background: var(--surface); border-color: var(--line); }
 .serious dialog::backdrop { background: #0d1725a6; }
@@ -156,8 +149,6 @@ html[data-mode-transition]::view-transition-new(root) {
 }
 @media (max-width: 650px) {
   .serious .cards { grid-template-columns: 1fr; }
-  .serious .card { min-height: 94px; padding-block: 12px; }
-  .serious .art { width: 60px; height: 54px; }
 }
 @media (max-width: 433px) {
   .serious #theme { width: 42px; padding-inline: 0; }

@@ -6,7 +6,7 @@ Partí de `backend.py` y `dist/workspace*`. Aplicá [las reglas de integración]
 | --- | --- | --- |
 | U01 ✓ | Validar por objetivo usando Solo LU y Resolver por LU como casos piloto. | Con A se entregan L y U. Si se elige resolver sin b, el formulario pide b, conserva A y ofrece factorizar. El servicio devuelve un diagnóstico comprensible. |
 | U02 ✓ | Exponer la selección de entregables en una operación existente de Sistemas. | Elegir solo escalonada devuelve su procedimiento y se detiene allí. La selección completa sigue disponible. |
-| U03 | Agrupar las tarjetas del menú serio por Álgebra, Cálculo y Métodos numéricos. | Barra y tarjetas con título y fórmula alineados, accesibles por teclado y sin búsqueda, efectos ni animación. Comparar portada antes/después. |
+| U03 ✓ | Agrupar las tarjetas del menú serio por Álgebra, Cálculo y Métodos numéricos. | Barra y tarjetas con título y fórmula alineados, accesibles por teclado y sin búsqueda, efectos ni animación. Comparar portada antes/después. |
 | U04 | Conectar una operación nueva a la navegación actual. | Abre completa, la barra colapsada mantiene iconos identificables y la preferencia persiste. Resolver reemplaza el formulario y Editar recupera los datos. |
 | U05 | Introducir un campo MathLive local para una potencia en Derivar. | Con el teclado visible se ingresa $x^3$ sin sintaxis de programación. Teclado físico y edición del historial siguen funcionando sin red tras instalar. |
 | U06 | Añadir plantillas de fracción y raíz al teclado de expresiones. | El cursor recorre numerador, denominador y radicando. Un hueco señala su posición y conserva lo escrito. |
@@ -21,3 +21,5 @@ Partí de `backend.py` y `dist/workspace*`. Aplicá [las reglas de integración]
 **Evidencia U01.** En la vista Resolver Ax=b, ingresar una matriz A con filas (2,1) y (4,3) y dejar b vacío ofrece factorizar esa misma matriz con el método seleccionado. Tanto LU como PLU permiten volver, ingresar b=(5,11) y obtener x=(2,1). Regresión automatizada: `test_lu_inputs_follow_requested_goal`.
 
 **Evidencia U02.** En Sistemas lineales → Resolver y clasificar, elegí «Solo escalonada (Gauss)». Con las filas (1,1 | 3) y (2,3 | 8), la operación F₂ ← F₂ − 2F₁ deja (0,1 | 2) como segunda fila. El procedimiento termina en Gauss. «Análisis completo» permite resolver el mismo sistema. La prueba `test_system_stops_at_requested_echelon_form` cubre también una columna inicial nula y un pivote en la columna aumentada.
+
+**Evidencia U03.** El menú serio agrupa los ocho módulos bajo Álgebra, Cálculo y Métodos numéricos. En Chromium, a 1366 y 390 píxeles de ancho, se comprobó la alineación de títulos y fórmulas en ambos temas. Tab recorre las tarjetas en orden, Enter abre cada módulo y Escape devuelve el foco a su tarjeta. Las capturas de la portada y de los módulos públicos con movimiento reducido coincidieron píxel por píxel con la versión anterior.

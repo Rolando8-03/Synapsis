@@ -56,6 +56,7 @@ function applyView() {
   page.classList.toggle('motion-override', stopped === 'false');
   theme.hidden = !serious;
   seriousTitle.hidden = !serious;
+  for (const art of menu.querySelectorAll('.art')) art.setAttribute('aria-hidden', String(!serious));
   menu.setAttribute('aria-labelledby', serious ? seriousTitle.id : 'modules-title');
   for (const brand of brands) {
     brand.href = serious ? '#modulos' : '#portada';
@@ -99,7 +100,7 @@ async function switchView() {
   if (switching) return;
   const next = !serious;
   if (next) spatialPosition = { hash: location.hash, top: scrollY };
-  if (preference.matches || page.classList.contains('still')) {
+  if (next || preference.matches || page.classList.contains('still')) {
     goToView(next, spatialPosition);
     return;
   }
