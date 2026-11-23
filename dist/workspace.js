@@ -10,6 +10,7 @@ const visualFields = {
   'calculo.derivar':['expresion'], 'calculo.primitiva':['expresion'],
   'calculo.limite_lateral':['expresion'], 'calculo.derivada_parcial':['expresion'],
   'calculo.sumatoria':['expresion'], 'raices.biseccion':['expresion'], 'raices.falsa_posicion':['expresion'],
+  'raices.newton':['expresion', 'derivada'], 'raices.secante':['expresion'],
   'grafica.explicita':['expr'], 'grafica.parametrica':['expr', 'y'], 'funciones.evaluar':['expresion'],
 };
 const HISTORY_KEY = 'synapsis-historial-escritorio';
