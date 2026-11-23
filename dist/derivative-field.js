@@ -1,5 +1,6 @@
 import { MathfieldElement, convertAsciiMathToLatex, convertLatexToAsciiMath } from './vendor/mathlive/mathlive.min.mjs';
 import { math as formula } from './math-format.js';
+import { explicitProducts } from './expression-input.mjs';
 import { node } from './matrix-input.js';
 
 MathfieldElement.fontsDirectory = new URL('./vendor/katex/fonts/', import.meta.url).href;
@@ -19,13 +20,12 @@ function groupEnd(latex, start) {
   throw new Error(incomplete);
 }
 
-function expression(latex) {
+function expression(latex, intervalMethod) {
   // MathLive puede omitir huecos cuando exporta a texto.
   if (/\\placeholder\b|\{\s*\}/u.test(latex)) throw new Error(incomplete);
   const symbols = latex.replace(/\\(?:m?left|m?right|cdot|times|div|sin|cos|tan|ln|log|exp|pi|frac|sqrt)\b/g, '');
-  if (/[^a-zA-Z0-9\s.+*^()/{}-]/u.test(symbols)) {
-    throw new Error('Usá potencias, fracciones o raíces cuadradas en el editor, o escribí la expresión como texto.');
-  }
+  const unsupported = symbols.match(/\\[a-zA-Z]+|[^a-zA-Z0-9\s.+*^()/{}-]/u);
+  if (unsupported) throw new Error(`Revisá «${unsupported[0]}» en el campo de la función. Para otras notaciones, usá la entrada de texto.`);
 
   // Agrupar la fracción completa, también cuando es el exponente o el divisor.
   const delimiters = [];
@@ -39,19 +39,20 @@ function expression(latex) {
   for (const [index, delimiter] of delimiters.sort(([a], [b]) => b - a)) {
     latex = latex.slice(0, index) + delimiter + latex.slice(index);
   }
-  return convertLatexToAsciiMath(latex).trim();
+  const ascii = convertLatexToAsciiMath(latex).trim();
+  return intervalMethod ? explicitProducts(ascii, true) : ascii;
 }
 
-function visualLatex(text) {
+function visualLatex(text, intervalMethod) {
   const normalize = s => s.replace(/\s+/g, '').replaceAll('**', '^');
   try {
     const latex = convertAsciiMathToLatex(text.replaceAll('**', '^'));
-    if (normalize(expression(latex)) === normalize(text)) return latex;
+    if (normalize(expression(latex, intervalMethod)) === normalize(intervalMethod ? explicitProducts(text) : text)) return latex;
   } catch { /* Conservá la entrada original si no hay conversión fiel. */ }
   return null;
 }
 
-export function expressionField(definition, initial, onChange, differential) {
+export function expressionField(definition, initial, onChange, differential, intervalMethod) {
   const element = node('div', 'ws-field ws-full-field ws-derivative');
   const label = node('label', '', definition.label);
   const math = new MathfieldElement();
@@ -73,6 +74,7 @@ export function expressionField(definition, initial, onChange, differential) {
   for (const [caption, command, name] of [
     ['x', ['insert', 'x']], ['□ⁿ', 'moveToSuperscript', 'Exponente'],
     ['□⁄□', ['insert', '\\frac{#0}{#?}'], 'Fracción'],
+    ...(intervalMethod ? [['(□)', ['insert', '\\left(#0\\right)'], 'Paréntesis']] : []),
     ['√□', ['insert', '\\sqrt{#0}'], 'Raíz cuadrada'],
     ...Array.from('1234567890', digit => [digit, ['insert', digit]]),
     ['+', ['insert', '+']], ['−', ['insert', '-']], ['×', ['insert', '\\cdot'], 'Multiplicar'],
@@ -126,7 +128,7 @@ export function expressionField(definition, initial, onChange, differential) {
 
   toggle.addEventListener('click', () => {
     if (math.hidden) {
-      const latex = visualLatex(text.value);
+      const latex = visualLatex(text.value, intervalMethod);
       if (latex === null) {
         feedback.textContent = 'Esta expresión se edita como texto. Para empezar una expresión nueva en el editor, vaciá el campo.';
         feedback.hidden = false;
@@ -136,7 +138,7 @@ export function expressionField(definition, initial, onChange, differential) {
       useVisual(true);
       math.focus();
     } else {
-      try { text.value = expression(math.value); }
+      try { text.value = expression(math.value, intervalMethod); }
       catch { text.value = math.value; }
       useVisual(false);
       text.focus();
@@ -148,6 +150,9 @@ export function expressionField(definition, initial, onChange, differential) {
   return {
     definition, element, set,
     raw: () => math.hidden ? text.value : {latex:math.value},
-    value: () => math.hidden ? text.value.trim() : expression(math.value),
+    value: () => {
+      if (!math.hidden) return expression(math.value, intervalMethod);
+      return intervalMethod ? explicitProducts(text.value) : text.value.trim();
+    },
   };
 }
