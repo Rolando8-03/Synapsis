@@ -31,6 +31,17 @@ function scalar(value) {
 }
 function isScalar(value) { return value === null || typeof value !== 'object'; }
 
+const headerFormulas = {
+  'xᵣ': 'x_r', 'xₖ': 'x_k', 'xₖ₊₁': 'x_{k+1}', 'f(xᵣ)': 'f(x_r)', 'f′(xₖ)': "f'(x_k)",
+  'f(xₖ)': 'f(x_k)', 'f(xₖ₋₁)': 'f(x_{k-1})', 'εₐ (%)': '\\varepsilon_a\\,(\\%)',
+  '|f(xₖ₊₁)|': '|f(x_{k+1})|', '‖Ax−b‖': '\\lVert Ax-b\\rVert',
+  'Ax': 'Ax', 'f(x)': 'f(x)', 'f(a)': 'f(a)', 'f(b)': 'f(b)',
+};
+function headerContent(heading) {
+  const tex = headerFormulas[heading] ?? (/^x\d+$/.test(heading) ? `x_{${heading.slice(1)}}` : null);
+  return tex ? math(tex, heading) : document.createTextNode(heading);
+}
+
 function table(headings, rows, caption = '', independent = false) {
   const scroll = node('div', 'ws-table-scroll');
   const data = node('table', `ws-result-table${independent ? ' ws-augmented' : ''}`);
@@ -38,7 +49,8 @@ function table(headings, rows, caption = '', independent = false) {
   if (headings?.length) {
     const row = data.createTHead().insertRow();
     for (const heading of headings) {
-      const th = node('th', '', heading);
+      const th = node('th');
+      th.append(headerContent(heading));
       th.scope = 'col';
       row.append(th);
     }
