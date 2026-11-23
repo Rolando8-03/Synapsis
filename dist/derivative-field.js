@@ -53,7 +53,7 @@ function visualLatex(text, intervalMethod, variables) {
 }
 
 export function expressionField(definition, initial, onChange, differential, intervalMethod) {
-  const variables = definition.editor === 'parcial' ? ['x', 'y'] : ['x'];
+  const variables = ({parcial:['x', 'y'], sumatoria:['k']})[definition.editor] ?? ['x'];
   const element = node('div', 'ws-field ws-full-field ws-derivative');
   const label = node('label', '', definition.label);
   const math = new MathfieldElement();
@@ -159,6 +159,11 @@ export function expressionField(definition, initial, onChange, differential, int
       if (definition.editor === 'parcial') {
         const variable = values.variable === 'y' ? 'y' : 'x';
         operator.replaceChildren(formula(`\\frac{\\partial}{\\partial ${variable}}`, `derivada parcial respecto de ${variable}`));
+      }
+      if (definition.editor === 'sumatoria') {
+        const first = /^-?\d+$/.test(values.inferior) ? values.inferior : 'a';
+        const last = /^-?\d+$/.test(values.superior) ? values.superior : 'b';
+        operator.replaceChildren(formula(`\\sum_{k=${first}}^{${last}}`, `suma para k de ${first} a ${last}`));
       }
       if (definition.editor === 'limite') {
         const point = values.punto ? numericTex(values.punto) ?? 'a' : 'a';

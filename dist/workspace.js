@@ -7,7 +7,7 @@ const OPTIONS = [
   ['steps','Procedimiento'], ['verify','Comprobación'],
 ];
 const intervalMethods = new Set(['raices.biseccion', 'raices.falsa_posicion']);
-const visualExpressionOps = new Set(['calculo.derivar', 'calculo.primitiva', 'calculo.limite_lateral', 'calculo.derivada_parcial', ...intervalMethods]);
+const visualExpressionOps = new Set(['calculo.derivar', 'calculo.primitiva', 'calculo.limite_lateral', 'calculo.derivada_parcial', 'calculo.sumatoria', ...intervalMethods]);
 const HISTORY_KEY = 'synapsis-historial-escritorio';
 const exampleMatrix = [['2','1','-1','8'],['-3','-1','2','-11'],['-2','1','2','-3']];
 

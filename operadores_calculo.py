@@ -49,3 +49,18 @@ def partial(data, context):
     context.emit("derivada_parcial", f"Derivar respecto de {variable} manteniendo {constant} constante.",
                  {"variable": str(variable), "constante": str(constant)}, formula)
     return {"derivada": str(derivative), "formula_latex": formula}
+
+
+def summation(data, context):
+    k = sp.Symbol("k", integer=True)
+    first = integer(data["inferior"], "Inicio", -10000, 10000)
+    last = integer(data["superior"], "Fin", first, 10000)
+    if last - first > 999:
+        raise ValueError("La sumatoria admite hasta 1000 términos.")
+    term = polynomial(data["expresion"], (k,))
+    total = sum(term.subs(k, index) for index in range(first, last + 1))
+    formula = rf"\sum_{{k={first}}}^{{{last}}} \left({sp.latex(term)}\right) = {sp.latex(total)}"
+    context.emit("sumatoria", "Sustituir el índice por los enteros del intervalo, incluidos los extremos, y sumar.",
+                 {"terminos": last - first + 1, "primero": str(term.subs(k, first)),
+                  "ultimo": str(term.subs(k, last))}, formula)
+    return {"valor": str(total), "formula_latex": formula}

@@ -65,6 +65,10 @@ EXTRA = {
     "calculo.derivada_parcial": spec("Derivada parcial", "Derivá un polinomio en x e y respecto de una variable.", [
         field("expresion", "Función de x e y", "expression", "x^2*y", editor="parcial"),
         field("variable", "Derivar respecto de", "select", "x", choices=["x", "y"])]),
+    "calculo.sumatoria": spec("Sumatoria finita", "Sumá un polinomio en k entre dos índices enteros, incluidos ambos.", [
+        field("expresion", "Término en k", "expression", "k^2", editor="sumatoria"),
+        field("inferior", "Índice inicial", "integer", "1"),
+        field("superior", "Índice final", "integer", "3")]),
     "calculo.limite_lateral": spec("Límite lateral", "Calculá el límite lateral de un polinomio o de un cociente de polinomios.", [
         field("expresion", "Función de x", "expression", "(x^2-1)/(x-1)", editor="limite"),
         field("punto", "Punto de aproximación", default="1"),
@@ -153,7 +157,7 @@ MODULES = {
     "vectores": [("Operaciones", ["vectores.suma", "vectores.resta", "vectores.escalar", "vectores.producto_punto", "vectores.producto_cruz", "vectores.norma", "vectores.angulo", "vectores.combinacion", "vectores.paralelogramo", "vectores.proyeccion"]),
         ("Bases y subespacios", ["vectores.analizar", "vectores.generado", "espacios.polinomios", "espacios.subespacio", "espacios.fundamentales", "espacios.base", "espacios.suma", "espacios.interseccion", "espacios.coordenadas", "espacios.cambio_base"]),
         ("Transformaciones", ["transformaciones.formula", "transformaciones.analizar", "transformaciones.desde_imagenes", "transformaciones.componer", "transformaciones.representar", "original.relaciones"])],
-    "grafica": [("Gráficas", ["grafica.explicita", "grafica.parametrica", "funciones.evaluar"]), ("Cálculo", ["calculo.derivar", "calculo.primitiva", "original.primitiva", "calculo.definida", "calculo.numerica", "calculo.limite_lateral", "calculo.derivada_parcial"])],
+    "grafica": [("Gráficas", ["grafica.explicita", "grafica.parametrica", "funciones.evaluar"]), ("Cálculo", ["calculo.derivar", "calculo.primitiva", "original.primitiva", "calculo.definida", "calculo.numerica", "calculo.limite_lateral", "calculo.derivada_parcial", "calculo.sumatoria"])],
     "raices": [("Métodos de intervalo", ["raices.biseccion", "raices.falsa_posicion"]), ("Métodos abiertos", ["raices.newton", "raices.secante"])],
     "iterativos": [("Métodos de aproximación", ["iterativos.jacobi", "iterativos.gauss_seidel", "iterativos.sor", "iterativos.dominancia","iterativos.comparar"])],
     "errores": [("Análisis numérico", ["errores.calcular", "errores.redondeo", "errores.propagacion", "errores.acumulacion", "errores.taylor", "errores.exactitud", "errores.maquina", "calculadora.evaluar"])],
@@ -326,6 +330,7 @@ def vector_pair(data):
 COURSE_HANDLERS = {
     "calculo.limite_lateral": operadores_calculo.limit,
     "calculo.derivada_parcial": operadores_calculo.partial,
+    "calculo.sumatoria": operadores_calculo.summation,
     "matrices.notacion": entry, "matrices.comparar": matrix_compare,
     "matrices.teorema_invertible": invertible_theorem, "espacios.polinomios": polynomials,
     "sistemas.parametrico": parametric, "espacios.subespacio": subspace,
@@ -335,7 +340,7 @@ COURSE_HANDLERS = {
     "errores.maquina": machine, "iterativos.dominancia": dominance, "vectores.paralelogramo": vector_diagram,
     "errores.taylor": taylor_exp, "errores.exactitud": accuracy,
 }
-WITH_CONTEXT = {"calculo.limite_lateral", "calculo.derivada_parcial","matrices.notacion", "matrices.comparar", "matrices.teorema_invertible", "espacios.polinomios",
+WITH_CONTEXT = {"calculo.sumatoria", "calculo.limite_lateral", "calculo.derivada_parcial","matrices.notacion", "matrices.comparar", "matrices.teorema_invertible", "espacios.polinomios",
                 "sistemas.parametrico","transformaciones.formula","espacios.subespacio","modelos.economia",
                 "modelos.balance","modelos.flujos","iterativos.dominancia"}
 
