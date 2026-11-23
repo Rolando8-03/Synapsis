@@ -4,7 +4,7 @@ Partí de `backend.py` y `dist/workspace*`. Aplicá [las reglas de integración]
 
 | Fase | Tarea de una sesión | Prueba de cierre |
 | --- | --- | --- |
-| U01 | Validar por objetivo usando Solo LU y Resolver por LU como casos piloto. | Con A se entregan L y U. Si se elige resolver sin b, el formulario pide b, conserva A y ofrece factorizar. El servicio devuelve un diagnóstico comprensible. |
+| U01 ✓ | Validar por objetivo usando Solo LU y Resolver por LU como casos piloto. | Con A se entregan L y U. Si se elige resolver sin b, el formulario pide b, conserva A y ofrece factorizar. El servicio devuelve un diagnóstico comprensible. |
 | U02 | Exponer la selección de entregables en una operación existente de Sistemas. | Elegir solo escalonada devuelve su procedimiento y se detiene allí. La selección completa sigue disponible. |
 | U03 | Agrupar las tarjetas del menú serio por Álgebra, Cálculo y Métodos numéricos. | Barra y tarjetas con título y fórmula alineados, accesibles por teclado y sin búsqueda, efectos ni animación. Comparar portada antes/después. |
 | U04 | Conectar una operación nueva a la navegación actual. | Abre completa, la barra colapsada mantiene iconos identificables y la preferencia persiste. Resolver reemplaza el formulario y Editar recupera los datos. |
@@ -17,3 +17,5 @@ Partí de `backend.py` y `dist/workspace*`. Aplicá [las reglas de integración]
 | U11 | Enlazar un paso, una fila y un punto mediante su índice de cálculo. | En bisección se selecciona la misma iteración desde tabla o gráfico, incluso después de la 24. Reutilizar ese control en las demás escenas. |
 | U12 | Añadir reproducción manual al visor de pasos. | Avanzar, retroceder, pausar y usar teclado conserva el estado. Modo serio abre quieto y la vista pausada respeta movimiento reducido. |
 | U13 | Asociar un teorema a un paso empezando con invertibilidad. | La ficha muestra enunciado, hipótesis, evidencia de la matriz y conclusión. Añadir cada teorema posterior con su operación. |
+
+**Evidencia U01.** En la vista Resolver Ax=b, ingresar una matriz A con filas (2,1) y (4,3) y dejar b vacío ofrece factorizar esa misma matriz con el método seleccionado. Tanto LU como PLU permiten volver, ingresar b=(5,11) y obtener x=(2,1). Regresión automatizada: `test_lu_inputs_follow_requested_goal`.

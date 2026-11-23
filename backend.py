@@ -380,9 +380,15 @@ def calculate(operation, data, steps=True):
     elif operation == "sistemas.ecuaciones":
         output = from_equations(data, solve_original, context)
     elif operation == "factorizacion.resolver":
-        A = bounded_matrix(data["A"])
-        b = parse_vector(data["b"], len(A))
-        output, verification = factor(A, context, data["metodo"] == "plu", b)
+        A = bounded_matrix(data.get("A"))
+        method = data.get("metodo", "lu")
+        if method not in ("lu", "plu"):
+            raise ValueError("Elegí LU o PLU para resolver el sistema.")
+        rhs = data.get("b")
+        if rhs is None or rhs == [] or isinstance(rhs, str) and not rhs.strip():
+            raise ValueError("Para resolver Ax=b, ingresá el vector b. Para obtener solo los factores, alcanza con A.")
+        b = parse_vector(rhs, len(A))
+        output, verification = factor(A, context, method == "plu", b)
     elif operation=="iterativos.comparar":
         output=compare_iterations(data,context)
         metadata["exact"]=False

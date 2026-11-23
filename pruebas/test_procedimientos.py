@@ -67,6 +67,23 @@ class ProceduresTest(unittest.TestCase):
         self.assertTrue(r["verification"]["passed"])
         self.assertTrue(any(r"\frac" in step["formula"] for step in r["steps"]))
 
+    def test_lu_inputs_follow_requested_goal(self):
+        A = [[2, 1], [4, 3]]
+        for method in ("lu", "plu"):
+            with self.subTest(method=method):
+                factors = calculate("factorizacion." + method, {"A": A})
+                self.assertTrue(factors["verification"]["passed"])
+                self.assertNotIn("particular", factors["result"])
+                for rhs in ({}, {"b": " "}, {"b": []}, {"b": None}):
+                    with self.assertRaisesRegex(ValueError, "ingresá el vector b"):
+                        calculate("factorizacion.resolver", {"A": A, "metodo": method, **rhs})
+                solved = calculate("factorizacion.resolver", {"A": A, "metodo": method, "b": [5, 11]})
+                self.assertEqual(solved["result"]["particular"], ["2", "1"])
+        with self.assertRaisesRegex(ValueError, "2 componentes"):
+            calculate("factorizacion.resolver", {"A": A, "b": [5]})
+        with self.assertRaisesRegex(ValueError, "Elegí LU o PLU"):
+            calculate("factorizacion.resolver", {"A": A, "b": [5, 11], "metodo": "otro"})
+
     def test_homogeneous_parameters_and_rank(self):
         r=calculate("original.sistema",{"matrix":[[1,2,3,4,5,10],[0,1,1,1,1,3],[0,0,1,2,3,4],[0,0,0,1,1,2]]})
         self.assertEqual([4],r["result"]["variables_libres"])

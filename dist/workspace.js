@@ -344,6 +344,19 @@ export function bindWorkspace(setOpen) {
       const input = {};
       for (const [name,control] of controls) {
         if (control.element.hidden) continue;
+        if (operation === 'factorizacion.resolver' && name === 'b' && !control.ready()) {
+          setError('Completá el vector b para resolver Ax=b, o factorizá la matriz que ya ingresaste.');
+          const method = draft.values.metodo;
+          const action = node('button', 'secondary', `Solo factorizar con ${method.toUpperCase()}`);
+          action.type = 'button';
+          action.addEventListener('click', () => {
+            history.pushState(history.state, '', `#${state.module}/factorizacion.${method}`);
+            sync({compute:true, restore:{values:{A:draft.values.A}, options:draft.options}});
+          });
+          get('ws-error').append(' ', action);
+          control.element.querySelector('.ws-matrix input:placeholder-shown')?.focus();
+          return;
+        }
         const value = control.value();
         const def = control.definition ?? {};
         const isRequired = original || def.required || (def.required_when && Object.entries(def.required_when)
