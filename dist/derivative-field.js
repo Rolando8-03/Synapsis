@@ -5,11 +5,38 @@ MathfieldElement.fontsDirectory = new URL('./vendor/katex/fonts/', import.meta.u
 MathfieldElement.soundsDirectory = null;
 MathfieldElement.locale = 'es';
 
+const incomplete = 'Completá el exponente, el numerador, el denominador o el radicando que falta.';
+
+function groupEnd(latex, start) {
+  while (/\s/.test(latex[start] ?? '')) start++;
+  if (latex[start] !== '{') throw new Error(incomplete);
+  let depth = 1;
+  for (let i = start + 1; i < latex.length; i++) {
+    if (latex[i] === '{') depth++;
+    if (latex[i] === '}' && --depth === 0) return i + 1;
+  }
+  throw new Error(incomplete);
+}
+
 function expression(latex) {
-  // La conversión ASCII puede omitir un exponente vacío o un símbolo no admitido.
-  const symbols = latex.replace(/\\(?:m?left|m?right|cdot|times|div|sin|cos|tan|ln|log|exp|pi)\b/g, '');
-  if (/[^a-zA-Z0-9\s.+*^()/{}-]|\{\s*\}/u.test(symbols)) {
-    throw new Error('Completá la potencia o usá la entrada de texto para esta expresión.');
+  // MathLive puede omitir huecos cuando exporta a texto.
+  if (/\\placeholder\b|\{\s*\}/u.test(latex)) throw new Error(incomplete);
+  const symbols = latex.replace(/\\(?:m?left|m?right|cdot|times|div|sin|cos|tan|ln|log|exp|pi|frac|sqrt)\b/g, '');
+  if (/[^a-zA-Z0-9\s.+*^()/{}-]/u.test(symbols)) {
+    throw new Error('Usá potencias, fracciones o raíces cuadradas en el editor, o escribí la expresión como texto.');
+  }
+
+  // Agrupar la fracción completa, también cuando es el exponente o el divisor.
+  const delimiters = [];
+  for (const fraction of latex.matchAll(/\\frac\b/g)) {
+    const numeratorEnd = groupEnd(latex, fraction.index + fraction[0].length);
+    const denominatorEnd = groupEnd(latex, numeratorEnd);
+    const wrapped = /\(\s*$/.test(latex.slice(0, fraction.index))
+      && /^\s*(?:\\m?right\s*)?\)/.test(latex.slice(denominatorEnd));
+    if (!wrapped) delimiters.push([fraction.index, '\\left('], [denominatorEnd, '\\right)']);
+  }
+  for (const [index, delimiter] of delimiters.sort(([a], [b]) => b - a)) {
+    latex = latex.slice(0, index) + delimiter + latex.slice(index);
   }
   return convertLatexToAsciiMath(latex).trim();
 }
@@ -41,11 +68,15 @@ export function derivativeField(definition, initial, onChange) {
 
   const keys = node('div', 'ws-power-keys');
   keys.setAttribute('role', 'group');
-  keys.setAttribute('aria-label', 'Teclado de potencias');
+  keys.setAttribute('aria-label', 'Teclado de expresiones');
   for (const [caption, command, name] of [
     ['x', ['insert', 'x']], ['□ⁿ', 'moveToSuperscript', 'Exponente'],
+    ['□⁄□', ['insert', '\\frac{#0}{#?}'], 'Fracción'],
+    ['√□', ['insert', '\\sqrt{#0}'], 'Raíz cuadrada'],
     ...Array.from('1234567890', digit => [digit, ['insert', digit]]),
-    ['−', ['insert', '-']], ['→', 'moveToNextChar', 'Avanzar'], ['⌫', 'deleteBackward', 'Borrar'],
+    ['−', ['insert', '-']], ['×', ['insert', '\\cdot'], 'Multiplicar'],
+    ['⇥', 'moveToNextPlaceholder', 'Siguiente hueco'],
+    ['→', 'moveToNextChar', 'Avanzar'], ['⌫', 'deleteBackward', 'Borrar'],
   ]) {
     const key = node('button', 'secondary', caption);
     key.type = 'button';
@@ -85,7 +116,7 @@ export function derivativeField(definition, initial, onChange) {
     if (math.hidden) {
       const latex = visualLatex(text.value);
       if (latex === null) {
-        feedback.textContent = 'Esta expresión se edita como texto. Para empezar una potencia nueva, vaciá el campo.';
+        feedback.textContent = 'Esta expresión se edita como texto. Para empezar una expresión nueva en el editor, vaciá el campo.';
         feedback.hidden = false;
         return;
       }
