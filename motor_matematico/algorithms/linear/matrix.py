@@ -336,6 +336,11 @@ def block_operation(A, B, row_cuts, inner_cuts, col_cuts, method, ctx):
     if method == "particionar":
         cols = cuts(col_cuts, len(A[0]), "Los cortes de columnas")
         blocks = partition(A, rows, cols)
+        for i, block_row in enumerate(blocks):
+            for j, block in enumerate(block_row):
+                ctx.emit("extraer_bloque", f"Extraer el bloque de fila {i+1} y columna {j+1}.",
+                         {"filas": [rows[i]+1, rows[i+1]], "columnas": [cols[j]+1, cols[j+1]],
+                          "matriz": block})
         return {
             "bloques": blocks,
             "cortes_filas": rows,
@@ -346,6 +351,11 @@ def block_operation(A, B, row_cuts, inner_cuts, col_cuts, method, ctx):
         cols = cuts(col_cuts, len(A[0]), "Los cortes de columnas")
         X, Y = partition(A, rows, cols), partition(B, rows, cols)
         blocks = [[add(a, b) for a, b in zip(rx, ry)] for rx, ry in zip(X, Y)]
+        for i, block_row in enumerate(blocks):
+            for j, block in enumerate(block_row):
+                ctx.emit("suma_bloques", f"Sumar las entradas del bloque {i+1},{j+1}.",
+                         {"A": X[i][j], "B": Y[i][j], "matriz": block})
+                entry_steps(ctx, X[i][j], block, "suma", B=Y[i][j])
         expected = add(A, B)
     elif method == "producto":
         if len(A[0]) != len(B):

@@ -83,6 +83,15 @@ def convert(data, ctx):
     value, parts = parse_positional(data["numero"], source)
     absolute = abs(value)
     whole = absolute.numerator // absolute.denominator
+    ctx.emit("desarrollo_posicional", "Calcular el valor racional y separar la parte entera.",
+             {"numeral": data["numero"], "base": source, "valor": value, "parte_entera_magnitud": whole})
+    quotient = whole
+    while quotient:
+        following, digit = divmod(quotient, target)
+        ctx.emit("division_base", "Dividir la parte entera y leer los residuos de abajo hacia arriba.",
+                 {"dividendo": quotient, "base": target, "cociente": following, "digito": DIGITS[digit]},
+                 rf"{quotient}=({following})({target})+{digit}")
+        quotient = following
     remainder = absolute.numerator % absolute.denominator
     seen = {}
     fraction = ""
@@ -194,10 +203,25 @@ def sets(data, ctx):
     result = operations[method]()
     result = sorted(result) if isinstance(result, set) else result
     ctx.tick(max(1, len(result)))
+    formulas = {
+        "union": r"x\in A\cup B\iff x\in A\lor x\in B",
+        "interseccion": r"x\in A\cap B\iff x\in A\land x\in B",
+        "diferencia": r"x\in A\setminus B\iff x\in A\land x\notin B",
+        "diferencia_simetrica": r"A\triangle B=(A\setminus B)\cup(B\setminus A)",
+        "complemento": r"x\in U\setminus A\iff x\in U\land x\notin A",
+        "producto_cartesiano": r"(a,b)\in A\times B\iff a\in A\land b\in B",
+    }
+    if method != "producto_cartesiano":
+        selected = set(result)
+        candidates = U if method == "complemento" else A | B
+        ctx.emit("pertenencia_conjuntos", "Comprobar qué etiquetas cumplen la condición.",
+                 {"etiquetas": [{"etiqueta": x, "en_A": x in A, "en_B": x in B, "en_resultado": x in selected}
+                                for x in sorted(candidates)]}, formulas[method])
+
     ctx.emit(
         "conjuntos",
         "Aplicar la operación a etiquetas únicas, con universo explícito cuando corresponde.",
-        {"A": sorted(A), "B": sorted(B), "resultado": result},
+        {"A": sorted(A), "B": sorted(B), "resultado": result}, formulas[method],
     )
     return {
         "conjunto": result,
