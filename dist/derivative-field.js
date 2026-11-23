@@ -20,7 +20,7 @@ function groupEnd(latex, start) {
   throw new Error(incomplete);
 }
 
-function expression(latex, intervalMethod) {
+function expression(latex, intervalMethod, variables) {
   // MathLive puede omitir huecos cuando exporta a texto.
   if (/\\placeholder\b|\{\s*\}/u.test(latex)) throw new Error(incomplete);
   const symbols = latex.replace(/\\(?:m?left|m?right|cdot|times|div|sin|cos|tan|ln|log|exp|pi|frac|sqrt)\b/g, '');
@@ -40,19 +40,20 @@ function expression(latex, intervalMethod) {
     latex = latex.slice(0, index) + delimiter + latex.slice(index);
   }
   const ascii = convertLatexToAsciiMath(latex).trim();
-  return intervalMethod ? explicitProducts(ascii, true) : ascii;
+  return intervalMethod ? explicitProducts(ascii, true, variables) : ascii;
 }
 
-function visualLatex(text, intervalMethod) {
+function visualLatex(text, intervalMethod, variables) {
   const normalize = s => s.replace(/\s+/g, '').replaceAll('**', '^');
   try {
     const latex = convertAsciiMathToLatex(text.replaceAll('**', '^'));
-    if (normalize(expression(latex, intervalMethod)) === normalize(intervalMethod ? explicitProducts(text) : text)) return latex;
+    if (normalize(expression(latex, intervalMethod, variables)) === normalize(intervalMethod ? explicitProducts(text, false, variables) : text)) return latex;
   } catch { /* Conservá la entrada original si no hay conversión fiel. */ }
   return null;
 }
 
 export function expressionField(definition, initial, onChange, differential, intervalMethod) {
+  const variables = definition.editor === 'parcial' ? ['x', 'y'] : ['x'];
   const element = node('div', 'ws-field ws-full-field ws-derivative');
   const label = node('label', '', definition.label);
   const math = new MathfieldElement();
@@ -72,7 +73,7 @@ export function expressionField(definition, initial, onChange, differential, int
   keys.setAttribute('role', 'group');
   keys.setAttribute('aria-label', 'Teclado de expresiones');
   for (const [caption, command, name] of [
-    ['x', ['insert', 'x']], ['□ⁿ', 'moveToSuperscript', 'Exponente'],
+    ...variables.map(variable => [variable, ['insert', variable]]), ['□ⁿ', 'moveToSuperscript', 'Exponente'],
     ['□⁄□', ['insert', '\\frac{#0}{#?}'], 'Fracción'],
     ...(intervalMethod ? [['(□)', ['insert', '\\left(#0\\right)'], 'Paréntesis']] : []),
     ['√□', ['insert', '\\sqrt{#0}'], 'Raíz cuadrada'],
@@ -133,7 +134,7 @@ export function expressionField(definition, initial, onChange, differential, int
 
   toggle.addEventListener('click', () => {
     if (math.hidden) {
-      const latex = visualLatex(text.value, intervalMethod);
+      const latex = visualLatex(text.value, intervalMethod, variables);
       if (latex === null) {
         feedback.textContent = 'Esta expresión se edita como texto. Para empezar una expresión nueva en el editor, vaciá el campo.';
         feedback.hidden = false;
@@ -143,7 +144,7 @@ export function expressionField(definition, initial, onChange, differential, int
       useVisual(true);
       math.focus();
     } else {
-      try { text.value = expression(math.value, intervalMethod); }
+      try { text.value = expression(math.value, intervalMethod, variables); }
       catch { text.value = math.value; }
       useVisual(false);
       text.focus();
@@ -155,6 +156,10 @@ export function expressionField(definition, initial, onChange, differential, int
   return {
     definition, element, set,
     updateNotation(values) {
+      if (definition.editor === 'parcial') {
+        const variable = values.variable === 'y' ? 'y' : 'x';
+        operator.replaceChildren(formula(`\\frac{\\partial}{\\partial ${variable}}`, `derivada parcial respecto de ${variable}`));
+      }
       if (definition.editor === 'limite') {
         const point = values.punto ? numericTex(values.punto) ?? 'a' : 'a';
         const side = values.lado === '-' ? '-' : '+';
@@ -163,8 +168,8 @@ export function expressionField(definition, initial, onChange, differential, int
     },
     raw: () => math.hidden ? text.value : {latex:math.value},
     value: () => {
-      if (!math.hidden) return expression(math.value, intervalMethod);
-      return intervalMethod ? explicitProducts(text.value) : text.value.trim();
+      if (!math.hidden) return expression(math.value, intervalMethod, variables);
+      return intervalMethod ? explicitProducts(text.value, false, variables) : text.value.trim();
     },
   };
 }

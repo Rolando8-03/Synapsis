@@ -7,7 +7,7 @@ const OPTIONS = [
   ['steps','Procedimiento'], ['verify','Comprobación'],
 ];
 const intervalMethods = new Set(['raices.biseccion', 'raices.falsa_posicion']);
-const visualExpressionOps = new Set(['calculo.derivar', 'calculo.primitiva', 'calculo.limite_lateral', ...intervalMethods]);
+const visualExpressionOps = new Set(['calculo.derivar', 'calculo.primitiva', 'calculo.limite_lateral', 'calculo.derivada_parcial', ...intervalMethods]);
 const HISTORY_KEY = 'synapsis-historial-escritorio';
 const exampleMatrix = [['2','1','-1','8'],['-3','-1','2','-11'],['-2','1','2','-3']];
 
@@ -220,7 +220,7 @@ export function bindWorkspace(setOpen) {
     const {name, label, kind, choices} = definition;
     if (visualExpressionOps.has(state.op) && name === 'expresion') {
       const differential = catalog.operations[state.op].fields.find(field => field.name === 'variable');
-      return expressionField(definition, value, queueAutomatic, differential?.default, Boolean(definition.editor) || intervalMethods.has(state.op));
+      return expressionField(definition, value, queueAutomatic, state.op === 'calculo.primitiva' ? differential?.default : null, Boolean(definition.editor) || intervalMethods.has(state.op));
     }
     if (state.op === 'calculo.primitiva' && name === 'variable') {
       // La plantilla muestra dx. Enviá esa misma variable también al recuperar un historial antiguo.

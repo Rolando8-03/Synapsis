@@ -35,3 +35,17 @@ def limit(data, context):
     formula = rf"\lim_{{{bound}}} {sp.latex(reduced)} = {sp.latex(result)}"
     context.emit("limite_lateral", "Evaluar el límite por el lado elegido.", {"limite": str(result)}, formula)
     return {"limite": str(result), "formula_latex": formula}
+
+
+def partial(data, context):
+    x, y = sp.symbols("x y", real=True)
+    variables = {"x": (x, y), "y": (y, x)}
+    if data["variable"] not in variables:
+        raise ValueError("Elegí x o y para la derivada parcial.")
+    variable, constant = variables[data["variable"]]
+    source = polynomial(data["expresion"], (x, y))
+    derivative = sp.diff(source, variable)
+    formula = rf"\frac{{\partial}}{{\partial {variable}}}\left({sp.latex(source)}\right)={sp.latex(derivative)}"
+    context.emit("derivada_parcial", f"Derivar respecto de {variable} manteniendo {constant} constante.",
+                 {"variable": str(variable), "constante": str(constant)}, formula)
+    return {"derivada": str(derivative), "formula_latex": formula}
