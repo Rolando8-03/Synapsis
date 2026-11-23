@@ -82,6 +82,7 @@ export function bindWorkspace(setOpen) {
   }));
   for (const [id, card] of cards) sections.add(new Option(card.name,id));
 
+  let derivativeField;
   let catalogPromise;
   let catalog;
   let state;
@@ -139,7 +140,7 @@ export function bindWorkspace(setOpen) {
 
   function edit() {
     showView('form');
-    (fields.querySelector('input[type="text"], textarea, select') ?? get('ws-calculate')).focus();
+    (fields.querySelector('math-field:not([hidden]), input[type="text"]:not([hidden]), textarea, select') ?? get('ws-calculate')).focus();
   }
 
   function displayResult(response, draft, original) {
@@ -214,6 +215,9 @@ export function bindWorkspace(setOpen) {
 
   function elementField(definition, value) {
     const {name, label, kind, choices} = definition;
+    if (state.op === 'calculo.derivar' && name === 'expresion') {
+      return derivativeField(definition, value, queueAutomatic);
+    }
     if (['matrix','vector','vectors'].includes(kind)) {
       const control = gridField(label,value,{vector:kind === 'vector',required:definition.required,onChange:queueAutomatic});
       return {...control,definition};
@@ -474,6 +478,8 @@ export function bindWorkspace(setOpen) {
     workspace.hidden = false;
     page.classList.add('workspace-open');
     setOpen(true);
+    get('ws-history-link').disabled = true;
+    get('ws-course-link').disabled = true;
     status.textContent = 'Cargando herramientas…';
     try {
       catalog = await getCatalog();
@@ -488,6 +494,15 @@ export function bindWorkspace(setOpen) {
     if (revision !== generation) return;
     const ids = catalog.modules[module].flatMap(([, ids]) => ids);
     const op = ids.includes(requested) ? requested : ids[0];
+    if (op === 'calculo.derivar' && !derivativeField) {
+      try {
+        ({derivativeField} = await import('./derivative-field.js'));
+      } catch {
+        if (revision === generation) status.textContent = 'No se pudo abrir el editor matemático. Volvé a abrir Derivar.';
+        return;
+      }
+      if (revision !== generation) return;
+    }
     if (state?.op !== op) delete results.dataset.selectedTab;
     state = {module,op};
     const card = cards.get(module);
@@ -512,6 +527,8 @@ export function bindWorkspace(setOpen) {
     status.textContent = '';
     get('ws-calculate').disabled = false;
     renderForm(definition);
+    get('ws-history-link').disabled = false;
+    get('ws-course-link').disabled = false;
     scrollTo({top:0,behavior:'instant'});
     if (focus) header.focus({preventScroll:true});
     if (compute) calculate();

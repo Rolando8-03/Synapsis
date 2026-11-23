@@ -269,3 +269,14 @@
 .ws-step-data summary { cursor: pointer; }
 .ws-active-expression { margin-top: 10px; color: var(--ws-muted); overflow-wrap: anywhere; }
 .ws-active-expression code { color: var(--ws-text); }
+
+.ws-derivative math-field {
+  min-width: 0; padding: 5px 9px; border: 1px solid var(--ws-line); border-radius: 8px;
+  background: var(--ws-input); color: var(--ws-text); font-size: 1.25rem;
+  --caret-color: var(--ws-accent);
+}
+.ws-derivative math-field::part(virtual-keyboard-toggle),
+.ws-derivative math-field::part(menu-toggle) { display: none; }
+.ws-power-keys { display: flex; flex-wrap: wrap; gap: 4px; }
+.ws-power-keys button { min-width: 36px; padding: 4px 8px; }
+.ws-derivative > button { justify-self: start; }
