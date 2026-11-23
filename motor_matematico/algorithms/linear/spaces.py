@@ -40,6 +40,13 @@ def fundamental(A, ctx):
         and reconstructed == A
         and row_equivalence
     )
+    if verified:
+        ctx.emit("teorema", "Aplicar el teorema de rango–nulidad.", {"teorema": {
+            "enunciado": r"\dim(\operatorname{im} A)+\dim(\ker A)=\dim(\operatorname{dom} A)",
+            "hipotesis": f"A define una transformación lineal de R^{len(A[0])} a R^{len(A)}.",
+            "evidencia": {"rango": r, "nulidad": len(null), "pivotes": pivots, "base_nucleo": null},
+            "conclusion": f"El rango {r} y la nulidad {len(null)} suman {len(A[0])}.",
+        }})
     return {
         "rango": r,
         "nulidad": len(null),

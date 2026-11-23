@@ -1,8 +1,8 @@
 // Notación lineal para el analizador de Python. El cálculo y el dominio siguen en el motor.
 const functions = new Set(['sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'sqrt', 'ln', 'log', 'exp', 'abs', 'factorial']);
-const symbols = new Set(['x', 'pi', 'e', 'Ans']);
+const constants = new Set(['pi', 'e', 'Ans']);
 
-export function explicitProducts(source, visual = false) {
+export function explicitProducts(source, visual = false, variables = ['x']) {
   source = source.replaceAll('π', 'pi').replaceAll('×', '*').replaceAll('÷', '/').replaceAll('−', '-');
   const tokens = source.matchAll(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[a-zA-Z]+|\*\*|\S/g);
   const output = [];
@@ -13,9 +13,9 @@ export function explicitProducts(source, visual = false) {
     let kind;
     if (/^[\d.]/.test(token) && token !== '.') kind = 'number';
     else if (functions.has(token)) kind = 'function';
-    else if (symbols.has(token)) kind = 'symbol';
+    else if (constants.has(token) || variables.includes(token)) kind = 'symbol';
     else if (['+', '-', '*', '/', '^', '(', ')', '**'].includes(token)) kind = token;
-    else throw new Error(`Revisá «${token}» en «${source.slice(Math.max(0, index - 5), index + token.length + 5)}». Usá x como variable y × para separar factores.`);
+    else throw new Error(`Revisá «${token}» en «${source.slice(Math.max(0, index - 5), index + token.length + 5)}». Usá ${variables.join(' o ')} como variable y × para separar factores.`);
 
     if (visual && kind === 'number' && /e/i.test(token)) {
       throw new Error(`Aclará «${token}» usando × para el factor e o una potencia de 10 para notación científica.`);

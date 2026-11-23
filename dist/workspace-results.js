@@ -1,6 +1,7 @@
+import { iterationSelection } from './iteration-selection.js';
 import { node } from './matrix-input.js';
 import { addPlot } from './plot.js';
-import { math, matrixFormula, numericTex } from './math-format.js';
+import { math, matrixFormula, numericTex, vectorFormula } from './math-format.js';
 
 const LABELS = {
   matrix: 'Matriz resultante', tabla: 'Tabla de iteraciones', rango_A: 'Rango de A',
@@ -31,26 +32,52 @@ function scalar(value) {
 }
 function isScalar(value) { return value === null || typeof value !== 'object'; }
 
-function table(headings, rows, caption = '', independent = false) {
+const headerFormulas = {
+  'xᵣ': 'x_r', 'xₖ': 'x_k', 'xₖ₊₁': 'x_{k+1}', 'f(xᵣ)': 'f(x_r)', 'f′(xₖ)': "f'(x_k)",
+  'f(xₖ)': 'f(x_k)', 'f(xₖ₋₁)': 'f(x_{k-1})', 'εₐ (%)': '\\varepsilon_a\\,(\\%)',
+  '|f(xₖ₊₁)|': '|f(x_{k+1})|', '‖Ax−b‖': '\\lVert Ax-b\\rVert',
+  'Ax': 'Ax', 'f(x)': 'f(x)', 'f(a)': 'f(a)', 'f(b)': 'f(b)',
+};
+function headerContent(heading) {
+  const tex = headerFormulas[heading] ?? (/^x\d+$/.test(heading) ? `x_{${heading.slice(1)}}` : null);
+  return tex ? math(tex, heading) : document.createTextNode(heading);
+}
+
+function table(headings, rows, caption = '', independent = false, pivots = []) {
   const scroll = node('div', 'ws-table-scroll');
   const data = node('table', `ws-result-table${independent ? ' ws-augmented' : ''}`);
   if (caption) data.append(node('caption', '', caption));
   if (headings?.length) {
     const row = data.createTHead().insertRow();
     for (const heading of headings) {
-      const th = node('th', '', heading);
+      const th = node('th');
+      th.append(headerContent(heading));
       th.scope = 'col';
       row.append(th);
     }
   }
+  const split = independent === true ? rows[0]?.length - 1 : independent;
+  if (independent) data.classList.add('ws-augmented');
+  for (const header of data.tHead?.rows[0].cells ?? []) {
+    if (header.cellIndex === split) header.classList.add('ws-split');
+  }
+  const pivotCells = new Set(pivots.map(([row, col]) => `${row},${col}`));
   const body = data.createTBody();
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
     const rendered = body.insertRow();
     for (const value of row) {
       const cell = rendered.insertCell();
-      if (Array.isArray(value) && value.every(isScalar)) cell.textContent = value.map(scalar).join(' · ');
-      else if (isScalar(value)) cell.textContent = scalar(value);
-      else cell.append(valueView(value));
+      if (cell.cellIndex === split) cell.classList.add('ws-split');
+      if (pivotCells.has(`${index},${cell.cellIndex}`)) {
+        cell.classList.add('ws-pivot');
+        cell.append(node('span', 'visually-hidden', 'Pivote '));
+      }
+      if (value == null || typeof value === 'boolean') cell.append(document.createTextNode(scalar(value)));
+      else if (isScalar(value)) {
+        const exact = typeof value === 'number' ? String(value) : value;
+        const tex = numericTex(exact);
+        cell.append(tex ? math(tex, exact) : document.createTextNode(scalar(value)));
+      } else cell.append(valueView(value));
     }
   }
   scroll.append(data);
@@ -60,7 +87,7 @@ function table(headings, rows, caption = '', independent = false) {
 }
 
 function matrixView(rows, caption = '', independent = false, headings = null, pivots = []) {
-  return matrixFormula(rows, caption, independent, pivots) ?? table(headings, rows, caption, independent);
+  return matrixFormula(rows, caption, independent, pivots) ?? table(headings ?? (independent === true ? matrixLabels(rows[0].length - 1) : null), rows, caption, independent, pivots);
 }
 
 function valueView(value) {
@@ -72,7 +99,7 @@ function valueView(value) {
   if (Array.isArray(value)) {
     if (!value.length) return node('span', 'ws-value', '∅');
     if (value.every(x => Array.isArray(x) && x.every(isScalar))) return matrixView(value);
-    if (value.every(isScalar)) return node('span', 'ws-value', `( ${value.map(scalar).join(' · ')} )`);
+    if (value.every(isScalar)) return vectorFormula(value) ?? node('span', 'ws-value', `( ${value.map(scalar).join(' · ')} )`);
     if (value.every(x => x && !Array.isArray(x) && typeof x === 'object')) {
       const keys = [...new Set(value.flatMap(Object.keys))];
       return table(keys.map(title), value.map(row => keys.map(key => row[key] ?? null)));
@@ -162,31 +189,7 @@ function systemResult(out, choices, steps) {
     panels.push(['Matrices', forms]);
   }
 
-  if (choices.steps && out.pasos_gauss) panels.push(['Procedimiento', () => {
-    const trace = node('div', 'ws-result-stack');
-    for (const [name, steps] of [['Eliminación de Gauss',out.pasos_gauss], ['Reducción de Gauss-Jordan',out.pasos_jordan]]) {
-      trace.append(node('h3', '', name));
-      const list = node('ol', 'ws-step-list');
-      for (const step of steps ?? []) {
-        const item = node('li');
-        item.append(node('p', '', step.titulo));
-        if (step.formula_latex) item.append(math(step.formula_latex, step.formula_latex, true));
-        if (step.mostrar_matriz) item.append(matrixView(step.matriz, '', true, headings));
-        list.append(item);
-      }
-      trace.append(list);
-    }
-    if (out.pasos_sustitucion?.length) {
-      trace.append(node('h3','','Sustitución regresiva'));
-      for (const step of out.pasos_sustitucion) {
-        const variable = `x${step.variable + 1}`;
-        const {constante, terminos} = step.expresion;
-        const terms = Object.entries(terminos).filter(([, coef]) => coef !== '0').map(([key,coef]) => `${coef}·x${Number(key)+1}`);
-        trace.append(node('p','ws-value', `${variable} = ${[constante, ...terms].join(' + ').replaceAll('+ -','− ')}`));
-      }
-    }
-    return trace;
-  }]);
+  if (choices.steps && steps?.length) panels.push(['Procedimiento', () => procedureView(steps)]);
 
   if (choices.verify && out.comprobaciones) {
     panels.push(['Comprobación', table(['Ecuación','Ax','b','Coincide'],
@@ -195,13 +198,16 @@ function systemResult(out, choices, steps) {
   return panels;
 }
 
-function procedureView(entries) {
+function procedureView(entries, selection) {
   const stack = node('div','ws-result-stack');
   const list = node('ol','ws-step-list ws-detailed-steps');
   const more = node('button','secondary','Ver los siguientes pasos');
   more.type = 'button';
   let shown = 0;
-  function appendSteps() {
+  const byIteration = new Map();
+  let active;
+  let showIteration;
+  function appendSteps(focus = false) {
     const added = document.createDocumentFragment();
     const start = shown;
     for (const step of entries.slice(shown,shown+18)) {
@@ -209,11 +215,23 @@ function procedureView(entries) {
       const body = node('div','ws-step-card');
       body.append(node('h3','',step.description));
       if (step.formula) body.append(math(step.formula,step.formula,true));
-      const {matriz, antes, separador, formula, desarrollo, ...remainder} = step.data ?? {};
+      if (step.data?.iteracion !== undefined && selection) {
+        byIteration.set(step.data.iteracion, item);
+        item.addEventListener('click', () => selection.select(step.data.iteracion));
+      }
+      const {matriz, antes, separador, formula, desarrollo, teorema, ...remainder} = step.data ?? {};
       if (matriz) {
         const split = separador && separador < matriz[0]?.length ? separador : false;
         if (antes) body.append(matrixView(antes, 'Antes', split));
         body.append(matrixView(matriz, antes ? 'Después' : 'Matriz', split));
+      }
+      if (teorema) {
+        const card = node('details', 'ws-step-data ws-theorem-card');
+        card.append(node('summary', '', 'Ficha del teorema'), node('h4', '', 'Enunciado'),
+          math(teorema.enunciado, teorema.enunciado, true), node('h4', '', 'Hipótesis'),
+          node('p', '', teorema.hipotesis), node('h4', '', 'Evidencia'),
+          valueView(teorema.evidencia), node('h4', '', 'Conclusión'), node('p', '', teorema.conclusion));
+        body.append(card);
       }
       if (Object.keys(remainder).length) {
         const data = node('details','ws-step-data');
@@ -231,15 +249,98 @@ function procedureView(entries) {
     }
     list.append(added);
     more.hidden = shown >= entries.length;
-    if (start) {
+    if (start && focus) {
       const item = list.children[start];
       item.tabIndex = -1;
       item.focus();
     }
   }
-  more.addEventListener('click',appendSteps);
+  more.addEventListener('click', () => appendSteps(true));
   stack.append(list,more);
   appendSteps();
+  if (selection) selection.subscribe(index => {
+    if (!entries.some(step => step.data?.iteracion === index)) return;
+    while (!byIteration.has(index) && shown < entries.length) appendSteps();
+    active?.classList.remove('ws-iteration-active');
+    active = byIteration.get(index);
+    active?.classList.add('ws-iteration-active');
+    showIteration?.(index);
+  });
+  const controls = node('div', 'ws-playback');
+  const mode = node('button', 'secondary', 'Ver paso a paso');
+  const previous = node('button', 'secondary', 'Anterior');
+  const next = node('button', 'secondary', 'Siguiente');
+  const play = node('button', 'secondary', 'Reproducir');
+  const counter = node('span', 'ws-muted');
+  counter.setAttribute('role', 'status');
+  for (const button of [mode, previous, next, play]) button.type = 'button';
+  controls.append(mode, previous, next, play, counter);
+  stack.prepend(controls);
+  let index = 0;
+  let single = false;
+  let timer = null;
+  let synchronizing = false;
+
+  function pause() {
+    clearInterval(timer);
+    timer = null;
+    play.textContent = 'Reproducir';
+  }
+
+  function update() {
+    while (single && index >= shown) appendSteps();
+    for (const item of list.children) item.hidden = single && item !== list.children[index];
+    list.start = single ? index + 1 : 1;
+    more.hidden = single || shown >= entries.length;
+    for (const control of [previous, next, play, counter]) control.hidden = !single;
+    previous.disabled = index === 0;
+    next.disabled = play.disabled = index === entries.length - 1;
+    counter.textContent = `Paso ${index + 1} de ${entries.length}`;
+    if (next.disabled) pause();
+  }
+
+  function move(offset) {
+    index = Math.max(0, Math.min(entries.length - 1, index + offset));
+    const iteration = entries[index].data?.iteracion;
+    if (iteration !== undefined && selection) {
+      synchronizing = true;
+      selection.select(iteration);
+      synchronizing = false;
+    }
+    update();
+  }
+
+  showIteration = iteration => {
+    if (synchronizing) return;
+    index = entries.findIndex(step => step.data?.iteracion === iteration);
+    pause();
+    update();
+  };
+  if (active) index = [...list.children].indexOf(active);
+  mode.addEventListener('click', () => {
+    pause();
+    single = !single;
+    mode.textContent = single ? 'Ver lista de pasos' : 'Ver paso a paso';
+    update();
+  });
+  previous.addEventListener('click', () => { pause(); move(-1); });
+  next.addEventListener('click', () => { pause(); move(1); });
+  play.addEventListener('click', () => {
+    if (timer !== null) { pause(); return; }
+    play.textContent = 'Pausar';
+    timer = setInterval(() => {
+      if (!stack.isConnected || stack.closest('[hidden]')) { pause(); return; }
+      move(1);
+    }, 1300);
+  });
+  controls.addEventListener('keydown', event => {
+    if (!single || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    event.preventDefault();
+    pause();
+    move(event.key === 'ArrowLeft' ? -1 : 1);
+  });
+  stack.pausePlayback = pause;
+  update();
   return stack;
 }
 
@@ -275,7 +376,9 @@ function genericResult(response) {
     main.append(lead);
   }
   if (series?.points?.length) main.append(addPlot(series));
-  if (grafico_raiz?.points?.length) panels.push(['Gráfica', () => addPlot(grafico_raiz)]);
+  const indices = grafico_raiz?.iteraciones?.map(([index]) => index);
+  const selection = indices?.length ? iterationSelection(indices) : null;
+  if (grafico_raiz?.points?.length) panels.push(['Gráfica', () => addPlot({...grafico_raiz, selection})]);
   if (diagrama_vectores?.length) main.append(addPlot({diagram:diagrama_vectores}));
   if (formula_latex) main.append(math(formula_latex, formula_latex, true));
   if (points?.length) {
@@ -293,14 +396,20 @@ function genericResult(response) {
     const body = node('div','ws-result-stack');
     if (first.x_decimal !== undefined) {
       const bracket = first.a !== undefined;
-      const formatDecimal = value => value == null ? null : (typeof value === 'string' && value.includes('/') ? value : scalar(value));
+      const formatDecimal = value => value == null ? null : String(value);
       const cols = bracket
         ? ['k','a','b','xᵣ','f(a)','f(b)','f(xᵣ)','Signo f(a)f(xᵣ)','εₐ (%)','Cota']
         : ['k','xₖ','f(xₖ)',first.derivada_x !== undefined ? 'f′(xₖ)' : 'f(xₖ₋₁)','xₖ₊₁','εₐ (%)','Error absoluto','|f(xₖ₊₁)|'];
-      body.append(table(cols, tabla.map(row => (bracket
+      const iterations = table(cols, tabla.map(row => (bracket
         ? [row.iteracion,row.a,row.b,row.x_decimal,row.fa,row.fb,row.fx,row.signo_fa_por_fx,row.error_porcentual,row.cota_intervalo]
         : [row.iteracion,row.x_anterior,row.f_anterior_actual,row.derivada_x ?? row.f_anterior,
-          row.x_decimal,row.error_porcentual,row.error_aproximado_absoluto,row.residual]).map(formatDecimal))));
+          row.x_decimal,row.error_porcentual,row.error_aproximado_absoluto,row.residual]).map(formatDecimal)));
+      body.append(iterations);
+      if (selection) {
+        const rows = [...iterations.querySelectorAll('tbody tr')];
+        rows.forEach((row, i) => row.addEventListener('click', () => selection.select(tabla[i].iteracion)));
+        selection.subscribe(index => rows.forEach((row, i) => row.classList.toggle('ws-iteration-active', tabla[i].iteracion === index)));
+      }
     } else if (first.vector_decimal) {
       body.append(table(['k','xₖ · aproximado','‖Ax−b‖','Cambio absoluto','Cambio relativo','Error por componente (%)'],
         tabla.map(row => [row.iteracion,row.vector_decimal,row.norma_residual_decimal,
@@ -314,7 +423,8 @@ function genericResult(response) {
     body.append(exact);
     return body;
   }]);
-  if (response.steps?.length) panels.push(['Procedimiento', () => procedureView(response.steps)]);
+  if (response.steps?.length) panels.push(['Procedimiento', () => procedureView(response.steps, selection)]);
+  if (selection) panels.selection = selection;
   if (response.verification && Object.keys(response.verification).length) {
     panels.push(['Comprobación', valueView(response.verification)]);
   }
@@ -331,7 +441,10 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
   const actions = node('div','ws-result-actions');
   const edit = node('button','secondary','Editar datos');
   edit.type = 'button';
-  edit.addEventListener('click', onEdit);
+  edit.addEventListener('click', () => {
+    target.querySelector('#ws-result-content')?.firstElementChild?.pausePlayback?.();
+    onEdit();
+  });
   actions.append(edit);
   header.append(heading, actions);
   target.append(header);
@@ -379,6 +492,7 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
       button.tabIndex = i === index ? 0 : -1;
     });
     content.setAttribute('aria-labelledby', buttons[i].id);
+    content.firstElementChild?.pausePlayback?.();
     content.replaceChildren(panelContent(i));
     content.querySelectorAll("canvas.plot").forEach(canvas => canvas.redrawPlot?.());
   };
@@ -393,7 +507,9 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
     });
     tabs.append(button);
   });
-  results.append(tabs, content);
+  results.append(tabs);
+  if (panels.selection) results.append(panels.selection.controls());
+  results.append(content);
   target.append(results);
   const initial = selectedTab || (originalSystem && choices.solution ? 'Solución' : 'Resultado');
   select(Math.max(0, panels.findIndex(([label]) => label === initial)));
@@ -403,11 +519,16 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
     copy.addEventListener('click', async () => {
       try {
         const clone = content.cloneNode(true);
+        clone.querySelectorAll('[hidden]').forEach(item => item.remove());
         clone.querySelectorAll('[data-plain]').forEach(item => {
-          item.replaceWith(node('span','', item.dataset.plain + '\n'));
+          const separator = item.closest('td, th') ? '' : '\n';
+          item.replaceWith(document.createTextNode(item.dataset.plain + separator));
         });
         clone.querySelectorAll('tr').forEach(row => {
-          row.replaceWith(node('div','', [...row.cells].map(cell => cell.textContent).join('\t') + '\n'));
+          row.replaceWith(node('div','', [...row.cells].map(cell => {
+            cell.querySelector('.visually-hidden')?.remove();
+            return cell.textContent;
+          }).join('\t') + '\n'));
         });
         await navigator.clipboard.writeText(clone.innerText || clone.textContent.trim());
         copy.textContent = 'Copiado';

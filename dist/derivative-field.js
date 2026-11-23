@@ -1,5 +1,5 @@
 import { MathfieldElement, convertAsciiMathToLatex, convertLatexToAsciiMath } from './vendor/mathlive/mathlive.min.mjs';
-import { math as formula } from './math-format.js';
+import { math as formula, numericTex } from './math-format.js';
 import { explicitProducts } from './expression-input.mjs';
 import { node } from './matrix-input.js';
 
@@ -20,7 +20,7 @@ function groupEnd(latex, start) {
   throw new Error(incomplete);
 }
 
-function expression(latex, intervalMethod) {
+function expression(latex, variables) {
   // MathLive puede omitir huecos cuando exporta a texto.
   if (/\\placeholder\b|\{\s*\}/u.test(latex)) throw new Error(incomplete);
   const symbols = latex.replace(/\\(?:m?left|m?right|cdot|times|div|sin|cos|tan|ln|log|exp|pi|frac|sqrt)\b/g, '');
@@ -40,29 +40,30 @@ function expression(latex, intervalMethod) {
     latex = latex.slice(0, index) + delimiter + latex.slice(index);
   }
   const ascii = convertLatexToAsciiMath(latex).trim();
-  return intervalMethod ? explicitProducts(ascii, true) : ascii;
+  return explicitProducts(ascii, true, variables);
 }
 
-function visualLatex(text, intervalMethod) {
+function visualLatex(text, variables) {
   const normalize = s => s.replace(/\s+/g, '').replaceAll('**', '^');
   try {
     const latex = convertAsciiMathToLatex(text.replaceAll('**', '^'));
-    if (normalize(expression(latex, intervalMethod)) === normalize(intervalMethod ? explicitProducts(text) : text)) return latex;
+    if (normalize(expression(latex, variables)) === normalize(explicitProducts(text, false, variables))) return latex;
   } catch { /* Conservá la entrada original si no hay conversión fiel. */ }
   return null;
 }
 
-export function expressionField(definition, initial, onChange, differential, intervalMethod) {
+export function expressionField(definition, initial, onChange, {differential, variables = ['x']}) {
+  variables = ({parcial:['x', 'y'], sumatoria:['k']})[definition.editor] ?? variables;
   const element = node('div', 'ws-field ws-full-field ws-derivative');
   const label = node('label', '', definition.label);
   const math = new MathfieldElement();
-  math.id = 'ws-derivative-math';
+  math.id = `ws-math-${definition.name}`;
   math.setAttribute('aria-label', definition.label);
   math.mathVirtualKeyboardPolicy = 'manual';
   math.smartSuperscript = false;
 
   const text = node('input');
-  text.id = 'ws-derivative-text';
+  text.id = `ws-text-${definition.name}`;
   text.type = 'text';
   text.maxLength = 500;
   text.autocomplete = 'off';
@@ -72,9 +73,9 @@ export function expressionField(definition, initial, onChange, differential, int
   keys.setAttribute('role', 'group');
   keys.setAttribute('aria-label', 'Teclado de expresiones');
   for (const [caption, command, name] of [
-    ['x', ['insert', 'x']], ['□ⁿ', 'moveToSuperscript', 'Exponente'],
+    ...variables.map(variable => [variable, ['insert', variable]]), ['□ⁿ', 'moveToSuperscript', 'Exponente'],
     ['□⁄□', ['insert', '\\frac{#0}{#?}'], 'Fracción'],
-    ...(intervalMethod ? [['(□)', ['insert', '\\left(#0\\right)'], 'Paréntesis']] : []),
+    ['(□)', ['insert', '\\left(#0\\right)'], 'Paréntesis'],
     ['√□', ['insert', '\\sqrt{#0}'], 'Raíz cuadrada'],
     ...Array.from('1234567890', digit => [digit, ['insert', digit]]),
     ['+', ['insert', '+']], ['−', ['insert', '-']], ['×', ['insert', '\\cdot'], 'Multiplicar'],
@@ -99,7 +100,12 @@ export function expressionField(definition, initial, onChange, differential, int
   const feedback = node('span', 'ws-field-help');
   feedback.setAttribute('role', 'status');
   element.append(label);
-  if (differential) {
+  const operator = node('span');
+  if (definition.editor) {
+    const row = node('div', 'ws-integral-template');
+    row.append(operator, math, text);
+    element.append(row);
+  } else if (differential) {
     const row = node('div', 'ws-integral-template');
     row.setAttribute('role', 'group');
     row.setAttribute('aria-label', `Integral indefinida respecto de ${differential}`);
@@ -120,15 +126,21 @@ export function expressionField(definition, initial, onChange, differential, int
   }
 
   function set(value) {
-    const isText = typeof value === 'string' && value !== '' && value !== definition.default;
-    if (isText) text.value = value;
-    else math.setValue(typeof value === 'string' ? value : value.latex, {silenceNotifications:true});
-    useVisual(!isText);
+    if (typeof value === 'string') {
+      const latex = value === '' || value === definition.default ? visualLatex(value, variables) : null;
+      if (latex === null) text.value = value;
+      else math.setValue(latex, {silenceNotifications:true});
+      useVisual(latex !== null);
+    } else {
+      math.setValue(value.latex, {silenceNotifications:true});
+      useVisual(true);
+    }
   }
 
+  let lastVisual;
   toggle.addEventListener('click', () => {
     if (math.hidden) {
-      const latex = visualLatex(text.value, intervalMethod);
+      const latex = lastVisual?.text === text.value ? lastVisual.latex : visualLatex(text.value, variables);
       if (latex === null) {
         feedback.textContent = 'Esta expresión se edita como texto. Para empezar una expresión nueva en el editor, vaciá el campo.';
         feedback.hidden = false;
@@ -138,8 +150,9 @@ export function expressionField(definition, initial, onChange, differential, int
       useVisual(true);
       math.focus();
     } else {
-      try { text.value = expression(math.value, intervalMethod); }
+      try { text.value = expression(math.value, variables); }
       catch { text.value = math.value; }
+      lastVisual = {text: text.value, latex: math.value};
       useVisual(false);
       text.focus();
     }
@@ -149,10 +162,35 @@ export function expressionField(definition, initial, onChange, differential, int
   set(initial);
   return {
     definition, element, set,
+    updateNotation(values) {
+      if (definition.editor === 'parcial') {
+        const variable = values.variable === 'y' ? 'y' : 'x';
+        operator.replaceChildren(formula(`\\frac{\\partial}{\\partial ${variable}}`, `derivada parcial respecto de ${variable}`));
+      }
+      if (definition.editor === 'sumatoria') {
+        const first = /^-?\d+$/.test(values.inferior) ? values.inferior : 'a';
+        const last = /^-?\d+$/.test(values.superior) ? values.superior : 'b';
+        operator.replaceChildren(formula(`\\sum_{k=${first}}^{${last}}`, `suma para k de ${first} a ${last}`));
+      }
+      if (definition.editor === 'limite') {
+        const point = values.punto ? numericTex(values.punto) ?? 'a' : 'a';
+        const side = values.lado === '-' ? '-' : '+';
+        operator.replaceChildren(formula(`\\lim_{x\\to ${point}^{${side}}}`, `límite de x hacia ${point} por ${side}`));
+      }
+    },
     raw: () => math.hidden ? text.value : {latex:math.value},
-    value: () => {
-      if (!math.hidden) return expression(math.value, intervalMethod);
-      return intervalMethod ? explicitProducts(text.value) : text.value.trim();
+    value() {
+      if (math.hidden) return explicitProducts(text.value, false, variables);
+      try {
+        return expression(math.value, variables);
+      } catch (error) {
+        math.focus();
+        if (math.value.includes('\\placeholder')) {
+          math.position = 0;
+          math.executeCommand('moveToNextPlaceholder');
+        }
+        throw error;
+      }
     },
   };
 }
