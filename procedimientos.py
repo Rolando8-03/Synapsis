@@ -4,14 +4,25 @@ import ast
 
 from motor_matematico.algorithms.linear.context import Context, matrix, tex, vector
 from motor_matematico.parsing.numbers import parse_number
-from motor_matematico.algorithms.linear.worked import dot_formula, parenthesize, product_steps
+from motor_matematico.algorithms.linear.worked import dot_formula, parenthesize, product_steps, row_replacement
 from motor_matematico.algorithms.calculo import analizar, evaluar
 
 
 def original_rows(ctx, steps):
+    previous = None
     for step in steps:
-        data = {"matriz":step["matriz"],"separador":len(step["matriz"][0])-1} if step["mostrar_matriz"] else {}
-        ctx.emit("fila_original",step["titulo"],data,step.get("formula_latex",""))
+        current = step["matriz"]
+        data = {"matriz": current, "separador": len(current[0])-1} if step["mostrar_matriz"] else {}
+        op = step["operacion"]
+        formula = step.get("formula_latex", "")
+        if previous is not None and op["tipo"] == "combinacion":
+            target, source = int(op["destino"]), int(op["origen"])
+            data.update(antes=previous, pivote=op["p"], entrada_a_eliminar=op["b"], factor=op["k"])
+            factor = rf"k=-\frac{{{tex(op['b'])}}}{{{tex(op['p'])}}}={tex(op['k'])}"
+            entries = row_replacement(previous[target], previous[source], op["k"], current[target], target)
+            formula = factor + r"\qquad " + entries
+        ctx.emit("fila_original", step["titulo"], data, formula)
+        previous = current
 
 
 def legacy_trace(op, out, ctx):
@@ -22,11 +33,13 @@ def legacy_trace(op, out, ctx):
             return
         ctx.emit("metodo", "Comenzar la fase de Gauss-Jordan.", {})
         original_rows(ctx, out["pasos_jordan"])
+        last = next((row for row in reversed(out["matriz_rref"]) if any(Fraction(x) for x in row)),
+                    out["matriz_rref"][-1])
         ctx.emit("teorema", "Aplicar el teorema de Rouché–Capelli.", {"teorema": {
             "enunciado": r"Ax=b\text{ tiene solución}\iff\operatorname{rang}(A)=\operatorname{rang}([A\mid b])",
             "hipotesis": f"El sistema tiene {out['numero_ecuaciones']} ecuaciones y {out['numero_variables']} incógnitas.",
             "evidencia": {"rango_A": out["rango_A"], "rango_aumentada": out["rango_aumentada"],
-                          "forma_reducida": out["matriz_rref"]},
+                          "forma_reducida": out["matriz_rref"], "ultima_fila_no_nula": last},
             "conclusion": out["conclusion"],
         }})
         for step in out.get("pasos_sustitucion", []):
@@ -41,6 +54,13 @@ def legacy_trace(op, out, ctx):
         else:
             ctx.emit("contradiccion","La fila contradictoria prueba la incompatibilidad.",
                      {"fila":out.get("fila_contradiccion_datos")})
+        for free, direction in zip(out["variables_libres"], out.get("direcciones", [])):
+            image = [sum(Fraction(a) * Fraction(v) for a, v in zip(row, direction)) for row in out["A"]]
+            variable = free + 1
+            ctx.emit("direccion_nucleo", f"Fijar la variable libre x{variable} en 1 y las otras libres en 0.",
+                     {"variable_libre": variable, "direccion": direction, "Av": image},
+                     rf"Av_{{{variable}}}=0")
+            matvec_steps(ctx, out["A"], direction, image, rf"Av_{{{variable}}}")
         for i, proof in enumerate(out.get("comprobaciones") or [],1):
             actual, expected = proof["resultado"], proof["esperado"]
             ctx.emit("sustitucion",f"Sustituir la solución particular en la ecuación {i}.",proof,
@@ -83,6 +103,14 @@ def legacy_trace(op, out, ctx):
         ctx.emit("suma","Sumar u y v componente a componente.",{"u":out["u"],"v":out["v"],"suma":out["u_mas_v"]})
         for vec, res, label in (("u","Au","Au"),("v","Av","Av"),("u_mas_v","Au_mas_v","A(u+v)"),("cu","Acu","A(cu)")):
             matvec_steps(ctx,out["A"],out[vec],out[res],label)
+        for i, (u, v, total) in enumerate(zip(out["Au"], out["Av"], out["Au_mas_v"]), 1):
+            ctx.emit("distributividad_componente", f"Sumar las componentes de Au y Av en la fila {i}.",
+                     {"Au": u, "Av": v, "A_u_mas_v": total},
+                     rf"({tex(u)})+({tex(v)})={tex(total)}")
+        columns = list(zip(*out["A"]))
+        ctx.emit("combinacion_columnas", "Ponderar cada columna de A por la componente correspondiente de u+v.",
+                 {"columnas": list(zip(columns, out["u_mas_v"])), "resultado": out["Au_mas_v"]},
+                 r"A(u+v)=\sum_j(u_j+v_j)A_{:j}=Au+Av")
         for prop in out["propiedades"]:
             ctx.emit("igualdad","Comparar los miembros de "+prop["nombre"]+".",prop)
 

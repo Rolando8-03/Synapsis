@@ -389,6 +389,14 @@ def calculate(operation, data, steps=True):
     context = Context(collect_steps=steps)
     if operation == "original.sistema":
         output = solve_original({**data, "steps": steps})
+        if "solucion_particular" in output:
+            images = [
+                [sum(Fraction(a) * Fraction(v) for a, v in zip(row, direction)) for row in output["A"]]
+                for direction in output["direcciones"]
+            ]
+            verification = {"passed": all(row["cumple"] for row in output["comprobaciones"])
+                            and all(not any(image) for image in images), "Av": images}
+            output["comprobaciones_direcciones"] = images
         metadata["source"] = ORIGINAL
     elif operation == "sistemas.homogeneo":
         A = bounded_matrix(data["A"])

@@ -10,6 +10,7 @@ from .context import (
     identity,
     LinearFailure,
     InputError,
+    tex,
 )
 from .reduction import reduce, solve, kernel, rank, inverse
 
@@ -77,6 +78,11 @@ def study(vectors, ambient, ctx):
     ctx.emit("independencia","Comparar el número de pivotes con el número de vectores.",
              {"RREF":reduced["matrix"], "columnas_pivote":[j+1 for j in pivots],
               "relaciones_dependencia":relations}, r"Ax=0")
+    for coefficients, image in zip(relations, images):
+        first = next(j for j in range(len(coefficients)) if j not in pivots and coefficients[j])
+        ctx.emit("relacion_dependencia", f"Fijar el coeficiente libre {first+1} en 1 y comprobar la combinación.",
+                 {"coeficientes": coefficients, "combinacion": image},
+                 "+".join(rf"({tex(c)})v_{{{j}}}" for j, c in enumerate(coefficients, 1) if c) + "=0")
     return {
         "dimension_ambiente": ambient,
         "cantidad": len(vectors),

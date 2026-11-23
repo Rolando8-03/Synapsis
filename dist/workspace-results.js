@@ -192,8 +192,13 @@ function systemResult(out, choices, steps) {
   if (choices.steps && steps?.length) panels.push(['Procedimiento', () => procedureView(steps)]);
 
   if (choices.verify && out.comprobaciones) {
-    panels.push(['Comprobación', table(['Ecuación','Ax','b','Coincide'],
-      out.comprobaciones.map((row, i) => [`F${i+1}`, row.resultado,row.esperado,row.cumple]), 'Sustitución de la solución particular')]);
+    const proofs = node('div', 'ws-result-stack');
+    proofs.append(table(['Ecuación','Ax','b','Coincide'],
+      out.comprobaciones.map((row, i) => [`F${i+1}`, row.resultado,row.esperado,row.cumple]), 'Sustitución de la solución particular'));
+    if (out.comprobaciones_direcciones?.length) {
+      proofs.append(valueView({'Producto Av de cada dirección': out.comprobaciones_direcciones}));
+    }
+    panels.push(['Comprobación', proofs]);
   }
   return panels;
 }

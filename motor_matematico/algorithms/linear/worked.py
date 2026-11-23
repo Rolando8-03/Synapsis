@@ -75,3 +75,11 @@ def vector_steps(ctx, operation, u, v, result, k=None):
             right=dot_formula([u[j]],[v[h]])+'-'+dot_formula([u[h]],[v[j]])
         ctx.emit('componente',f'Calcular la componente {i+1}.', {},
                  rf'w_{{{i+1}}}={right}={tex(value)}')
+
+
+def row_replacement(before, source, factor, after, row):
+    formulas = [
+        rf"a'_{{{row+1},{j}}}&={parenthesize(a)}+{parenthesize(factor)}{parenthesize(b)}={tex(c)}"
+        for j, (a, b, c) in enumerate(zip(before, source, after), 1)
+    ]
+    return r'\begin{aligned}' + r'\\'.join(formulas) + r'\end{aligned}'
