@@ -261,7 +261,7 @@ def root_visual(data, out):
     from motor_matematico.domain.models import DomainError
     f=Function(data["expresion"],Context())
     table=out["tabla"]
-    rows=table[:24]
+    rows=table
     def real(value):
         return float(Fraction(value))
     middle=real(out["aproximacion"])
@@ -274,7 +274,7 @@ def root_visual(data, out):
         begin,end=begin-margin,end+margin
     if not isfinite(begin) or not isfinite(end) or abs(begin)+abs(end)>1e12:
         return None
-    points,tangents,markers=[],[],[]
+    points,tangents,markers,iterations=[],[],[],[]
     with localcontext() as arithmetic:
         arithmetic.prec=26
         for i in range(801):
@@ -288,12 +288,15 @@ def root_visual(data, out):
         if "derivada_x" in row:
             left,top,new=real(row["x_anterior"]),real(row["f_anterior_actual"]),real(row["x"])
             # Para Newton modificado el punto de la tangente en y=0 es diferente del iterado.
-            intercept=left-top/real(row["derivada_x"])
-            tangents.append([[left,top],[intercept,0]])
+            slope = real(row["derivada_x"])
+            if slope:
+                intercept = left - top / slope
+                tangents.append([[left, top], [intercept, 0]])
             markers.append([new,0])
         else:
             markers.append([real(row["x"]),real(row["fx"])])
-    return {"points":points,"tangents":tangents,"markers":[*markers,[middle,0]],
+        iterations.append([row["iteracion"], *markers[-1]])
+    return {"points":points,"tangents":tangents,"markers":[*markers,[middle,0]], "iteraciones": iterations,
             "caption":"Función, aproximaciones y tangentes de Newton" if tangents else "Función y aproximaciones"}
 
 

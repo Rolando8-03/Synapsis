@@ -1,3 +1,4 @@
+import { iterationSelection } from './iteration-selection.js';
 import { node } from './matrix-input.js';
 import { addPlot } from './plot.js';
 import { math, matrixFormula, numericTex, vectorFormula } from './math-format.js';
@@ -221,13 +222,15 @@ function systemResult(out, choices, steps) {
   return panels;
 }
 
-function procedureView(entries) {
+function procedureView(entries, selection) {
   const stack = node('div','ws-result-stack');
   const list = node('ol','ws-step-list ws-detailed-steps');
   const more = node('button','secondary','Ver los siguientes pasos');
   more.type = 'button';
   let shown = 0;
-  function appendSteps() {
+  const byIteration = new Map();
+  let active;
+  function appendSteps(focus = false) {
     const added = document.createDocumentFragment();
     const start = shown;
     for (const step of entries.slice(shown,shown+18)) {
@@ -235,6 +238,10 @@ function procedureView(entries) {
       const body = node('div','ws-step-card');
       body.append(node('h3','',step.description));
       if (step.formula) body.append(math(step.formula,step.formula,true));
+      if (step.data?.iteracion !== undefined && selection) {
+        byIteration.set(step.data.iteracion, item);
+        item.addEventListener('click', () => selection.select(step.data.iteracion));
+      }
       const {matriz, antes, separador, formula, desarrollo, ...remainder} = step.data ?? {};
       if (matriz) {
         const split = separador && separador < matriz[0]?.length ? separador : false;
@@ -257,15 +264,22 @@ function procedureView(entries) {
     }
     list.append(added);
     more.hidden = shown >= entries.length;
-    if (start) {
+    if (start && focus) {
       const item = list.children[start];
       item.tabIndex = -1;
       item.focus();
     }
   }
-  more.addEventListener('click',appendSteps);
+  more.addEventListener('click', () => appendSteps(true));
   stack.append(list,more);
   appendSteps();
+  if (selection) selection.subscribe(index => {
+    if (!entries.some(step => step.data?.iteracion === index)) return;
+    while (!byIteration.has(index) && shown < entries.length) appendSteps();
+    active?.classList.remove('ws-iteration-active');
+    active = byIteration.get(index);
+    active?.classList.add('ws-iteration-active');
+  });
   return stack;
 }
 
@@ -301,7 +315,9 @@ function genericResult(response) {
     main.append(lead);
   }
   if (series?.points?.length) main.append(addPlot(series));
-  if (grafico_raiz?.points?.length) panels.push(['Gráfica', () => addPlot(grafico_raiz)]);
+  const indices = grafico_raiz?.iteraciones?.map(([index]) => index);
+  const selection = indices?.length ? iterationSelection(indices) : null;
+  if (grafico_raiz?.points?.length) panels.push(['Gráfica', () => addPlot({...grafico_raiz, selection})]);
   if (diagrama_vectores?.length) main.append(addPlot({diagram:diagrama_vectores}));
   if (formula_latex) main.append(math(formula_latex, formula_latex, true));
   if (points?.length) {
@@ -323,10 +339,16 @@ function genericResult(response) {
       const cols = bracket
         ? ['k','a','b','xᵣ','f(a)','f(b)','f(xᵣ)','Signo f(a)f(xᵣ)','εₐ (%)','Cota']
         : ['k','xₖ','f(xₖ)',first.derivada_x !== undefined ? 'f′(xₖ)' : 'f(xₖ₋₁)','xₖ₊₁','εₐ (%)','Error absoluto','|f(xₖ₊₁)|'];
-      body.append(table(cols, tabla.map(row => (bracket
+      const iterations = table(cols, tabla.map(row => (bracket
         ? [row.iteracion,row.a,row.b,row.x_decimal,row.fa,row.fb,row.fx,row.signo_fa_por_fx,row.error_porcentual,row.cota_intervalo]
         : [row.iteracion,row.x_anterior,row.f_anterior_actual,row.derivada_x ?? row.f_anterior,
-          row.x_decimal,row.error_porcentual,row.error_aproximado_absoluto,row.residual]).map(formatDecimal))));
+          row.x_decimal,row.error_porcentual,row.error_aproximado_absoluto,row.residual]).map(formatDecimal)));
+      body.append(iterations);
+      if (selection) {
+        const rows = [...iterations.querySelectorAll('tbody tr')];
+        rows.forEach((row, i) => row.addEventListener('click', () => selection.select(tabla[i].iteracion)));
+        selection.subscribe(index => rows.forEach((row, i) => row.classList.toggle('ws-iteration-active', tabla[i].iteracion === index)));
+      }
     } else if (first.vector_decimal) {
       body.append(table(['k','xₖ · aproximado','‖Ax−b‖','Cambio absoluto','Cambio relativo','Error por componente (%)'],
         tabla.map(row => [row.iteracion,row.vector_decimal,row.norma_residual_decimal,
@@ -340,7 +362,8 @@ function genericResult(response) {
     body.append(exact);
     return body;
   }]);
-  if (response.steps?.length) panels.push(['Procedimiento', () => procedureView(response.steps)]);
+  if (response.steps?.length) panels.push(['Procedimiento', () => procedureView(response.steps, selection)]);
+  if (selection) panels.selection = selection;
   if (response.verification && Object.keys(response.verification).length) {
     panels.push(['Comprobación', valueView(response.verification)]);
   }
@@ -419,7 +442,9 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
     });
     tabs.append(button);
   });
-  results.append(tabs, content);
+  results.append(tabs);
+  if (panels.selection) results.append(panels.selection.controls());
+  results.append(content);
   target.append(results);
   const initial = selectedTab || (originalSystem && choices.solution ? 'Solución' : 'Resultado');
   select(Math.max(0, panels.findIndex(([label]) => label === initial)));

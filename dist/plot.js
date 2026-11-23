@@ -4,7 +4,7 @@ const page = document.documentElement;
 const clamp = (value, lower, upper) => Math.min(upper, Math.max(lower, value));
 const tickFormat = new Intl.NumberFormat('es-NI', { maximumSignificantDigits: 3, useGrouping: false });
 
-export function addPlot({ points = [], parametric = false, names = [], diagram, tangents = [], markers = [], caption }) {
+export function addPlot({ points = [], parametric = false, names = [], diagram, tangents = [], markers = [], iteraciones = [], selection, caption }) {
   const numericPoint = point => point.map(value => value === null ? null : Number(value));
   points = points.map(numericPoint);
   const arrows = diagram?.map(([label,start,end]) => [label,numericPoint(start),numericPoint(end)]);
@@ -53,6 +53,7 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
   const tick = value => Math.abs(value) >= 10000 || (value && Math.abs(value) < .01)
     ? value.toExponential(1) : tickFormat.format(value);
   const legends = [];
+  let selectedPoint;
   canvas.redrawPlot = () => {
     context.clearRect(0, 0, width, height);
     context.lineWidth = 1;
@@ -139,10 +140,46 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
         context.fill();
       }
     }
+    if (selectedPoint) {
+      const [,x,y] = selectedPoint;
+      context.beginPath();
+      context.arc(xPixel(x), yPixel(y), 8, 0, Math.PI*2);
+      context.strokeStyle = color('--text');
+      context.lineWidth = 3;
+      context.stroke();
+    }
     context.restore();
 
     legends.forEach((legend, i) => legend.style.setProperty('--series-color', colors[i]));
   };
+  if (selection && iteraciones.length) {
+    canvas.tabIndex = 0;
+    canvas.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+      event.preventDefault();
+      selection.move(event.key === 'ArrowLeft' ? -1 : 1);
+    });
+    canvas.addEventListener('click', event => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (event.clientX - rect.left) * width / rect.width;
+      const y = (event.clientY - rect.top) * height / rect.height;
+      let closest;
+      let distance = 18;
+      for (const [index, px, py] of iteraciones) {
+        const candidate = Math.hypot(xPixel(px) - x, yPixel(py) - y);
+        if (candidate < distance) {
+          closest = index;
+          distance = candidate;
+        }
+      }
+      if (closest !== undefined) selection.select(closest);
+    });
+    selection.subscribe(index => {
+      selectedPoint = iteraciones.find(([iteration]) => iteration === index);
+      canvas.setAttribute('aria-label', `${caption || 'Gráfica'} · iteración ${index}. Usá las flechas para cambiar.`);
+      canvas.redrawPlot();
+    });
+  }
   if (arrows) names = arrows.map(([name]) => name).filter(Boolean);
   if (!names.length) {
     canvas.redrawPlot();

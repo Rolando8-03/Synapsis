@@ -291,3 +291,7 @@
 .ws-result-stack, .ws-step-card, #ws-result-content { min-width: 0; }
 .ws-result-table .ws-pivot .ws-math { outline: 1px solid var(--ws-accent); outline-offset: 2px; }
 .ws-result-table .ws-math { white-space: nowrap; }
+
+.ws-iteration-control { display: flex; align-items: center; gap: 8px; margin-block: 8px; }
+#workspace .ws-iteration-control select { width: auto; }
+.ws-iteration-active { outline: 2px solid var(--ws-accent); outline-offset: -2px; }
