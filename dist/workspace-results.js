@@ -1,6 +1,6 @@
 import { node } from './matrix-input.js';
 import { addPlot } from './plot.js';
-import { math, matrixFormula, numericTex } from './math-format.js';
+import { math, matrixFormula, numericTex, vectorFormula } from './math-format.js';
 
 const LABELS = {
   matrix: 'Matriz resultante', tabla: 'Tabla de iteraciones', rango_A: 'Rango de A',
@@ -72,7 +72,7 @@ function valueView(value) {
   if (Array.isArray(value)) {
     if (!value.length) return node('span', 'ws-value', '∅');
     if (value.every(x => Array.isArray(x) && x.every(isScalar))) return matrixView(value);
-    if (value.every(isScalar)) return node('span', 'ws-value', `( ${value.map(scalar).join(' · ')} )`);
+    if (value.every(isScalar)) return vectorFormula(value) ?? node('span', 'ws-value', `( ${value.map(scalar).join(' · ')} )`);
     if (value.every(x => x && !Array.isArray(x) && typeof x === 'object')) {
       const keys = [...new Set(value.flatMap(Object.keys))];
       return table(keys.map(title), value.map(row => keys.map(key => row[key] ?? null)));

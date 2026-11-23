@@ -37,3 +37,9 @@ export function matrixFormula(rows, caption, independent = false, pivots = []) {
   wrap.append(math(tex, rows.map(row => row.join('\t')).join('\n'), true));
   return wrap;
 }
+
+export function vectorFormula(values) {
+  const entries = values.map(numericTex);
+  if (!entries.length || entries.length > 8 || entries.includes(null)) return null;
+  return math(`\\left(${entries.join(',\\,')}\\right)`, `(${values.join(', ')})`);
+}
