@@ -46,6 +46,11 @@ def roots(method, data, ctx):
     }
 
     def finish(status, reason, x=None, fx=None):
+        if x is not None:
+            result["ultimo_punto"] = x
+            ctx.emit("parada_raiz", "Leer el último punto, el residuo y el motivo de parada.",
+                     {"estado": status, "motivo": reason, "ultimo_punto": x, "residuo": abs(fx)},
+                     r"r=|f(x)|")
         result.update(
             motivo_parada=reason, iteraciones=len(table), convergencia=status == "ok"
         )
@@ -114,9 +119,19 @@ def roots(method, data, ctx):
                 required += 1
                 particular /= 2
             result["iteraciones_para_la_cota"] = required
+            ctx.emit("cota_biseccion", "Comparar la cota teórica con la tolerancia y el máximo de iteraciones.",
+                     {"ancho_inicial": b-a, "tolerancia": tx, "iteraciones_necesarias": required,
+                      "maximo_configurado": limit, "criterio_activo": criterion},
+                     r"c_k=\frac{b_0-a_0}{2^k}")
         previous = None
         for k in range(1, limit + 1):
             ctx.tick()
+            denominator = decimal(fb) - decimal(fa) if method == "falsa_posicion" else F(2)
+            if not denominator:
+                ctx.emit("denominador_nulo", "Los valores de ambos extremos coinciden a la precisión de trabajo.",
+                         {"a": a, "b": b, "fa": fa, "fb": fb, "denominador": 0})
+                last = previous if previous is not None else a
+                return finish("breakdown", "denominador_falsa_posicion_nulo", last, f.exact(last))
             # La bisección conserva extremos y puntos medios racionales exactos.
             # Falsa posición redondea su nuevo punto a 40 cifras para acotar crecimiento.
             x = (
@@ -127,7 +142,7 @@ def roots(method, data, ctx):
                     - (
                         decimal(fa)
                         * (decimal(b) - decimal(a))
-                        / (decimal(fb) - decimal(fa))
+                        / denominator
                     )
                 )
             )
@@ -158,11 +173,15 @@ def roots(method, data, ctx):
                     "error_aproximado_relativo": relative,
                     "cota_intervalo": bound,
                     "signo_fa_por_fx": "-" if fa*fx < 0 else "+" if fa*fx > 0 else "0",
-                    "decision_intervalo": "Extremo superior ← punto medio" if fa*fx < 0 else
-                                          "Extremo inferior ← punto medio" if fx else "Valor cero",
+                    "intervalo_siguiente": [a, x] if fa * fx < 0 else [x, b] if fx else [x, x],
+                    "decision_intervalo": "Reemplazar extremo superior" if fa * fx < 0 else
+                                          "Reemplazar extremo inferior" if fx else "Valor cero",
+                    "denominador": denominator,
                     "error_porcentual": 100 * relative if relative is not None else None,
                     "desarrollo": (r"x_m=\frac{(" + tex(a) + ")+(" + tex(b) + ")}{2}=" + tex(x))
-                       if method=="biseccion" else r"x_r=a-f(a)\frac{b-a}{f(b)-f(a)}",
+                       if method=="biseccion" else
+                       rf"x_r=({tex(a)})-({tex(fa)})\frac{{({tex(b)})-({tex(a)})}}{{{tex(denominator)}}}"
+                       rf"\approx{format(decimal(x),'.14g')}",
                     "cota_garantizada": certified,
                 }
             )
@@ -206,6 +225,8 @@ def roots(method, data, ctx):
             previous = x
         return finish("iteration_limit", "maximo_de_iteraciones", x, fx)
     derivative = None
+    x = decimal(data["inicial"])
+    fx = f.value(x)
     if method == "newton":
         derivative, source = f.derivative(data.get("derivada"))
         result.update(derivada=derivative.expression, origen_derivada=source)
@@ -218,16 +239,13 @@ def roots(method, data, ctx):
             warnings.append(
                 "La derivada proporcionada se usa como dato; no se certifica su equivalencia simbólica con f."
             )
-        x = decimal(data["inicial"])
         previous = None
     else:
         previous = decimal(data["anterior"])
-        x = decimal(data["inicial"])
         if previous == x:
             raise InputError("Secante requiere dos semillas distintas.")
     criterion = data.get("criterio", "residual_y_paso")
     result["criterio"] = criterion
-    fx = f.value(x)
     history = [x]
     if method == "secante" and f.value(previous) == 0:
         return finish(
@@ -255,6 +273,9 @@ def roots(method, data, ctx):
                 old_value = f.value(previous)
                 denominator = fx - old_value
                 if denominator == 0:
+                    ctx.emit("denominador_nulo", "Evaluar las dos ordenadas antes de dividir.",
+                             {"anterior": previous, "actual": x, "f_anterior": old_value, "f_actual": fx,
+                              "denominador": denominator}, r"f(x_k)-f(x_{k-1})=0")
                     return finish("breakdown", "denominador_secante_nulo", x, fx)
                 next_x = x - fx * (x - previous) / denominator
                 formula = r"x_{k+1}=x_k-f(x_k)(x_k-x_{k-1})/(f(x_k)-f(x_{k-1}))"
@@ -262,6 +283,8 @@ def roots(method, data, ctx):
                     "anterior": previous,
                     "f_anterior": old_value,
                     "denominador": denominator,
+                    "desarrollo": rf"x_{{{k}}}\approx({x:.10g})-({fx:.10g})"
+                                  rf"\frac{{({x:.10g})-({previous:.10g})}}{{{denominator:.10g}}}\approx {next_x:.10g}",
                 }
             if abs(next_x) > D("1e100"):
                 raise DomainError("El iterado excede 1e100.")

@@ -65,7 +65,7 @@ def iterative(method, data, ctx):
                 if omega != 1:
                     formula = rf"({tex(1-omega)})({tex(old[i])})+({tex(omega)})" + formula
                 value = format(decimal(current[i]),".12g")
-                sources_text = ",\;".join(
+                sources_text = r",\;".join(
                     rf"x_{{{j+1}}}^{{({k if forward and j < i else k-1})}}={tex(current[j] if forward and j < i else old[j])}"
                     for j in range(n) if i != j and A[i][j]
                 )

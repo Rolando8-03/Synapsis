@@ -15,6 +15,8 @@ const LABELS = {
   matriz_aumentada:'Matriz aumentada [A | b]', dimension:'Dimensión', incognitas:'Incógnitas',
   clasificacion:'Clasificación', nulidad:'Nulidad', nucleo:'Base del núcleo',
   base_imagen:'Base de la imagen', es_subespacio:'Es subespacio', metodo:'Método',
+  residual: 'Residuo', ultimo_punto: 'Último punto', origen_derivada: 'Origen de la derivada',
+  motivo_parada: 'Motivo de parada',
   error_truncamiento:'Error de truncamiento', error_redondeo:'Error de redondeo', valor_decimal: 'Valor decimal', A: 'A', B: 'B', U: 'U', L: 'L', P: 'P',
 };
 
@@ -375,9 +377,26 @@ function genericResult(response) {
     for (const key of ['P','L','U','convencion']) delete general[key];
   }
   if (output.aproximacion_decimal) {
-    const lead = math(`x\\approx${numericTex(output.aproximacion_decimal) ?? output.aproximacion_decimal}`,
-      `x ≈ ${output.aproximacion_decimal}`, true);
-    lead.classList.add('ws-result-lead');
+    const lead = node('div', 'ws-result-lead');
+    const stopped = response.status !== 'ok';
+    if (stopped) lead.append(node('p', 'ws-feature', 'Último punto calculado'));
+    const value = output.aproximacion_decimal;
+    const exactDisplay = output.error_redondeo_decimal === '0';
+    const sign = exactDisplay ? '=' : '\\approx';
+    lead.append(math(`x${sign}${numericTex(value) ?? value}`, `x ${exactDisplay ? '=' : '≈'} ${value}`, true));
+    if (stopped && output.residual !== undefined) {
+      const residual = numericTex(output.residual);
+      lead.append(residual ? math(`|f(x)|=${residual}`, `|f(x)| = ${output.residual}`, true)
+        : node('p', 'ws-value', `Residuo: ${output.residual}`));
+      const reasons = {
+        derivada_nula_o_demasiado_pequena: 'La derivada es cero o demasiado pequeña para dividir.',
+        denominador_secante_nulo: 'Las dos ordenadas de la secante coinciden.',
+        denominador_falsa_posicion_nulo: 'Los valores en los extremos coinciden a la precisión de trabajo.',
+        maximo_de_iteraciones: 'Se alcanzó el máximo de iteraciones.',
+        precision_agotada: 'El nuevo punto coincide con el anterior a la precisión de trabajo.',
+      };
+      if (reasons[output.motivo_parada]) lead.append(node('p', 'ws-muted', reasons[output.motivo_parada]));
+    }
     main.append(lead);
   }
   if (series?.points?.length) main.append(addPlot(series));
@@ -462,7 +481,7 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
   if (response.status !== 'ok' && !originalSystem) {
     const status = ({iteration_limit:'Máximo de iteraciones alcanzado', stagnated:'El método se estancó',
       infinite:'Infinitas soluciones', inconsistent:'Sistema incompatible', not_applicable:'Método no aplicable',
-      cycle_detected:'Se detectó un ciclo', breakdown:'El método se detuvo', singular:'Matriz singular',
+      cycle_detected:'Se detectó un ciclo', domain_error:'Evaluación fuera del dominio', breakdown:'El método se detuvo', singular:'Matriz singular',
     })[response.status];
     if (status) target.append(node('p','ws-warning',status));
   }

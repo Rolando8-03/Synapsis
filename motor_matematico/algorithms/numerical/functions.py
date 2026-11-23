@@ -119,16 +119,10 @@ class Function:
     def derivative(self, provided=None):
         if provided:
             return Function(provided, self.ctx), "proporcionada_por_usuario"
+        from .symbolic import derivative_text
         try:
-            text = calculo.ejecutar_calculo(
-                {
-                    "accion": "calculo",
-                    "operacion": "derivar",
-                    "expresion": self.expression,
-                }
-            )["expresion"]
-            return Function(text, self.ctx), "reglas_simbolicas"
+            return Function(derivative_text(self.tree, self.ctx), self.ctx), "sympy"
         except ValueError:
             raise InputError(
-                "No se pudo construir la derivada admitida. Proporcioná f'(x) explícitamente."
+                "No se pudo construir una derivada que el motor pueda evaluar. Ingresá f'(x)."
             ) from None
