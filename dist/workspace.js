@@ -17,7 +17,7 @@ const GROUP_ICONS = {
   Conjuntos:'∪', 'Notación y modelos':'⌘',
 };
 const OP_ICONS = {
-  sistema:'⇥', cramer:'∣A∣', inversa:'⁻¹', lu:'LU', plu:'PL', triangular:'◿',
+  'sistemas.resolver':'G/J', sistema:'⇥', cramer:'∣A∣', inversa:'⁻¹', lu:'LU', plu:'PL', triangular:'◿',
   suma:'+', resta:'−', producto:'×', escalar:'α', transpuesta:'ᵀ', traza:'tr',
   potencia:'ⁿ', analizar:'≡', ref:'◩', rref:'▱', elemental:'⇅', propiedades:'≟',
   calcular:'≈', cofactores:'±', inversa_adjunta:'adj', propiedades_det:'∣∣',
@@ -39,7 +39,7 @@ function navIcon(symbol) {
   return icon;
 }
 function operationIcon(id) {
-  return OP_ICONS[id.split('.')[1]] ?? '◈';
+  return OP_ICONS[id] ?? OP_ICONS[id.split('.')[1]] ?? '◈';
 }
 
 function historyEntries() {

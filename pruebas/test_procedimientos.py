@@ -107,6 +107,20 @@ class ProceduresTest(unittest.TestCase):
                 self.assertIn("matriz_rref", full["result"])
                 self.assertEqual(full, calculate("original.sistema", {"matrix": matrix}))
 
+    def test_system_method_selector_is_available_from_navigation(self):
+        op = "sistemas.resolver"
+        systems = dict(catalog()["modules"]["sistemas"])
+        self.assertIn(op, systems["Resolución"])
+        for method in ("gauss", "gauss_jordan"):
+            with self.subTest(method=method):
+                data = {"A": [[0, 2], [3, 1]], "b": [1, 5], "metodo": method}
+                response = calculate(op, data)
+                self.assertEqual(["3/2", "1/2"], response["result"]["particular"])
+                self.assertTrue(response["verification"]["passed"])
+                singular = calculate(op, {**data, "A": [[1, 1], [2, 2]], "b": [1, 3]})
+                self.assertEqual("inconsistent", singular["status"])
+                self.assertTrue(singular["verification"]["passed"])
+
     def test_homogeneous_parameters_and_rank(self):
         r=calculate("original.sistema",{"matrix":[[1,2,3,4,5,10],[0,1,1,1,1,3],[0,0,1,2,3,4],[0,0,0,1,1,2]]})
         self.assertEqual([4],r["result"]["variables_libres"])

@@ -25,7 +25,7 @@ OPERATION_DATA = [
     },
     {
         "id": "sistemas.resolver",
-        "title": "Resolver y clasificar un sistema",
+        "title": "Resolver por Gauss o Gauss-Jordan",
         "category": "Sistemas",
         "fields": [
             {

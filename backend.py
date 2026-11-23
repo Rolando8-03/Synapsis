@@ -134,7 +134,7 @@ EXTRA.update({
 })
 
 MODULES = {
-    "sistemas": [("Resolución", ["original.sistema", "sistemas.homogeneo", "sistemas.cramer", "sistemas.parametrico", "sistemas.inversa"]),
+    "sistemas": [("Resolución", ["original.sistema", "sistemas.resolver", "sistemas.homogeneo", "sistemas.cramer", "sistemas.parametrico", "sistemas.inversa"]),
         ("Factorización", ["factorizacion.lu", "factorizacion.plu", "factorizacion.resolver", "original.triangular"]),
         ("Notación y modelos", ["sistemas.ecuaciones","modelos.economia","modelos.balance","modelos.flujos"])],
     "matrices": [("Operaciones", ["matrices.notacion", "matrices.comparar", "matrices.suma", "matrices.resta", "matrices.producto", "matrices.escalar", "matrices.transpuesta", "matrices.traza", "matrices.potencia"]),

@@ -248,6 +248,17 @@ function genericResult(response) {
   const main = node('div', 'ws-result-stack');
   const panels = [['Resultado', main]];
   const {points, parametric, muestras, tabla, encabezados, formula_latex, series, diagrama_vectores, grafico_raiz, ...general} = output;
+  if (response.operation_id === 'sistemas.resolver') {
+    general.metodo = output.metodo === 'gauss' ? 'Gauss' : 'Gauss-Jordan';
+    main.append(matrixView(output.matrix, `[A | b] después de ${general.metodo}`, true, matrixLabels(output.dimension_dominio)));
+    delete general.matrix;
+    if (output.certificado) {
+      general.certificado = {...output.certificado, fila: output.certificado.fila + 1};
+      delete general.variables_libres;
+    } else {
+      general.variables_libres = output.variables_libres.map(i => `x${i + 1}`);
+    }
+  }
   if (output.convencion && output.L && output.U) {
     main.append(math(output.convencion, output.convencion, true));
     const factors = node('div','ws-factors');
