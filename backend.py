@@ -7,6 +7,7 @@ import re
 import sys
 
 from motor_matematico.application.catalog import CATALOG
+from motor_matematico.application.derivative_view import derivative_lines
 from motor_matematico.application.service import execute
 from motor_matematico.algorithms.linear.context import Context, vector as parse_vector, matrix as bounded_matrix
 from motor_matematico.algorithms.numerical.functions import Function, decimal
@@ -344,6 +345,8 @@ def calculate(operation, data, steps=True):
             data = {k:v for k,v in data.items() if k != "b"}
         response = execute({"schema_version":"1.0", "operation_id":operation, "input":data,
                             "options":{"include_steps":steps}})
+        if operation == "calculo.derivar" and response.get("result"):
+            response["metadata"]["formulas_derivada"] = derivative_lines(data, response["result"])
         if operation.startswith("raices.") and (response.get("result") or {}).get("aproximacion") is not None:
             try:
                 response["result"]["grafico_raiz"] = root_visual(data,response["result"])

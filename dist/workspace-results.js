@@ -282,7 +282,11 @@ function genericResult(response) {
     main.append(addPlot({points, parametric}), table(parametric ? ['t', 'x(t)', 'y(t)'] : ['x','f(x)'],
       muestras.map(row => parametric ? row : row.slice(1)), 'Puntos de referencia'));
   }
-  if (Object.keys(general).length) main.append(valueView(general));
+  if (response.operation_id === 'calculo.derivar' && response.metadata?.formulas_derivada) {
+    for (const {latex, texto} of response.metadata.formulas_derivada) {
+      main.append(latex ? math(latex, texto, true) : node('p', 'ws-value', texto));
+    }
+  } else if (Object.keys(general).length) main.append(valueView(general));
   if (tabla?.length) panels.push([encabezados ? 'Tabla' : 'Iteraciones', () => {
     if (encabezados) return table(encabezados, tabla);
     const first = tabla[0];
@@ -331,7 +335,7 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
   actions.append(edit);
   header.append(heading, actions);
   target.append(header);
-  if (response.result?.expresion) {
+  if (response.result?.expresion && response.operation_id !== 'calculo.derivar') {
     const expression = node('p','ws-active-expression');
     expression.append(node('strong','','Función '),node('code','',response.result.expresion));
     if (response.result.derivada) expression.append(node('strong','',' Derivada '),node('code','',response.result.derivada));
