@@ -52,101 +52,111 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
   };
   const tick = value => Math.abs(value) >= 10000 || (value && Math.abs(value) < .01)
     ? value.toExponential(1) : tickFormat.format(value);
-  const palette = getComputedStyle(page);
-  const graphGrid = palette.getPropertyValue('--menu-plot-grid').trim() || '#28364b';
-  const graphAxis = palette.getPropertyValue('--menu-plot-axis').trim() || '#84a0be';
-  context.font = '20px system-ui';
-  context.fillStyle = palette.getPropertyValue('--muted').trim();
-  for (let i = 0; i <= 4; i++) {
-    const x = padding + w * i / 4;
-    const y = padding + h * i / 4;
-    line(x, padding, x, height - padding, graphGrid);
-    line(padding, y, width - padding, y, graphGrid);
-    context.textAlign = 'center';
-    context.fillText(tick(xmin + (xmax - xmin) * i / 4), x, height - padding + 26);
-    context.textAlign = 'right';
-    context.fillText(tick(ymax - (ymax - ymin) * i / 4), padding - 7, y + 5, padding - 8);
-  }
-  if (xmin <= 0 && xmax >= 0) line(xPixel(0), padding, xPixel(0), height - padding, graphAxis);
-  if (ymin <= 0 && ymax >= 0) line(padding, yPixel(0), width - padding, yPixel(0), graphAxis);
-  context.save();
-  context.beginPath();
-  context.rect(padding, padding, w, h);
-  context.clip();
-  const colors = [palette.getPropertyValue('--gold').trim() || '#b97019',
-    page.dataset.seriousTheme === 'light' && page.classList.contains('serious') ? '#3763a6' : '#b4d1f0'];
-  colors.push(page.dataset.seriousTheme === 'light' && page.classList.contains('serious') ? '#10705f' : '#85dac8');
-  if (arrows) {
-    arrows.forEach(([label,start,end],index) => {
-      const from = [xPixel(start[0]),yPixel(start[1])];
-      const to = [xPixel(end[0]),yPixel(end[1])];
-      const color = colors[index % 3];
-      context.setLineDash(label ? [] : [6,6]);
-      context.lineWidth = label ? 3 : 1.5;
-      line(...from, ...to, color);
-      if (!label) return;
-      const angle = Math.atan2(to[1]-from[1],to[0]-from[0]);
-      context.fillStyle = color;
-      context.beginPath();
-      context.arc(...to, 3, 0, Math.PI*2);
-      context.fill();
-      if (Math.hypot(to[0]-from[0],to[1]-from[1]) < 10) return;
-      context.beginPath();
-      context.moveTo(...to);
-      context.lineTo(to[0]-13*Math.cos(angle-.43),to[1]-13*Math.sin(angle-.43));
-      context.lineTo(to[0]-13*Math.cos(angle+.43),to[1]-13*Math.sin(angle+.43));
-      context.fill();
-    });
-  }
-  if (!arrows) {
-    context.lineWidth = 1.2;
-    context.setLineDash([5,5]);
-    tangents.forEach(([[x1,y1],[x2,y2]]) => line(xPixel(x1),yPixel(y1),xPixel(x2),yPixel(y2),'#70d6c7'));
-    context.setLineDash([]);
-    markers.forEach(([x,y]) => {
-      context.beginPath();
-      context.arc(xPixel(x),yPixel(y),4,0,Math.PI*2);
-      context.fillStyle='#75d9cc';
-      context.fill();
-    });
-  }
-  const series = names.length || 1;
-  for (let index = 0; index < series; index++) {
+  const legends = [];
+  canvas.redrawPlot = () => {
+    context.clearRect(0, 0, width, height);
+    context.lineWidth = 1;
+    const palette = getComputedStyle(page);
+    const color = name => palette.getPropertyValue(name).trim();
+    const graphGrid = color('--plot-grid');
+    const graphAxis = color('--plot-axis');
+    const colors = [1, 2, 3].map(index => color('--plot-series-' + index));
+    context.font = '20px system-ui';
+    context.fillStyle = color('--muted');
+    for (let i = 0; i <= 4; i++) {
+      const x = padding + w * i / 4;
+      const y = padding + h * i / 4;
+      line(x, padding, x, height - padding, graphGrid);
+      line(padding, y, width - padding, y, graphGrid);
+      context.textAlign = 'center';
+      context.fillText(tick(xmin + (xmax - xmin) * i / 4), x, height - padding + 26);
+      context.textAlign = 'right';
+      context.fillText(tick(ymax - (ymax - ymin) * i / 4), padding - 7, y + 5, padding - 8);
+    }
+    if (xmin <= 0 && xmax >= 0) line(xPixel(0), padding, xPixel(0), height - padding, graphAxis);
+    if (ymin <= 0 && ymax >= 0) line(padding, yPixel(0), width - padding, yPixel(0), graphAxis);
+    context.save();
     context.beginPath();
-    context.strokeStyle = colors[index];
-    context.lineWidth = index ? 3 : 3.6;
-    context.setLineDash(index ? [7,4] : []);
-    let last = null;
-    for (const point of points) {
-      const [x,y] = [point[0],point[index+1]];
-      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        last = null;
-        continue;
-      }
-      const next = [clamp(xPixel(x), -width, width * 2), clamp(yPixel(y), -height, height * 2)];
-      if (!last || (!names.length && Math.hypot(next[0] - last[0], next[1] - last[1]) > h * .65)) context.moveTo(...next);
-      else context.lineTo(...next);
-      last = next;
+    context.rect(padding, padding, w, h);
+    context.clip();
+    if (arrows) {
+      arrows.forEach(([label,start,end],index) => {
+        const from = [xPixel(start[0]),yPixel(start[1])];
+        const to = [xPixel(end[0]),yPixel(end[1])];
+        const color = colors[index % 3];
+        context.setLineDash(label ? [] : [6,6]);
+        context.lineWidth = label ? 3 : 1.5;
+        line(...from, ...to, color);
+        if (!label) return;
+        const angle = Math.atan2(to[1]-from[1],to[0]-from[0]);
+        context.fillStyle = color;
+        context.beginPath();
+        context.arc(...to, 3, 0, Math.PI*2);
+        context.fill();
+        if (Math.hypot(to[0]-from[0],to[1]-from[1]) < 10) return;
+        context.beginPath();
+        context.moveTo(...to);
+        context.lineTo(to[0]-13*Math.cos(angle-.43),to[1]-13*Math.sin(angle-.43));
+        context.lineTo(to[0]-13*Math.cos(angle+.43),to[1]-13*Math.sin(angle+.43));
+        context.fill();
+      });
     }
-    context.stroke();
-    if (points.length === 1 && last) {
+    if (!arrows) {
+      context.lineWidth = 1.2;
+      context.setLineDash([5,5]);
+      tangents.forEach(([[x1,y1],[x2,y2]]) => line(xPixel(x1),yPixel(y1),xPixel(x2),yPixel(y2),colors[2]));
+      context.setLineDash([]);
+      markers.forEach(([x,y]) => {
+        context.beginPath();
+        context.arc(xPixel(x),yPixel(y),4,0,Math.PI*2);
+        context.fillStyle = colors[1];
+        context.fill();
+      });
+    }
+    const series = names.length || 1;
+    for (let index = 0; index < series; index++) {
       context.beginPath();
-      context.arc(...last, 5, 0, Math.PI * 2);
-      context.fillStyle = colors[index];
-      context.fill();
+      context.strokeStyle = colors[index];
+      context.lineWidth = index ? 3 : 3.6;
+      context.setLineDash(index ? [7,4] : []);
+      let last = null;
+      for (const point of points) {
+        const [x,y] = [point[0],point[index+1]];
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          last = null;
+          continue;
+        }
+        const next = [clamp(xPixel(x), -width, width * 2), clamp(yPixel(y), -height, height * 2)];
+        if (!last || (!names.length && Math.hypot(next[0] - last[0], next[1] - last[1]) > h * .65)) context.moveTo(...next);
+        else context.lineTo(...next);
+        last = next;
+      }
+      context.stroke();
+      if (points.length === 1 && last) {
+        context.beginPath();
+        context.arc(...last, 5, 0, Math.PI * 2);
+        context.fillStyle = colors[index];
+        context.fill();
+      }
     }
-  }
-  context.restore();
+    context.restore();
+
+    legends.forEach((legend, i) => legend.style.setProperty('--series-color', colors[i]));
+  };
   if (arrows) names = arrows.map(([name]) => name).filter(Boolean);
-  if (!names.length) return canvas;
+  if (!names.length) {
+    canvas.redrawPlot();
+    return canvas;
+  }
   const figure = node('figure','ws-plot-figure');
   const legendCaption = node('figcaption','ws-plot-key');
-  names.forEach((name,i) => {
+  names.forEach(name => {
     const legend = node('span','ws-plot-legend',name);
-    legend.style.setProperty('--series-color',colors[i]);
+    legends.push(legend);
     legendCaption.append(legend);
   });
   figure.append(canvas,legendCaption);
+  canvas.redrawPlot();
   return figure;
 }
 

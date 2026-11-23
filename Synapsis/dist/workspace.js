@@ -77,7 +77,7 @@ export function bindWorkspace(setOpen) {
   const compactToggle = get('ws-compact-toggle');
   const cards = new Map([...document.querySelectorAll('.card-open')].map(link => {
     const card = link.closest('.card');
-    return [link.dataset.module, { link, name:card.querySelector('h3').textContent, color:card.style.getPropertyValue('--ink') }];
+    return [link.dataset.module, { link, name:card.querySelector('h3').textContent }];
   }));
   for (const [id, card] of cards) sections.add(new Option(card.name,id));
 
@@ -469,7 +469,6 @@ export function bindWorkspace(setOpen) {
     state = {module,op};
     const card = cards.get(module);
     sections.value = module;
-    workspace.style.setProperty('--workspace-ink',card.color);
     if (newModule || !sidebar.querySelector('[aria-current]')) operationsSidebar(module,op);
     for (const link of sidebar.querySelectorAll('.ws-op-link')) {
       if (link.hash === `#${module}/${op}`) {

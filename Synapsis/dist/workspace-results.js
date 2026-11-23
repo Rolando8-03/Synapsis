@@ -360,6 +360,7 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
     });
     content.setAttribute('aria-labelledby', buttons[i].id);
     content.replaceChildren(panelContent(i));
+    content.querySelectorAll("canvas.plot").forEach(canvas => canvas.redrawPlot?.());
   };
   buttons.forEach((button, i) => {
     button.addEventListener('click', () => select(i));

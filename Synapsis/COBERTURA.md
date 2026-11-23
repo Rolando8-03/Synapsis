@@ -17,4 +17,4 @@ Para fórmulas amplias, el panel permite desplazarse horizontalmente. Las tablas
 
 ## Color
 
-Azul marino `#0B172B` para el fondo, turquesa `#75D9CC` para apoyos gráficos y ámbar `#FFC96F` para acciones. Los dos acentos se distinguen también por luminosidad. Los modos oscuro y claro conservan composición y navegación. Referencias de [teoría del color](https://designlab.wisc.edu/resources/design-tips-and-tricks/) y [contraste WCAG](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum).
+La portada y sus animaciones, los dos modos, la calculadora y el laboratorio comparten una paleta monocromática con base en azul marino `#0B172B`. Los acentos azul claro y azul profundo se ajustan al fondo de cada modo. Los gráficos usan también trazos y etiquetas para distinguir sus series. Referencia de [contraste WCAG](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum).
