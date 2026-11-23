@@ -7,10 +7,11 @@ import re
 import sys
 
 from motor_matematico.application.catalog import CATALOG
-from motor_matematico.application.derivative_view import derivative_lines
+from motor_matematico.application.derivative_view import derivative_lines, expression_tex
 from motor_matematico.application.service import execute
 from motor_matematico.algorithms.linear.context import Context, vector as parse_vector, matrix as bounded_matrix
 from motor_matematico.algorithms.numerical.functions import Function, decimal
+from motor_matematico.algorithms.calculo import analizar
 from motor_matematico.domain.models import DomainError, serializar
 from motor_matematico.algorithms.linear.factorization import factor, reuse_factors
 from curso import (
@@ -362,6 +363,9 @@ def calculate(operation, data, steps=True):
                             "options":{"include_steps":steps}})
         if operation == "calculo.derivar" and response.get("result"):
             response["metadata"]["formulas_derivada"] = derivative_lines(data, response["result"])
+        if operation == "raices.newton" and (response.get("result") or {}).get("derivada"):
+            derivative = response["result"]["derivada"]
+            response["metadata"]["derivada_latex"] = expression_tex(analizar(derivative, variable=True))
         if operation.startswith("raices.") and (response.get("result") or {}).get("aproximacion") is not None:
             try:
                 response["result"]["grafico_raiz"] = root_visual(data,response["result"])

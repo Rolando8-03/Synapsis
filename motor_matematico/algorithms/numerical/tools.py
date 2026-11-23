@@ -42,9 +42,9 @@ def errors(data, ctx):
     return result
 
 
-def parse_positional(text, base):
-    if not isinstance(text, str) or len(text) > 256:
-        raise InputError("Escribí un numeral de hasta 256 caracteres.")
+def parse_positional(text, base, limit=256):
+    if not isinstance(text, str) or len(text) > limit:
+        raise InputError(f"Escribí un numeral de hasta {limit} caracteres.")
     text = text.strip().upper()
     match = re.fullmatch(
         r"([+-]?)([0-9A-F]+)(?:\.([0-9A-F]*)(?:\(([0-9A-F]+)\))?)?", text
@@ -120,7 +120,7 @@ def convert(data, ctx):
         + whole_digits(whole, target)
         + ("." + fraction if fraction else "")
     )
-    reconstructed, _ = parse_positional(text, target)
+    reconstructed, _ = parse_positional(text, target, limit=1100)
     error = abs(value - reconstructed)
     bound = F(0) if exact else F(1, target**precision)
     whole, frac, rep = parts

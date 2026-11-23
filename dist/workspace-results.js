@@ -475,7 +475,11 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
   if (response.result?.expresion && response.operation_id !== 'calculo.derivar') {
     const expression = node('p','ws-active-expression');
     expression.append(node('strong','','Función '),node('code','',response.result.expresion));
-    if (response.result.derivada) expression.append(node('strong','',' Derivada '),node('code','',response.result.derivada));
+    if (response.result.derivada) {
+      const derivative = response.metadata?.derivada_latex;
+      expression.append(node('strong', '', ' Derivada '),
+        derivative ? math(derivative, response.result.derivada) : node('code', '', response.result.derivada));
+    }
     target.append(expression);
   }
   if (response.status !== 'ok' && !originalSystem) {

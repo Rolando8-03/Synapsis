@@ -222,7 +222,8 @@ def parametric(data, ctx):
     result.update(valores_singulares_reales=[str(root) for root, _ in singular],
                   casos_singulares={str(root): cases[root] for root in ordered})
     ctx.emit("ceros", "Separar los puntos reales donde puede cambiar el rango.",
-             {"valores": [str(root) for root in ordered]}, sp.latex(critical.as_expr()) + "=0")
+             {"valores": [str(root) for root in ordered]},
+             sp.latex(critical.as_expr()) + "=0" if critical.degree() else "")
     for root in ordered:
         ctx.emit("caso_singular", "Clasificar con rangos exactos en el valor excepcional.",
                  {"parametro": str(root), **cases[root]}, sp.latex(parameter) + "=" + sp.latex(root))
