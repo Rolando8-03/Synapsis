@@ -126,10 +126,15 @@ export function expressionField(definition, initial, onChange, {differential, va
   }
 
   function set(value) {
-    const isText = typeof value === 'string' && value !== '' && value !== definition.default;
-    if (isText) text.value = value;
-    else math.setValue(typeof value === 'string' ? value : value.latex, {silenceNotifications:true});
-    useVisual(!isText);
+    if (typeof value === 'string') {
+      const latex = value === '' || value === definition.default ? visualLatex(value, variables) : null;
+      if (latex === null) text.value = value;
+      else math.setValue(latex, {silenceNotifications:true});
+      useVisual(latex !== null);
+    } else {
+      math.setValue(value.latex, {silenceNotifications:true});
+      useVisual(true);
+    }
   }
 
   let lastVisual;
