@@ -60,9 +60,12 @@ function table(headings, rows, caption = '', independent = false) {
     const rendered = body.insertRow();
     for (const value of row) {
       const cell = rendered.insertCell();
-      if (Array.isArray(value) && value.every(isScalar)) cell.textContent = value.map(scalar).join(' · ');
-      else if (isScalar(value)) cell.textContent = scalar(value);
-      else cell.append(valueView(value));
+      if (value == null || typeof value === 'boolean') cell.textContent = scalar(value);
+      else if (isScalar(value)) {
+        const exact = typeof value === 'number' ? String(value) : value;
+        const tex = numericTex(exact);
+        cell.append(tex ? math(tex, exact) : document.createTextNode(scalar(value)));
+      } else cell.append(valueView(value));
     }
   }
   scroll.append(data);
@@ -305,7 +308,7 @@ function genericResult(response) {
     const body = node('div','ws-result-stack');
     if (first.x_decimal !== undefined) {
       const bracket = first.a !== undefined;
-      const formatDecimal = value => value == null ? null : (typeof value === 'string' && value.includes('/') ? value : scalar(value));
+      const formatDecimal = value => value == null ? null : String(value);
       const cols = bracket
         ? ['k','a','b','xᵣ','f(a)','f(b)','f(xᵣ)','Signo f(a)f(xᵣ)','εₐ (%)','Cota']
         : ['k','xₖ','f(xₖ)',first.derivada_x !== undefined ? 'f′(xₖ)' : 'f(xₖ₋₁)','xₖ₊₁','εₐ (%)','Error absoluto','|f(xₖ₊₁)|'];
@@ -416,7 +419,8 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
       try {
         const clone = content.cloneNode(true);
         clone.querySelectorAll('[data-plain]').forEach(item => {
-          item.replaceWith(node('span','', item.dataset.plain + '\n'));
+          const separator = item.closest('td, th') ? '' : '\n';
+          item.replaceWith(document.createTextNode(item.dataset.plain + separator));
         });
         clone.querySelectorAll('tr').forEach(row => {
           row.replaceWith(node('div','', [...row.cells].map(cell => cell.textContent).join('\t') + '\n'));
