@@ -22,6 +22,13 @@ def legacy_trace(op, out, ctx):
             return
         ctx.emit("metodo", "Comenzar la fase de Gauss-Jordan.", {})
         original_rows(ctx, out["pasos_jordan"])
+        for step in out.get("pasos_sustitucion", []):
+            variable, expression = step["variable"] + 1, step["expresion"]
+            terms = [tex(expression["constante"])]
+            terms.extend(rf"\left({tex(coef)}\right)x_{{{int(index)+1}}}"
+                         for index, coef in expression["terminos"].items() if coef != "0")
+            ctx.emit("sustitucion_regresiva", f"Despejar x{variable} por sustitución regresiva.",
+                     {}, rf"x_{{{variable}}}=" + "+".join(terms))
         if out.get("latex_solucion"):
             ctx.emit("solucion","Despejar y parametrizar las variables libres.",{},out["latex_solucion"])
         else:

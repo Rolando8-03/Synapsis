@@ -189,31 +189,7 @@ function systemResult(out, choices, steps) {
     panels.push(['Matrices', forms]);
   }
 
-  if (choices.steps && out.pasos_gauss) panels.push(['Procedimiento', () => {
-    const trace = node('div', 'ws-result-stack');
-    for (const [name, steps] of [['Eliminación de Gauss',out.pasos_gauss], ['Reducción de Gauss-Jordan',out.pasos_jordan]]) {
-      trace.append(node('h3', '', name));
-      const list = node('ol', 'ws-step-list');
-      for (const step of steps ?? []) {
-        const item = node('li');
-        item.append(node('p', '', step.titulo));
-        if (step.formula_latex) item.append(math(step.formula_latex, step.formula_latex, true));
-        if (step.mostrar_matriz) item.append(matrixView(step.matriz, '', true, headings));
-        list.append(item);
-      }
-      trace.append(list);
-    }
-    if (out.pasos_sustitucion?.length) {
-      trace.append(node('h3','','Sustitución regresiva'));
-      for (const step of out.pasos_sustitucion) {
-        const variable = `x${step.variable + 1}`;
-        const {constante, terminos} = step.expresion;
-        const terms = Object.entries(terminos).filter(([, coef]) => coef !== '0').map(([key,coef]) => `${coef}·x${Number(key)+1}`);
-        trace.append(node('p','ws-value', `${variable} = ${[constante, ...terms].join(' + ').replaceAll('+ -','− ')}`));
-      }
-    }
-    return trace;
-  }]);
+  if (choices.steps && steps?.length) panels.push(['Procedimiento', () => procedureView(steps)]);
 
   if (choices.verify && out.comprobaciones) {
     panels.push(['Comprobación', table(['Ecuación','Ax','b','Coincide'],
@@ -230,6 +206,7 @@ function procedureView(entries, selection) {
   let shown = 0;
   const byIteration = new Map();
   let active;
+  let showIteration;
   function appendSteps(focus = false) {
     const added = document.createDocumentFragment();
     const start = shown;
@@ -279,7 +256,83 @@ function procedureView(entries, selection) {
     active?.classList.remove('ws-iteration-active');
     active = byIteration.get(index);
     active?.classList.add('ws-iteration-active');
+    showIteration?.(index);
   });
+  const controls = node('div', 'ws-playback');
+  const mode = node('button', 'secondary', 'Ver paso a paso');
+  const previous = node('button', 'secondary', 'Anterior');
+  const next = node('button', 'secondary', 'Siguiente');
+  const play = node('button', 'secondary', 'Reproducir');
+  const counter = node('span', 'ws-muted');
+  counter.setAttribute('role', 'status');
+  for (const button of [mode, previous, next, play]) button.type = 'button';
+  controls.append(mode, previous, next, play, counter);
+  stack.prepend(controls);
+  let index = 0;
+  let single = false;
+  let timer = null;
+  let synchronizing = false;
+
+  function pause() {
+    clearInterval(timer);
+    timer = null;
+    play.textContent = 'Reproducir';
+  }
+
+  function update() {
+    while (single && index >= shown) appendSteps();
+    for (const item of list.children) item.hidden = single && item !== list.children[index];
+    list.start = single ? index + 1 : 1;
+    more.hidden = single || shown >= entries.length;
+    for (const control of [previous, next, play, counter]) control.hidden = !single;
+    previous.disabled = index === 0;
+    next.disabled = play.disabled = index === entries.length - 1;
+    counter.textContent = `Paso ${index + 1} de ${entries.length}`;
+    if (next.disabled) pause();
+  }
+
+  function move(offset) {
+    index = Math.max(0, Math.min(entries.length - 1, index + offset));
+    const iteration = entries[index].data?.iteracion;
+    if (iteration !== undefined && selection) {
+      synchronizing = true;
+      selection.select(iteration);
+      synchronizing = false;
+    }
+    update();
+  }
+
+  showIteration = iteration => {
+    if (synchronizing) return;
+    index = entries.findIndex(step => step.data?.iteracion === iteration);
+    pause();
+    update();
+  };
+  if (active) index = [...list.children].indexOf(active);
+  mode.addEventListener('click', () => {
+    pause();
+    single = !single;
+    mode.textContent = single ? 'Ver lista de pasos' : 'Ver paso a paso';
+    update();
+  });
+  previous.addEventListener('click', () => { pause(); move(-1); });
+  next.addEventListener('click', () => { pause(); move(1); });
+  play.addEventListener('click', () => {
+    if (timer !== null) { pause(); return; }
+    play.textContent = 'Pausar';
+    timer = setInterval(() => {
+      if (!stack.isConnected || stack.closest('[hidden]')) { pause(); return; }
+      move(1);
+    }, 1300);
+  });
+  controls.addEventListener('keydown', event => {
+    if (!single || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    event.preventDefault();
+    pause();
+    move(event.key === 'ArrowLeft' ? -1 : 1);
+  });
+  stack.pausePlayback = pause;
+  update();
   return stack;
 }
 
@@ -380,7 +433,10 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
   const actions = node('div','ws-result-actions');
   const edit = node('button','secondary','Editar datos');
   edit.type = 'button';
-  edit.addEventListener('click', onEdit);
+  edit.addEventListener('click', () => {
+    target.querySelector('#ws-result-content')?.firstElementChild?.pausePlayback?.();
+    onEdit();
+  });
   actions.append(edit);
   header.append(heading, actions);
   target.append(header);
@@ -428,6 +484,7 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
       button.tabIndex = i === index ? 0 : -1;
     });
     content.setAttribute('aria-labelledby', buttons[i].id);
+    content.firstElementChild?.pausePlayback?.();
     content.replaceChildren(panelContent(i));
     content.querySelectorAll("canvas.plot").forEach(canvas => canvas.redrawPlot?.());
   };
@@ -454,6 +511,7 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
     copy.addEventListener('click', async () => {
       try {
         const clone = content.cloneNode(true);
+        clone.querySelectorAll('[hidden]').forEach(item => item.remove());
         clone.querySelectorAll('[data-plain]').forEach(item => {
           const separator = item.closest('td, th') ? '' : '\n';
           item.replaceWith(document.createTextNode(item.dataset.plain + separator));
