@@ -26,7 +26,7 @@ function panelTexture() {
     }
   }
   context.putImageData(image, 0, 0);
-  context.fillStyle = '#cbc1c6';
+  context.fillStyle = '#b5c3d7';
   for (let panel = 1; panel < 16; panel++) {
     for (let row = 1; row < 6; row++) {
       context.fillRect(panel * 64 + 6, row * 43, 2, 2);
@@ -42,12 +42,12 @@ function panelTexture() {
 export function makeSaucer() {
   const ship = new Group();
   const patina = panelTexture();
-  const hull = new MeshStandardMaterial({ color: '#ac8f9a', map: patina, roughness: .54, metalness: .34 });
-  const edge = new MeshStandardMaterial({ color: '#403448', roughness: .42, metalness: .48 });
+  const hull = new MeshStandardMaterial({ color: '#8099bb', map: patina, roughness: .54, metalness: .34 });
+  const edge = new MeshStandardMaterial({ color: '#2b3a51', roughness: .42, metalness: .48 });
   const bronze = new MeshStandardMaterial({ color: '#8f6c55', roughness: .43, metalness: .42 });
-  const vent = new MeshStandardMaterial({ color: '#211c2a', roughness: .71, metalness: .28 });
+  const vent = new MeshStandardMaterial({ color: '#18212e', roughness: .71, metalness: .28 });
   const ceramic = new MeshStandardMaterial({ color: '#c3a3a0', map: patina, roughness: .36, metalness: .36 });
-  const windows = new MeshStandardMaterial({ color: '#553959', roughness: .33, metalness: .30, emissive: '#51284e', emissiveIntensity: .62 });
+  const windows = new MeshStandardMaterial({ color: '#324460', roughness: .33, metalness: .30, emissive: '#233756', emissiveIntensity: .62 });
   const amber = new MeshStandardMaterial({ color: '#ffc577', roughness: .33, emissive: '#ff9e27', emissiveIntensity: 2.0 });
   const pearl = new MeshStandardMaterial({ color: '#ffdcb1', roughness: .31, emissive: '#ffcc77', emissiveIntensity: 1.45 });
 

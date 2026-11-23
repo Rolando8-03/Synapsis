@@ -95,4 +95,12 @@ SESSIONS = [
      r"x_i^{(k+1)}=(1-\omega)x_i^{(k)}+\omega x_i^{\rm GS}",
      [numerical("iterativos","jacobi"), numerical("iterativos","gauss_seidel"),
       numerical("iterativos","sor", omega="1.2"), numerical("iterativos","dominancia")]),
+    (21, "Jacobi y Gauss-Seidel · comparación", "Despejá cada ecuación y compará qué componentes usa cada método y cómo cambia el error.",
+     r"x_i^{(k+1)}=\frac{b_i-\sum_{j\ne i}a_{ij}x_j}{a_{ii}}",
+     [numerical("iterativos","comparar", tolerancia_absoluta="1e-4", tolerancia_relativa="0", criterio="paso_absoluto"),
+      numerical("iterativos","dominancia")]),
+    (22, "Newton-Raphson", "Seguí cada tangente, la derivada, el error porcentual y el residuo. Indicá la multiplicidad si se conoce.",
+     r"x_{k+1}=x_k-m\frac{f(x_k)}{f'(x_k)}",
+     [numerical("raices","newton", expresion="exp(-x)-x", inicial="0", tolerancia_x="1e-4"),
+      numerical("raices","newton", expresion="(x-1)^3", inicial="1.75", multiplicidad="3")]),
 ]

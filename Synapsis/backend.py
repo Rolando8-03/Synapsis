@@ -27,6 +27,8 @@ from relaciones_vectoriales import ejecutar_relaciones
 from calculo_basico import ejecutar_calculo
 from formato_latex import lista_soluciones_latex, operacion_latex
 from temario import SESSIONS
+from procedimientos import (calculus_trace, compare_iterations, error_trace, legacy_trace,
+                            original_extra, original_rows, root_visual)
 
 EXACT = "Exacto · fracciones"
 NUMERICAL = "Método numérico"
@@ -122,6 +124,9 @@ EXTRA.update({
         field("terminos", "Número de términos", "integer", "4"), DECIMALS]),
     "errores.exactitud": spec("Exactitud y precisión de mediciones", "Cuantificá la distancia del promedio a la referencia y la dispersión de las mediciones.", [
         field("mediciones", "Mediciones", "vector", "3.1 3.2 3.0"), field("referencia", "Referencia", default="3.1415926536")]),
+    "iterativos.comparar": spec("Comparar Jacobi y Gauss-Seidel", "Ejecutá ambos con el mismo vector inicial y criterio. Compará las iteraciones, el error y el residual.", [
+        *deepcopy(CATALOG["iterativos.gauss_seidel"].fields),
+        field("reordenar", "Reordenar filas si existe una diagonal estrictamente dominante", "boolean", False, False)]),
     "iterativos.dominancia": spec("Dominancia y orden de las filas", "Verificá el criterio por fila y obtené un orden estrictamente dominante cuando exista.", [
         field("A", "Matriz A", "matrix", "2 -6 -1\n-3 -1 7\n-8 1 -2"),
         field("b", "Vector b · opcional", "vector", "", False)]),
@@ -140,7 +145,7 @@ MODULES = {
         ("Transformaciones", ["transformaciones.formula", "transformaciones.analizar", "transformaciones.desde_imagenes", "transformaciones.componer", "transformaciones.representar", "original.relaciones"])],
     "grafica": [("Gráficas", ["grafica.explicita", "grafica.parametrica", "funciones.evaluar"]), ("Cálculo", ["calculo.derivar", "calculo.primitiva", "original.primitiva", "calculo.definida", "calculo.numerica"])],
     "raices": [("Métodos de intervalo", ["raices.biseccion", "raices.falsa_posicion"]), ("Métodos abiertos", ["raices.newton", "raices.secante"])],
-    "iterativos": [("Métodos de aproximación", ["iterativos.jacobi", "iterativos.gauss_seidel", "iterativos.sor", "iterativos.dominancia"])],
+    "iterativos": [("Métodos de aproximación", ["iterativos.jacobi", "iterativos.gauss_seidel", "iterativos.sor", "iterativos.dominancia","iterativos.comparar"])],
     "errores": [("Análisis numérico", ["errores.calcular", "errores.redondeo", "errores.propagacion", "errores.acumulacion", "errores.taylor", "errores.exactitud", "errores.maquina", "calculadora.evaluar"])],
     "bases": [("Conversiones", ["bases.enteros", "conversiones.bases", "bases.romanos"]), ("Conjuntos", ["conjuntos.operar"])],
 }
@@ -239,7 +244,11 @@ def base_conversion(data):
         number = int(text, source)
     except ValueError:
         raise ValueError("El numeral contiene dígitos que no existen en la base de origen.") from None
-    remaining, digits, steps = abs(number), [], []
+    remaining, digits = abs(number), []
+    unsigned = text.lstrip("+-")
+    positional = [f"{DIGITS.index(char)}·{source}^{i}" for i,char in reversed(list(enumerate(reversed(unsigned))))]
+    steps = [{"description":"Desarrollar cada dígito en potencias de su base de origen.",
+              "data":{"aportes":positional,"valor_decimal":str(number)}}]
     while remaining:
         quotient, digit = divmod(remaining, target)
         steps.append({"description": f"{remaining} ÷ {target} = {quotient}, residuo {DIGITS[digit]}"})
@@ -308,7 +317,9 @@ COURSE_HANDLERS = {
     "errores.maquina": machine, "iterativos.dominancia": dominance, "vectores.paralelogramo": vector_diagram,
     "errores.taylor": taylor_exp, "errores.exactitud": accuracy,
 }
-WITH_CONTEXT = {"matrices.notacion", "matrices.comparar", "matrices.teorema_invertible", "espacios.polinomios"}
+WITH_CONTEXT = {"matrices.notacion", "matrices.comparar", "matrices.teorema_invertible", "espacios.polinomios",
+                "sistemas.parametrico","transformaciones.formula","espacios.subespacio","modelos.economia",
+                "modelos.balance","modelos.flujos","iterativos.dominancia"}
 
 
 def calculate(operation, data, steps=True):
@@ -324,8 +335,21 @@ def calculate(operation, data, steps=True):
     if operation not in EXTRA:
         if operation in {"factorizacion.lu", "factorizacion.plu"}:
             data = {k:v for k,v in data.items() if k != "b"}
-        return execute({"schema_version":"1.0", "operation_id":operation, "input":data,
-                        "options":{"include_steps":steps}})
+        response = execute({"schema_version":"1.0", "operation_id":operation, "input":data,
+                            "options":{"include_steps":steps}})
+        if operation.startswith("raices.") and (response.get("result") or {}).get("aproximacion") is not None:
+            try:
+                response["result"]["grafico_raiz"] = root_visual(data,response["result"])
+            except (DomainError,ValueError,ArithmeticError):
+                response["result"]["grafico_raiz"] = None
+        if response.get("result") and steps:
+            context = Context()
+            if operation in {"calculadora.evaluar","calculo.derivar","calculo.definida","calculo.primitiva"}:
+                calculus_trace(operation,data,response["result"],context)
+            elif operation == "matrices.propiedades":
+                legacy_trace(operation,response["result"],context)
+            response["steps"].extend(step.to_dict() for step in context.steps)
+        return response
     output, trace = None, []
     metadata = {"exact": True}
     verification = {}
@@ -336,17 +360,24 @@ def calculate(operation, data, steps=True):
     elif operation == "sistemas.homogeneo":
         A = bounded_matrix(data["A"])
         output = solve_original({"matrix":[[str(x) for x in row] + ["0"] for row in A], "steps":steps})
+        if steps:
+            context.emit("homogeneo","Añadir un término igual a cero por ecuación.",{"A":A},r"Ax=0")
+            original_rows(context,output["pasos_jordan"])
+            context.emit("base","Tomar cada variable libre como parámetro independiente.",{"direcciones":output["direcciones"]},output["latex_solucion"])
         output = {"clasificacion":output["clasificacion"], "base_del_espacio_solucion":output["direcciones"],
                   "dimension":len(output["direcciones"]), "rango_A":output["rango_A"],
                   "matriz_aumentada":output["matriz_inicial"], "forma_reducida":output["matriz_rref"],
                   "formula_latex":output["latex_solucion"]}
         verification = {"passed":True}
     elif operation == "sistemas.ecuaciones":
-        output = from_equations(data, solve_original)
+        output = from_equations(data, solve_original, context)
     elif operation == "factorizacion.resolver":
         A = bounded_matrix(data["A"])
         b = parse_vector(data["b"], len(A))
         output, verification = factor(A, context, data["metodo"] == "plu", b)
+    elif operation=="iterativos.comparar":
+        output=compare_iterations(data,context)
+        metadata["exact"]=False
     elif operation in COURSE_HANDLERS:
         handler = COURSE_HANDLERS[operation]
         output = handler(data, context) if operation in WITH_CONTEXT else handler(data)
@@ -374,5 +405,14 @@ def calculate(operation, data, steps=True):
             cosine = max(-1,min(1,float(product)/denominator))
             output = {"angulo_grados":degrees(acos(cosine)), "producto_punto":str(product), "coseno":cosine}
             metadata["exact"] = False
+    if steps:
+        if operation=="original.primitiva":
+            calculus_trace(operation,data,output,context)
+        elif operation.startswith("original."):
+            legacy_trace(operation,output,context)
+        elif operation.startswith("errores."):
+            error_trace(operation,data,output,context)
+        else:
+            original_extra(operation,data,output,context)
     return {"status":"ok", "result":serializar(output), "metadata":metadata,
             "verification":serializar(verification), "steps":(trace or [step.to_dict() for step in context.steps]) if steps else []}

@@ -2,7 +2,8 @@
 
 from fractions import Fraction as F
 from .functions import decimal
-from ..linear.context import matrix, vector, integer, matvec, freeze, identity
+from ..linear.context import matrix, vector, integer, matvec, freeze, identity, tex
+from ..linear.worked import dot_formula
 from ...domain.models import InputError
 from ...parsing.numbers import parse_number
 
@@ -40,7 +41,7 @@ def iterative(method, data, ctx):
         for i in range(n)
     )
 
-    def update(old, rhs):
+    def update(old, rhs, details=None):
         current = old[:]
         for i in range(n):
             ctx.tick(n)
@@ -53,7 +54,18 @@ def iterative(method, data, ctx):
                 ),
                 F(0),
             )
-            current[i] = freeze((1-omega)*old[i] + omega*(rhs[i] - terms)/A[i][i])
+            raw = (rhs[i] - terms)/A[i][i]
+            current[i] = freeze((1-omega)*old[i] + omega*raw)
+            if details is not None:
+                coefficients = [A[i][j] for j in range(n) if j != i]
+                sources = [current[j] if forward and j < i else old[j] for j in range(n) if j != i]
+                # Los decimalizados son de lectura; el motor conserva el iterado racional.
+                subtotal = dot_formula(coefficients,sources)
+                formula = rf"\frac{{{tex(rhs[i])}-({subtotal})}}{{{tex(A[i][i])}}}"
+                if omega != 1:
+                    formula = rf"({tex(1-omega)})({tex(old[i])})+({tex(omega)})" + formula
+                value = format(decimal(current[i]),".12g")
+                details.append(rf"x_{{{i+1}}}&={formula}\approx {value}")
         return current
 
     # Matriz de iteración exacta. Su norma infinito <1 es suficiente, no necesaria.
@@ -122,12 +134,16 @@ def iterative(method, data, ctx):
             )
         return result, status, warnings
 
+    ctx.emit("despejar","Aislar la incógnita diagonal en cada ecuación.",
+             {"matriz":A,"b":b,"vector_inicial":x,"usa_componentes_nuevas":forward},
+             r"x_i=\frac{b_i-\sum_{j\ne i}a_{ij}x_j}{a_{ii}}")
     r = residual(x)
     threshold = atol + rtol * norm(b, kind)
     if not any(r) or (criterion == "solo_residual" and norm(r, kind) <= threshold):
         return finish("ok", "residual_inicial_suficiente", x, r)
     for k in range(1, limit + 1):
-        new = update(x, b)
+        details = [] if ctx.collect_steps else None
+        new = update(x, b, details)
         r = residual(new)
         diff = [a-c for a,c in zip(new,x)]
         delta = norm(diff, kind)
@@ -158,7 +174,9 @@ def iterative(method, data, ctx):
             "cota_error_infinito": bound,
         }
         table.append(row)
-        ctx.emit("iteracion_sistema", f"Iteración {k} de {method}.", row)
+        if details is not None:
+            ctx.emit("iteracion_sistema",f"Sustituir los valores de la iteración {k} y comprobar su error.",
+                     row,r"\begin{aligned}"+r"\\".join(details)+r"\end{aligned}")
         ctx.progress(k * 99 // limit)
         checks = {
             "paso_y_residual": delta <= step_threshold and nr <= threshold,

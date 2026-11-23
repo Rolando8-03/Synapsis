@@ -126,11 +126,19 @@ def analyze_affine(A, b):
     return result
 
 
-def from_equations(data, solve):
+def from_equations(data, solve, ctx):
     variables = symbols(data['variables'])
     A, b = system_data(data['ecuaciones'], variables)
     recipe = [[as_fraction(value) for value in row] for row in A.row_join(b).tolist()]
-    result = solve({'matrix': recipe, 'steps': False})
+    for i,(row,rhs) in enumerate(zip(A.tolist(),b),1):
+        ctx.emit("ecuacion",f"Leer los coeficientes de la ecuación {i} en el orden de las incógnitas.",
+                 {"coeficientes":[str(x) for x in row],"termino_independiente":str(rhs)})
+    result = solve({'matrix': recipe, 'steps': ctx.collect_steps})
+    if ctx.collect_steps:
+        from procedimientos import original_rows
+        original_rows(ctx,result["pasos_jordan"])
+        ctx.emit("clasificar","Comparar los rangos y leer la solución.",{"clasificacion":result["clasificacion"]},
+                 result.get("latex_solucion",""))
     return {
         'variables': [str(variable) for variable in variables], 'A': rows_text(A),
         'b': rows_text(b), 'matriz_aumentada': rows_text(A.row_join(b)),
@@ -142,7 +150,7 @@ def from_equations(data, solve):
     }
 
 
-def parametric(data):
+def parametric(data, ctx):
     variables = symbols(data['variables'])
     params = symbols(data['parametro'])
     if len(params) != 1 or params[0] in variables or len(variables) > 4:
@@ -156,18 +164,26 @@ def parametric(data):
         raise ValueError('El determinante paramétrico excede grado 8.')
     result = {'parametro': str(parameter), 'A': rows_text(A), 'b': rows_text(b),
               'determinante': str(det.as_expr()), 'formula_latex': r'\det(A)=' + sp.latex(det.as_expr())}
+    ctx.emit("determinante","Calcular y simplificar el determinante de la matriz de coeficientes.",
+             {"A":rows_text(A),"determinante":str(det.as_expr()),"factorizado":str(sp.factor(det.as_expr()))},result["formula_latex"])
     if det.is_zero:
         result.update(solucion_unica='Ningún valor real del parámetro',
                       criterio='El determinante es idénticamente cero. Para un valor concreto, usá Resolver y clasificar.')
         return result
     exceptional = set(det.real_roots())
     result['valores_singulares_reales'] = [str(root) for root in sorted(exceptional, key=lambda value: value.evalf())]
+    ctx.emit("ceros","Resolver det(A)=0 y separar los valores excepcionales.",
+             {"valores":result["valores_singulares_reales"]},r"\det(A)=0")
     formulas = {}
     for i, variable in enumerate(variables):
         replaced = A.copy()
         replaced[:, i] = b
         numerator = replaced.det(method='berkowitz')
-        formulas[str(variable)] = str(sp.cancel(numerator / det.as_expr()))
+        quotient = sp.cancel(numerator/det.as_expr())
+        formulas[str(variable)] = str(quotient)
+        ctx.emit("cramer",f"Reemplazar la columna {i+1} por b y aplicar Cramer.",
+                 {"matriz":rows_text(replaced),"determinante":str(numerator)},
+                 sp.latex(variable)+r"=\frac{"+sp.latex(numerator)+"}{"+sp.latex(det.as_expr())+"}="+sp.latex(quotient))
     result['criterio'] = 'Solución única cuando el parámetro es distinto de los valores singulares.'
     result['solucion_por_cramer'] = formulas
     # Los valores algebraicos de grado alto se muestran exactamente como raíces
@@ -176,41 +192,66 @@ def parametric(data):
         str(root): analyze_affine(A.subs(parameter, root), b.subs(parameter, root))
         for root in exceptional if root.is_Rational
     }
+    for value, case in result["casos_singulares"].items():
+        ctx.emit("caso_singular","Sustituir el parámetro y comparar los rangos.",{"parametro":value,**case})
     return result
 
 
-def transformation(data):
+def transformation(data, ctx):
     variables = symbols(data['variables'])
     components = [polynomial(line, variables) for line in lines(data['componentes'], 12)]
     zero = {v: 0 for v in variables}
     image_zero = [sp.expand(p).subs(zero) for p in components]
     result = {'T_de_cero': [str(v) for v in image_zero]}
+    ctx.emit("origen","Evaluar la imagen del vector cero.",result)
     for i, component in enumerate(components, 1):
         poly = sp.Poly(component, *variables)
+        ctx.emit("componente",f"Ordenar y analizar la componente {i}.",{"grado":int(poly.total_degree()),"constante":str(poly.TC())},
+                 rf"T_{{{i}}}="+sp.latex(component))
         if poly.total_degree() > 1 or poly.TC() != 0:
             result.update(lineal=False, componente=i,
                           motivo='Aparece un término de grado mayor que uno.' if poly.total_degree() > 1 else 'La imagen del cero no es el cero.',
                           formula_latex=rf'T_{{{i}}}=' + sp.latex(component))
             return result
     A = sp.Matrix([[p.coeff(x) for x in variables] for p in components])
-    kernel, image = A.nullspace(), A.columnspace()
+    ctx.emit("matriz","Usar los coeficientes ordenados como filas de la matriz estándar.",{"A":rows_text(A)})
+    ctx.emit("aditividad","Distribuir la matriz sobre la suma de dos vectores arbitrarios.",{},r"T(u+v)=A(u+v)=Au+Av=T(u)+T(v)")
+    ctx.emit("homogeneidad","Extraer el escalar del producto matriz-vector.",{},r"T(\alpha u)=A(\alpha u)=\alpha Au=\alpha T(u)")
+    from nexolineal.algorithms.linear.spaces import fundamental
+    from procedimientos import matvec_steps
+    spaces, proof = fundamental(matrix(rows_text(A)),ctx)
+    kernel, image = spaces["base_nucleo"], spaces["base_columna"]
     result.update(lineal=True, matriz_estandar=rows_text(A),
                   nucleo=[list(map(str,v)) for v in kernel],
                   base_imagen=[list(map(str,v)) for v in image],
                   rango=len(image), nulidad=len(kernel),
                   formula_latex=r'T\left(' + ','.join(map(sp.latex, variables)) + r'\right)=' + sp.latex(sp.Matrix(components)))
+    ctx.emit("rango_nulidad","Extraer la imagen de las columnas pivote originales y el núcleo de las variables libres.",
+             {"columnas_pivote":[i+1 for i in spaces["pivotes"]],"base_imagen":image,"base_nucleo":kernel},
+             rf"{A.cols}={len(image)}+{len(kernel)}")
     if data.get('v'):
         values = vector(data['v'], len(variables))
         result['T_de_v'] = [str(entry) for entry in A * sp.Matrix(values)]
+        if ctx.collect_steps:
+            matvec_steps(ctx,rows_text(A),values,result["T_de_v"],"T(v)")
     return result
 
 
-def subspace(data):
+def subspace(data, ctx):
     variables = symbols(data['variables'])
     A, b = system_data(data['ecuaciones'], variables)
     affine = analyze_affine(A, b)
-    basis = A.nullspace()
+    from nexolineal.algorithms.linear.reduction import solve
+    reduced = solve(matrix(rows_text(A)), vector(list(map(str,b))), ctx)
+    basis = reduced["direcciones"]
     homogeneous = not any(b)
+    ctx.emit("cero","Sustituir el vector cero en las restricciones.",{"terminos_independientes":rows_text(b),"contiene_cero":homogeneous},
+             r"A0=0")
+    if homogeneous:
+        ctx.emit("cerradura_suma","Para dos soluciones homogéneas, distribuir A sobre su suma.",{},r"A(u+v)=Au+Av=0")
+        ctx.emit("cerradura_escalar","Extraer un escalar arbitrario del producto.",{},r"A(\alpha u)=\alpha Au=0")
+        ctx.emit("base","Cada dirección tiene un 1 en su variable libre y ceros en las demás; eso prueba independencia.",
+                 {"base":basis,"variables_libres":[i+1 for i in reduced["variables_libres"]]},r"\dim H=n-\operatorname{rang}A")
     result = dict(affine, es_subespacio=homogeneous, contiene_cero=homogeneous,
                   formula_latex=r'H=\{x\mid Ax=b\}', A=rows_text(A), b=rows_text(b))
     if homogeneous:
@@ -232,6 +273,8 @@ def polynomials(data, context):
         return [as_fraction(poly.nth(i)) for i in range(degree+1)]
     family = [coefficients(x) for x in lines(data['familia'], 15)]
     from nexolineal.algorithms.linear.spaces import study, membership
+    context.emit("coordenadas","Leer coeficientes en la base canónica, empezando por el término constante.",
+                 {"vectores_de_coeficientes":family},r"\mathcal B=(1,x,\ldots,x^n)")
     out, _ = study(family, degree+1, context)
     if data.get('objetivo'):
         out['pertenencia'], _ = membership(family, coefficients(data['objetivo']), degree+1, context)
@@ -291,7 +334,7 @@ def invertible_theorem(data, context):
     return out
 
 
-def economy(data):
+def economy(data, ctx):
     M = matrix(data['A'], square=True)
     n = len(M)
     scale = 100 if data['unidades'] == 'porcentaje' else 1
@@ -303,6 +346,9 @@ def economy(data):
         if total > 1:
             raise ValueError(f'Las ventas de la columna {i+1} superan el total de su producción.')
         A[i][i] = 1 - total
+        ctx.emit("retencion",f"Completar la proporción que conserva el sector {i+1}.",
+                 {"suma_distribuida":total,"proporcion_retenida":A[i][i]},
+                 rf"m_{{{i+1},{i+1}}}=1-({total})={A[i][i]}")
     C = sp.eye(n) - sp.Matrix(A)
     b = sp.zeros(n, 1)
     if data.get('precio'):
@@ -312,25 +358,36 @@ def economy(data):
             raise ValueError('El precio fijado debe ser positivo.')
         C = C.col_join(sp.eye(n)[index,:])
         b = b.col_join(sp.Matrix([fixed]))
+    from nexolineal.algorithms.linear.reduction import solve
+    ctx.emit("modelo","Trasladar la producción distribuida y añadir el precio de referencia cuando esté indicado.",
+             {"tabla_intercambio":A,"matriz":rows_text(C.row_join(b)),"separador":C.cols},r"(I-M)p=0")
+    solve(matrix(rows_text(C)),vector(list(map(str,b))),ctx)
     return {'tabla_intercambio': A, 'modelo': rows_text(C.row_join(b)),
             'equilibrio': analyze_affine(C,b), 'formula_latex': r'(I-M)p=0'}
 
 
-def balance(data):
+def balance(data, ctx):
     A = matrix(data['A'])
     if any(x.denominator != 1 for row in A for x in row):
         raise ValueError('La matriz de átomos debe contener cantidades enteras con signo.')
     S = sp.Matrix(A)
-    basis = S.nullspace()
+    from nexolineal.algorithms.linear.reduction import solve
+    solved = solve(A,[Fraction(0)]*len(A),ctx)
+    basis = [sp.Matrix(v) for v in solved["direcciones"]]
     out = {'matriz_de_balance': A, 'dimension_del_nucleo': len(basis),
            'generadores': [list(map(str, v)) for v in basis], 'formula_latex': r'Ac=0'}
     if len(basis) == 1:
-        row = [int(v*lcm(*(int(w.q) for w in basis[0]))) for v in basis[0]]
+        multiplier=lcm(*(int(w.q) for w in basis[0]))
+        row = [int(v*multiplier) for v in basis[0]]
+        ctx.emit("denominadores","Multiplicar el vector de proporciones por el mínimo común múltiplo.",
+                 {"mcm":multiplier,"vector_entero":row})
         primitive = [v // reduce(gcd, row) for v in row]
         if all(v < 0 for v in primitive):
             primitive = [-v for v in primitive]
         if all(v > 0 for v in primitive):
             out['coeficientes_enteros_minimos'] = primitive
+            ctx.emit("comprobar","Reducir por el máximo común divisor y comprobar todos los balances.",
+                     {"coeficientes":primitive,"resultado":[str(v) for v in S*sp.Matrix(primitive)]},r"Ac=0")
         else:
             out['conclusion'] = 'No se obtuvo un balance que incluya todos los compuestos con coeficientes positivos.'
     elif not basis:
@@ -340,13 +397,16 @@ def balance(data):
     return out
 
 
-def nonnegative(data):
+def nonnegative(data, ctx):
     A = matrix(data['A'])
     b = vector(data['b'], len(A))
     S, d = sp.Matrix(A), sp.Matrix(b)
     if S.cols > 8:
         raise ValueError('Este análisis admite hasta 8 variables de flujo.')
     out = analyze_affine(S,d)
+    from nexolineal.algorithms.linear.reduction import solve
+    solve(A,b,ctx)
+    ctx.emit("restricciones","Restringir la familia a flujos no negativos.",{},r"x_i\ge0")
     from sympy.solvers.simplex import InfeasibleLPError, UnboundedLPError, linprog
     if out['rango_A'] != out['rango_aumentada']:
         out['factible_no_negativo'] = False
@@ -365,6 +425,8 @@ def nonnegative(data):
         except UnboundedLPError:
             high = 'Sin máximo finito'
         extrema.append([f'x{i+1}', str(low), high])
+        ctx.emit("extremos",f"Minimizar y maximizar la variable {i+1} sobre la misma región factible.",
+                 {"minimo":str(low),"maximo":high,"restriccion":"Ax=b; x≥0"})
     out.update(factible_no_negativo=True, tabla=extrema, encabezados=['Variable','Mínimo','Máximo'],
                formula_latex=r'Ax=b,\quad x_i\ge0')
     return out
@@ -454,7 +516,7 @@ def machine(data):
             'formula_latex': r'\sqrt{a+b}-\sqrt{a-b}=\frac{2b}{\sqrt{a+b}+\sqrt{a-b}}'}
 
 
-def dominance(data):
+def dominance(data, ctx):
     A = matrix(data['A'], square=True)
     n = len(A)
     b = vector(data['b'], n) if data.get('b') else None
@@ -472,12 +534,17 @@ def dominance(data):
            'existe_una_permutacion_dominante': len(choices) == n,
            'encabezados': ['Fila','|aᵢᵢ|','Suma fuera de la diagonal','Domina'], 'tabla': rows_for(A),
            'formula_latex': r'|a_{ii}|>\sum_{j\ne i}|a_{ij}|'}
+    for i, diagonal, rest, dominates in out["tabla"]:
+        ctx.emit("dominancia",f"Comparar ambas magnitudes en la fila {i}.",{"domina":dominates},
+                 f"{diagonal}"+(">" if dominates else r"\le")+str(rest))
     if len(choices) == n:
         order = [choices[j] for j in range(n)]
         out['orden_de_filas'] = [i+1 for i in order]
         out['matriz_reordenada'] = [A[i] for i in order]
         if b is not None:
             out['b_reordenado'] = [b[i] for i in order]
+        ctx.emit("permutacion","Colocar cada fila en la posición de su entrada dominante.",
+                 {"orden":out["orden_de_filas"],"matriz":out["matriz_reordenada"]})
     return out
 
 

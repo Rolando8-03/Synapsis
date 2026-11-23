@@ -70,16 +70,10 @@ def _product(problem, checkpoint=None, on_progress=None):
     if len(A) * len(B) * len(B[0]) > 250000:
         raise ResourceLimitError("El producto supera 250000 términos.")
     matrix, raw_steps = multiplicar_con_pasos(A, B, checkpoint, on_progress)
-    steps = [
-        Step(
-            i,
-            "producto_fila_columna",
-            "Producto de la fila por la columna.",
-            data,
-            "c_ij = sum_k(a_ik*b_kj)",
-        )
-        for i, data in enumerate(raw_steps)
-    ]
+    from ..algorithms.linear.worked import product_steps
+    context = Context(checkpoint, collect_steps=problem.options.get("include_steps", True))
+    product_steps(context,A,B,matrix)
+    steps = context.steps
     consistent = all(
         sum(term["producto"] for term in step["terminos"])
         == matrix[step["fila"]][step["columna"]]

@@ -19,6 +19,8 @@ from .reduction import reduce, rank, inverse
 from ..legacy import modulo_matrices as docente
 
 
+from .worked import product_steps
+
 def square(A):
     if len(A) != len(A[0]):
         raise LinearFailure(
@@ -50,6 +52,12 @@ def determinant(A, ctx, method="reduccion", axis="fila", index=0):
             },
             r"\det(A)=\sum p_i-\sum n_i",
         )
+        products = [((0,1,2), (1,2,0), (2,0,1)), ((0,2,1),(1,0,2),(2,1,0))]
+        from .worked import parenthesize
+        for sign, triples, values in zip(("+","-"), products, (detail["positivas"],detail["negativas"])):
+            for columns, term in zip(triples, values):
+                formula = r"\cdot".join(parenthesize(A[i][j]) for i,j in enumerate(columns))
+                ctx.emit("diagonal_sarrus", f"Producto del grupo {sign}.", {}, f"{formula}={tex(term)}")
         value = detail["determinante"]
     elif method == "cofactores":
         if n > 6:
@@ -82,6 +90,8 @@ def determinant(A, ctx, method="reduccion", axis="fila", index=0):
         for i in range(n):
             value *= reduction["matrix"][i][i]
         value = freeze(value)
+        diagonal = [reduction["matrix"][i][i] for i in range(n)]
+        factors = r"\cdot".join("(" + tex(x) + ")" for x in diagonal)
         ctx.emit(
             "determinante",
             "Corregir el signo de los intercambios y multiplicar la diagonal.",
@@ -90,7 +100,7 @@ def determinant(A, ctx, method="reduccion", axis="fila", index=0):
                 "valor": value,
                 "triangular": reduction["matrix"],
             },
-            r"\det(A)=(-1)^s\prod_i u_{ii}",
+            rf"\det(A)=(-1)^{{{reduction['swaps']}}}{factors}={tex(value)}",
         )
     else:
         raise InputError("Método de determinante no admitido.")
@@ -124,6 +134,9 @@ def cofactor_matrix(A, ctx):
 def invert(A, ctx, method="gauss_jordan"):
     square(A)
     if method == "gauss_jordan":
+        determinant_value = determinant(A, ctx)
+        ctx.emit("diagnostico", "Usar el determinante como criterio de invertibilidad.",
+                 {"determinante":determinant_value}, r"A\text{ invertible}\iff\det(A)\ne0")
         result = inverse(A, ctx)
     elif method == "adjugata":
         value = determinant(A, ctx, "cofactores")
@@ -147,6 +160,7 @@ def invert(A, ctx, method="gauss_jordan"):
         "AA_inversa": multiply(A, result, ctx),
         "inversa_A": multiply(result, A, ctx),
     }
+    product_steps(ctx,A,result,checks["AA_inversa"],r"AA^{-1}")
     checks.update(
         {
             "kind": "inversa_bilateral",

@@ -73,14 +73,15 @@ for method, title in [
         ]
     )
     options = (
-        [field("derivada", "Derivada f′(x), vacía usa reglas simbólicas", "expression")]
+        [field("derivada", "Derivada f′(x), vacía usa reglas simbólicas", "expression"),
+         field("multiplicidad","Multiplicidad conocida · 1 para Newton estándar","integer","1")]
         if method == "newton"
         else []
     )
     choices = (
         ["cota", "residual", "ambos", "relativo"]
         if method == "biseccion"
-        else ["residual_y_paso", "residual"]
+        else ["residual_y_paso", "relativo_y_residual", "residual"] if method == "newton" else ["residual_y_paso", "residual"]
     )
     NUMERICAL_DATA.append(
         spec(

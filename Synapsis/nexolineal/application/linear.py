@@ -27,6 +27,7 @@ from ..algorithms.linear import (
 )
 from ..algorithms.legacy.modulo_matrices import determinante as determinant_reference
 
+from ..algorithms.linear.worked import entry_steps, vector_steps
 
 def status_for(solution):
     return {"unica": "ok", "infinitas": "infinite", "incompatible": "inconsistent"}[
@@ -104,7 +105,8 @@ def execute_linear(problem, ctx):
                 replaced = [row[:] for row in A]
                 for i in range(len(A)):
                     replaced[i][j] = b[i]
-                det_j = m.determinant(replaced, Context(checkpoint=ctx.checkpoint))
+                ctx.emit("matriz_cramer", f"Formar A({j+1}) reemplazando su columna por b.", {"matriz": replaced})
+                det_j = m.determinant(replaced, ctx)
                 x.append(det_j / det)
                 ctx.emit(
                     "cramer",
@@ -139,6 +141,7 @@ def execute_linear(problem, ctx):
         sign = 1 if op.endswith("suma") else -1
         value = m.add(A, B, sign)
         result = {"matrix": value}
+        entry_steps(ctx, A, value, op.split(".")[1], B=B)
         checks = basic_check(
             "Se reconstruye A al deshacer la operación.", m.add(value, B, -sign) == A
         )
@@ -146,6 +149,7 @@ def execute_linear(problem, ctx):
         k = parse_number(data["k"])
         value = [[k * x for x in row] for row in A]
         result = {"matrix": value}
+        entry_steps(ctx, A, value, "escalar", k=k)
         passed = (
             [[x / k for x in row] for row in value] == A
             if k
@@ -158,6 +162,7 @@ def execute_linear(problem, ctx):
     elif op == "matrices.transpuesta":
         value = transpose(A)
         result = {"matrix": value}
+        entry_steps(ctx, A, value, "transpuesta")
         checks = basic_check("(Aᵀ)ᵀ=A.", transpose(value) == A)
     elif op == "matrices.analizar":
         result, checks = m.analyze(A, ctx)
@@ -421,6 +426,9 @@ def execute_linear(problem, ctx):
     else:
         raise InputError("Operación de álgebra lineal no reconocida.")
 
+    if op in {"vectores.suma","vectores.resta","vectores.escalar","vectores.producto_punto",
+              "vectores.producto_cruz","vectores.norma","vectores.proyeccion"}:
+        vector_steps(ctx, op.split(".")[1], u,v,result, k=k if op == "vectores.escalar" else None)
     if checks is None or checks.get("passed") is not True:
         raise ArithmeticError("La comprobación del resultado no fue satisfactoria.")
     if not ctx.steps:

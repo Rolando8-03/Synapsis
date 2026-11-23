@@ -55,7 +55,7 @@ function optionLabel(value) {
     relativo:'Cambio relativo entre iterados', residual:'Residual', ambos:'Cota y residual',
     paso_y_residual:'Paso y residual', paso_absoluto:'Cambio absoluto',
     relativo_vectorial:'Cambio relativo vectorial', porcentaje_por_componente:'Cambio porcentual en cada componente',
-    solo_residual:'Solo el residual', proporcion:'Proporción', porcentaje:'Porcentaje',
+    relativo_y_residual:'Cambio relativo y residual', solo_residual:'Solo el residual', proporcion:'Proporción', porcentaje:'Porcentaje',
     
   })[value] ?? value.replaceAll('_', ' ');
 }

@@ -19,9 +19,9 @@ function createHaze() {
     ctx.translate(x, y);
     ctx.scale(2.9 + point(i, 5) * 2.5, .42 + point(i, 6) * .25);
     const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
-    halo.addColorStop(0, 'rgba(176,123,164,.31)');
-    halo.addColorStop(.43, 'rgba(150,89,145,.19)');
-    halo.addColorStop(1, 'rgba(150,89,145,0)');
+    halo.addColorStop(0, 'rgba(116,201,203,.31)');
+    halo.addColorStop(.43, 'rgba(69,135,172,.19)');
+    halo.addColorStop(1, 'rgba(69,135,172,0)');
     ctx.fillStyle = halo;
     ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
     ctx.restore();
@@ -54,7 +54,7 @@ export function createCanvasScene(canvas, photo) {
       const ratio = canvas.width / frame.width;
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
       context.globalAlpha = 1;
-      context.fillStyle = '#211429';
+      context.fillStyle = '#121c2b';
       context.fillRect(0, 0, frame.width, frame.height);
       context.translate(crop.x, crop.y);
       context.scale(crop.w / terrainWidth, crop.h / terrainHeight);

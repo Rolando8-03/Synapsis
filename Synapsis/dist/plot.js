@@ -4,7 +4,7 @@ const page = document.documentElement;
 const clamp = (value, lower, upper) => Math.min(upper, Math.max(lower, value));
 const tickFormat = new Intl.NumberFormat('es-NI', { maximumSignificantDigits: 3, useGrouping: false });
 
-export function addPlot({ points = [], parametric = false, names = [], diagram }) {
+export function addPlot({ points = [], parametric = false, names = [], diagram, tangents = [], markers = [], caption }) {
   const numericPoint = point => point.map(value => value === null ? null : Number(value));
   points = points.map(numericPoint);
   const arrows = diagram?.map(([label,start,end]) => [label,numericPoint(start),numericPoint(end)]);
@@ -15,7 +15,7 @@ export function addPlot({ points = [], parametric = false, names = [], diagram }
   canvas.width = width;
   canvas.height = height;
   canvas.setAttribute('role', 'img');
-  canvas.setAttribute('aria-label', arrows ? 'Paralelogramo de los vectores y su suma' : names.length ? 'Comparación de ' + names.join(' y ') : parametric ? 'Gráfica de la curva paramétrica' : 'Gráfica de la función');
+  canvas.setAttribute('aria-label', caption || (arrows ? 'Paralelogramo de los vectores y su suma' : names.length ? 'Comparación de ' + names.join(' y ') : parametric ? 'Gráfica de la curva paramétrica' : 'Gráfica de la función'));
   const context = canvas.getContext('2d');
   if (!context) return canvas;
 
@@ -53,8 +53,8 @@ export function addPlot({ points = [], parametric = false, names = [], diagram }
   const tick = value => Math.abs(value) >= 10000 || (value && Math.abs(value) < .01)
     ? value.toExponential(1) : tickFormat.format(value);
   const palette = getComputedStyle(page);
-  const graphGrid = palette.getPropertyValue('--menu-plot-grid').trim() || '#3b2c47';
-  const graphAxis = palette.getPropertyValue('--menu-plot-axis').trim() || '#a98eb4';
+  const graphGrid = palette.getPropertyValue('--menu-plot-grid').trim() || '#28364b';
+  const graphAxis = palette.getPropertyValue('--menu-plot-axis').trim() || '#84a0be';
   context.font = '20px system-ui';
   context.fillStyle = palette.getPropertyValue('--muted').trim();
   for (let i = 0; i <= 4; i++) {
@@ -74,7 +74,7 @@ export function addPlot({ points = [], parametric = false, names = [], diagram }
   context.rect(padding, padding, w, h);
   context.clip();
   const colors = [palette.getPropertyValue('--gold').trim() || '#b97019',
-    page.dataset.seriousTheme === 'light' && page.classList.contains('serious') ? '#66419c' : '#b0a8fc'];
+    page.dataset.seriousTheme === 'light' && page.classList.contains('serious') ? '#3763a6' : '#b4d1f0'];
   colors.push(page.dataset.seriousTheme === 'light' && page.classList.contains('serious') ? '#10705f' : '#85dac8');
   if (arrows) {
     arrows.forEach(([label,start,end],index) => {
@@ -95,6 +95,18 @@ export function addPlot({ points = [], parametric = false, names = [], diagram }
       context.moveTo(...to);
       context.lineTo(to[0]-13*Math.cos(angle-.43),to[1]-13*Math.sin(angle-.43));
       context.lineTo(to[0]-13*Math.cos(angle+.43),to[1]-13*Math.sin(angle+.43));
+      context.fill();
+    });
+  }
+  if (!arrows) {
+    context.lineWidth = 1.2;
+    context.setLineDash([5,5]);
+    tangents.forEach(([[x1,y1],[x2,y2]]) => line(xPixel(x1),yPixel(y1),xPixel(x2),yPixel(y2),'#70d6c7'));
+    context.setLineDash([]);
+    markers.forEach(([x,y]) => {
+      context.beginPath();
+      context.arc(xPixel(x),yPixel(y),4,0,Math.PI*2);
+      context.fillStyle='#75d9cc';
       context.fill();
     });
   }
@@ -128,13 +140,13 @@ export function addPlot({ points = [], parametric = false, names = [], diagram }
   if (arrows) names = arrows.map(([name]) => name).filter(Boolean);
   if (!names.length) return canvas;
   const figure = node('figure','ws-plot-figure');
-  const caption = node('figcaption','ws-plot-key');
+  const legendCaption = node('figcaption','ws-plot-key');
   names.forEach((name,i) => {
     const legend = node('span','ws-plot-legend',name);
     legend.style.setProperty('--series-color',colors[i]);
-    caption.append(legend);
+    legendCaption.append(legend);
   });
-  figure.append(canvas,caption);
+  figure.append(canvas,legendCaption);
   return figure;
 }
 

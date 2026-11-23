@@ -13,6 +13,9 @@ from .context import (
 )
 
 
+from .worked import dot_formula
+
+
 def reduce(A, ctx=None, reduced=True, pivot_limit=None, trace=True):
     """Devuelve R y E con EA=R. El límite evita pivotar sobre el término b."""
     ctx = ctx or Context()
@@ -21,13 +24,15 @@ def reduce(A, ctx=None, reduced=True, pivot_limit=None, trace=True):
     n = total if pivot_limit is None else pivot_limit
     E, pivots, row, swaps = identity(m), [], 0, 0
     if trace:
-        ctx.emit("matriz_inicial", "Matriz inicial del procedimiento.", {"matriz": R})
+        ctx.emit("matriz_inicial", "Matriz inicial del procedimiento.", {"matriz": R, "separador": pivot_limit})
     for col in range(n):
         ctx.tick()
         if row == m:
             break
         chosen = next((i for i in range(row, m) if R[i][col]), None)
         if chosen is None:
+            if trace:
+                ctx.emit("columna_sin_pivote", f"La columna {col+1} carece de pivote disponible.", {"columna":col+1})
             continue
         if chosen != row:
             before = [r[:] for r in R]
@@ -38,10 +43,14 @@ def reduce(A, ctx=None, reduced=True, pivot_limit=None, trace=True):
                 ctx.emit(
                     "intercambio",
                     f"Intercambiar F{row+1} y F{chosen+1}.",
-                    {"fila": row, "otra_fila": chosen, "antes": before, "matriz": R},
+                    {"fila": row, "otra_fila": chosen, "antes": before, "matriz": R, "separador":pivot_limit},
                     f"F_{{{row+1}}} \\leftrightarrow F_{{{chosen+1}}}",
                 )
         pivot = R[row][col]
+        if trace:
+            ctx.emit("pivote", f"Identificar el pivote de fila {row+1}, columna {col+1}.",
+                     {"fila":row+1,"columna":col+1,"pivote":pivot},
+                     rf"a_{{{row+1},{col+1}}}={tex(pivot)}")
         if reduced and pivot != 1:
             before = [r[:] for r in R]
             factor = 1 / pivot
@@ -51,7 +60,7 @@ def reduce(A, ctx=None, reduced=True, pivot_limit=None, trace=True):
                 ctx.emit(
                     "escala_fila",
                     f"Normalizar el pivote de F{row+1}.",
-                    {"fila": row, "factor": factor, "antes": before, "matriz": R},
+                    {"fila": row, "factor": factor, "antes": before, "matriz": R, "separador":pivot_limit},
                     f"F_{{{row+1}}} \\leftarrow ({tex(factor)})F_{{{row+1}}}",
                 )
         targets = range(m) if reduced else range(row + 1, m)
@@ -73,12 +82,16 @@ def reduce(A, ctx=None, reduced=True, pivot_limit=None, trace=True):
                         "factor": factor,
                         "antes": before,
                         "matriz": R,
+                        "separador":pivot_limit,
                     },
                     f"F_{{{i+1}}} \\leftarrow F_{{{i+1}}}+({tex(factor)})F_{{{row+1}}}",
                 )
         pivots.append(col)
         row += 1
         ctx.progress(row * 90 // max(1, min(m, n)))
+    if trace:
+        ctx.emit("reduccion_final","Leer la forma obtenida y las columnas pivote.", {"matriz":R,"separador":pivot_limit,
+                 "columnas_pivote":[j+1 for j in pivots]})
     return {"matrix": R, "E": E, "pivots": pivots, "swaps": swaps}
 
 
@@ -108,6 +121,9 @@ def solve(A, b, ctx=None, method="gauss_jordan", trace=True):
         "dimension_dominio": n,
     }
     if contradiction is not None:
+        if trace:
+            ctx.emit("contradiccion","Leer la contradicción en la matriz reducida.", {"fila":R[contradiction]},
+                     r"0=" + tex(R[contradiction][n]) + r"\ne0")
         y = reduction["E"][contradiction]
         left = [sum((y[i] * A[i][j] for i in range(m)), F(0)) for j in range(n)]
         right = sum((y[i] * b[i] for i in range(m)), F(0))
@@ -130,28 +146,37 @@ def solve(A, b, ctx=None, method="gauss_jordan", trace=True):
         for i in range(len(pivots) - 1, -1, -1):
             ctx.tick(n)
             j = pivots[i]
-            x[j] = (rhs[i] - sum((R[i][k] * x[k] for k in range(j + 1, n)), F(0))) / R[
-                i
-            ][j]
+            coefficients, remaining = R[i][j+1:n], x[j+1:n]
+            x[j] = (rhs[i] - sum((a*b for a,b in zip(coefficients,remaining)),F(0))) / R[i][j]
             if trace and rhs is b_reduced:
                 ctx.emit(
                     "sustitucion",
                     f"Obtener la componente x{j+1} de la solución particular.",
-                    {"componente": j, "valor": x[j], "vector": x},
-                    f"x_{{{j+1}}}={tex(x[j])}",
+                    {"componente": j+1, "valor": x[j], "vector": x},
+                    rf"x_{{{j+1}}}=\frac{{{tex(rhs[i])}-({dot_formula(coefficients,remaining)})}}{{{tex(R[i][j])}}}={tex(x[j])}",
                 )
         return freeze(x)
 
     b_reduced = [r[n] for r in R]
+    if trace and free:
+        ctx.emit("variables_libres", "Asignar cero a las variables libres para la particular.", {"variables":[j+1 for j in free]})
     particular = back_substitute(b_reduced, [F(0)] * n)
     directions = []
     for j in free:
         seed = [F(k == j) for k in range(n)]
-        directions.append(back_substitute([F(0)] * m, seed))
+        direction = back_substitute([F(0)] * m, seed)
+        directions.append(direction)
+        if trace:
+            ctx.emit("direccion", f"Tomar x{j+1}=1 y las demás variables libres iguales a cero con b=0.",
+                     {"vector":direction,"columna":j+1})
     actual = matvec(A, particular, ctx)
     residual = [x - y for x, y in zip(actual, b)]
     homogeneous = [matvec(A, v, ctx) for v in directions]
     passed = actual == b and all(not any(v) for v in homogeneous)
+    if trace:
+        ctx.emit("comprobacion", "Sustituir la particular y cada dirección en los datos originales.",
+                 {"A_por_particular":actual,"b":b,"A_por_direcciones":homogeneous,"verificada":passed},
+                 r"Ax_p=b,\qquad Av_j=0")
     return {
         **base,
         "clasificacion": "infinitas" if free else "unica",

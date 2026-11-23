@@ -12,6 +12,7 @@ from .context import (
     tex,
 )
 from .reduction import solve
+from .worked import dot_formula, product_steps
 
 
 def factor(A, ctx, pivoting=False, b=None):
@@ -47,7 +48,8 @@ def factor(A, ctx, pivoting=False, b=None):
             )
         for i in range(row + 1, m):
             ctx.tick(n)
-            multiplier = U[i][col] / U[row][col]
+            entry, pivot = U[i][col], U[row][col]
+            multiplier = entry / pivot
             L[i][row] = multiplier
             if multiplier:
                 U[i] = freeze([a - multiplier * x for a, x in zip(U[i], U[row])])
@@ -61,12 +63,14 @@ def factor(A, ctx, pivoting=False, b=None):
                         "L": L,
                         "U": U,
                     },
-                    f"F_{{{i+1}}} \\leftarrow F_{{{i+1}}}-({tex(multiplier)})F_{{{row+1}}}",
+                    rf"l_{{{i+1},{row+1}}}=\frac{{{tex(entry)}}}{{{tex(pivot)}}}={tex(multiplier)},\quad "
+                    rf"F_{{{i+1}}}\leftarrow F_{{{i+1}}}-({tex(multiplier)})F_{{{row+1}}}",
                 )
         pivots.append(col)
         row += 1
         ctx.progress(row * 90 // max(1, min(m, n)))
     PA, LU = multiply(P, A, ctx), multiply(L, U, ctx)
+    product_steps(ctx,L,U,LU,"LU")
     result = {
         "P": P,
         "L": L,
@@ -90,11 +94,13 @@ def factor(A, ctx, pivoting=False, b=None):
         permuted = matvec(P, b, ctx)
         y = []
         for i in range(m):
+            terms = dot_formula(L[i][:i], y)
             y.append(permuted[i] - sum((L[i][j] * y[j] for j in range(i)), F(0)))
             ctx.emit(
                 "sustitucion_L",
                 f"Resolver la componente y{i+1} de Ly=Pb.",
                 {"componente": i, "valor": y[-1], "y": y},
+                rf"y_{{{i+1}}}={tex(permuted[i])}-({terms})={tex(y[-1])}",
             )
         solution = solve(U, y, ctx)
         result.update(

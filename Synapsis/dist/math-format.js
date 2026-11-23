@@ -19,12 +19,16 @@ export function math(tex, fallback = tex, display = false) {
   return element;
 }
 
-export function matrixFormula(rows, caption, independent = false) {
+export function matrixFormula(rows, caption, independent = false, pivots = []) {
   if (!rows.length || !rows[0]?.length || rows.length > 7 || rows[0].length > 8) return null;
   const entries = rows.map(row => row.map(numericTex));
   if (entries.some(row => row.some(value => value === null))) return null;
+  for (const [i,j] of pivots) {
+    if (entries[i]?.[j]) entries[i][j] = '\\boxed{' + entries[i][j] + '}';
+  }
   const body = entries.map(row => row.join('&')).join('\\\\');
-  const columns = 'r'.repeat(entries[0].length - 1) + '|r';
+  const split = independent === true ? entries[0].length - 1 : Number(independent);
+  const columns = 'r'.repeat(split) + '|' + 'r'.repeat(entries[0].length - split);
   const tex = independent
     ? `\\left[\\begin{array}{${columns}}${body}\\end{array}\\right]`
     : `\\begin{bmatrix}${body}\\end{bmatrix}`;

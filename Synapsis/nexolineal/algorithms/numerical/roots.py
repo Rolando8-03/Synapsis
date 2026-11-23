@@ -3,7 +3,7 @@
 from decimal import Decimal as D
 from fractions import Fraction as F
 from .functions import Function, decimal
-from ..linear.context import integer
+from ..linear.context import integer, tex
 from ...parsing.numbers import parse_number
 from ...domain.models import InputError, DomainError
 
@@ -71,6 +71,7 @@ def roots(method, data, ctx):
             "iteracion_raiz",
             "Iteración " + str(len(table)) + " de " + method + ".",
             row,
+            row.get("desarrollo", ""),
         )
         ctx.progress(len(table) * 99 // limit)
 
@@ -80,10 +81,13 @@ def roots(method, data, ctx):
                 "La cota de intervalo es teórica: la evaluación aproximada de signos no certifica una cota de error verdadero."
             )
         a, b = parse_number(data["inferior"]), parse_number(data["superior"])
+        result["intervalo_inicial"] = [a,b]
         if a >= b:
             raise InputError("El extremo inferior debe ser menor que el superior.")
         f.continuous(a, b)
         fa, fb = f.exact(a), f.exact(b)
+        ctx.emit("continuidad","Comprobar continuidad en el intervalo y evaluar ambos extremos.",
+                 {"intervalo":[a,b],"f_a":fa,"f_b":fb}, r"f(a)f(b)<0\quad\text{si ninguno es raíz}")
         for x, fx in ((a, fa), (b, fb)):
             if fx == 0:
                 result["cota_garantizada"] = F(0) if f.polynomial is not None else None
@@ -153,6 +157,12 @@ def roots(method, data, ctx):
                     "error_aproximado_absoluto": delta,
                     "error_aproximado_relativo": relative,
                     "cota_intervalo": bound,
+                    "signo_fa_por_fx": "-" if fa*fx < 0 else "+" if fa*fx > 0 else "0",
+                    "decision_intervalo": "Extremo superior ← punto medio" if fa*fx < 0 else
+                                          "Extremo inferior ← punto medio" if fx else "Valor cero",
+                    "error_porcentual": 100 * relative if relative is not None else None,
+                    "desarrollo": (r"x_m=\frac{(" + tex(a) + ")+(" + tex(b) + ")}{2}=" + tex(x))
+                       if method=="biseccion" else r"x_r=a-f(a)\frac{b-a}{f(b)-f(a)}",
                     "cota_garantizada": certified,
                 }
             )
@@ -199,6 +209,11 @@ def roots(method, data, ctx):
     if method == "newton":
         derivative, source = f.derivative(data.get("derivada"))
         result.update(derivada=derivative.expression, origen_derivada=source)
+        multiplicity = integer(data.get("multiplicidad",1), "Multiplicidad",1,20)
+        result["multiplicidad"] = multiplicity
+        ctx.emit("derivar","Obtener la derivada y fijar la multiplicidad que se usará.",
+                 {"funcion":f.expression,"derivada":derivative.expression,"multiplicidad":multiplicity},
+                 r"x_{k+1}=x_k-m\frac{f(x_k)}{f'(x_k)}")
         if source == "proporcionada_por_usuario":
             warnings.append(
                 "La derivada proporcionada se usa como dato; no se certifica su equivalencia simbólica con f."
@@ -227,11 +242,15 @@ def roots(method, data, ctx):
         try:
             if method == "newton":
                 denominator = derivative.value(x)
-                if denominator == 0:
-                    return finish("breakdown", "derivada_nula", x, fx)
-                next_x = x - fx / denominator
+                if denominator == 0 or (abs(denominator) <= D("1e-16")*abs(fx)):
+                    ctx.emit("derivada_pequena","Evaluar el denominador antes de dividir.",
+                             {"x":x,"f_x":fx,"derivada":denominator})
+                    return finish("breakdown", "derivada_nula_o_demasiado_pequena", x, fx)
+                correction = multiplicity * fx / denominator
+                next_x = x - correction
                 formula = r"x_{k+1}=x_k-f(x_k)/f\prime(x_k)"
-                extra = {"derivada_x": denominator}
+                extra = {"derivada_x": denominator,
+                         "desarrollo": rf"x_{{{k}}}\approx({x:.10g})-({multiplicity})\frac{{{fx:.10g}}}{{{denominator:.10g}}}\approx {next_x:.10g}"}
             else:
                 old_value = f.value(previous)
                 denominator = fx - old_value
@@ -250,6 +269,7 @@ def roots(method, data, ctx):
         except DomainError as e:
             return finish("domain_error", "evaluacion_no_admitida: " + str(e), x, fx)
         delta = abs(next_x - x)
+        relative = delta / abs(next_x) if next_x else None
         emit(
             {
                 "iteracion": k,
@@ -259,12 +279,15 @@ def roots(method, data, ctx):
                 "fx": next_f,
                 "residual": abs(next_f),
                 "error_aproximado_absoluto": delta,
+                "error_aproximado_relativo": relative,
+                "error_porcentual": 100*relative if relative is not None else None,
                 "formula": formula,
                 **extra,
             }
         )
         if abs(next_f) <= decimal(tf) and (
-            criterion == "residual" or delta <= decimal(tx)
+            criterion == "residual" or (relative <= decimal(tx) if relative is not None else delta <= decimal(tx))
+            if criterion == "relativo_y_residual" else criterion == "residual" or delta <= decimal(tx)
         ):
             return finish("ok", "criterio_satisfecho", next_x, next_f)
         if next_x == x:

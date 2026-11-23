@@ -17,7 +17,7 @@ La primera instalación necesita internet. Después, la aplicación funciona con
 - En **Sistemas lineales**, trabajá con la cuadrícula aumentada y la columna separada de `b`. Podés pegar una matriz, cambiar sus dimensiones y elegir qué partes del desarrollo mostrar.
 - Al completar la cuadrícula se prepara el cálculo. **Resolver** muestra el resultado en el lugar del formulario. **Editar datos** vuelve a las entradas anteriores. **Cargar ejemplo** carga y resuelve un caso de la operación.
 - Para obtener exclusivamente los factores, elegí **Sistemas lineales → Factorización → Solo factorizar A = LU**. Usá **Solo factorizar PA = LU** para trabajar con pivoteo o **Resolver Ax=b mediante LU o PLU** cuando también querás calcular la solución.
-- **Temario del curso**, en la barra lateral, enlaza las 20 sesiones con sus operaciones y ejemplos. **Historial** reabre cálculos del módulo.
+- **Temario del curso**, en la barra lateral, enlaza las 22 sesiones con sus operaciones y ejemplos. **Historial** reabre cálculos del módulo.
 
 ## Temario y formatos
 
@@ -30,7 +30,7 @@ La primera instalación necesita internet. Después, la aplicación funciona con
 | 13–15 | Generación, bases, dimensión, subespacios por ecuaciones, suma e intersección. |
 | 16–17 | Linealidad por componentes polinómicas, imágenes de una base, matriz, núcleo, imagen, rango y nulidad. |
 | 18 | Errores, tolerancia, propagación, truncamiento, redondeo, precisión, punto flotante y bases numéricas. |
-| 19–20 | Bisección, otros métodos de raíces, Jacobi, Gauss-Seidel, SOR y diagnóstico de dominancia. |
+| 19–22 | Bisección y Newton-Raphson con tablas, Jacobi, Gauss-Seidel, SOR y gráfica comparativa. |
 
 Las operaciones aceptan datos editables. Los enunciados de modelación se traducen a ecuaciones o matrices antes de resolver. El análisis de subespacios por ecuaciones se aplica a restricciones lineales. Cramer paramétrico admite un parámetro en matrices cuadradas de hasta orden cuatro, con ecuaciones polinómicas. Clasifica los casos singulares racionales y enumera las raíces algebraicas cuando aparecen. Las fórmulas se muestran con KaTeX y MathML, y las tablas conservan los valores exactos cuando el método los calcula.
 
@@ -40,10 +40,14 @@ Las operaciones aceptan datos editables. Los enunciados de modelación se traduc
 | --- | --- |
 | `abrir.py`, `backend.py`, `curso.py`, `kepler.py`, `temario.py` | Inicio, cálculo local y catálogo del curso. |
 | `dist/` | Interfaz, animaciones, simulaciones, KaTeX, Three.js y recursos de presentación. |
-| `calculadora_original/` | Código y materiales de la calculadora del Grupo 4, con los créditos originales. |
+| `calculadora_original/` | Código y materiales de la calculadora del Grupo 4, con el crédito colectivo del Grupo 4. |
 | `nexolineal/` | Algoritmos Python de álgebra lineal y métodos numéricos. |
 | `recursos-originales/` | PNG originales de la nave y el paisaje. |
 | `legado-frontend/` | Archivos de cálculo que acompañaban la edición web de origen. |
-| `Historial-Synapsis.bundle` | Historial Git de Synapsis y de esta edición de escritorio. |
 
-Para abrir el historial en otro directorio, ejecutá `git clone Historial-Synapsis.bundle Synapsis-repo`.
+
+## Procedimientos de esta edición
+
+La pestaña **Procedimiento** muestra las sustituciones y estados intermedios de la misma ejecución. Los productos separan cada fila y columna. Gauss-Jordan identifica el bloque aumentado y los pivotes en la matriz reducida. Newton-Raphson presenta la derivada, las aproximaciones, el error y el residuo, con sus tangentes en la gráfica. El comparador ejecuta Jacobi y Gauss-Seidel con una misma configuración.
+
+Consultá la [cobertura de los procedimientos](COBERTURA.md). Para ejecutar las pruebas, desde la carpeta de Synapsis corré `python -m unittest discover -s pruebas -v`.

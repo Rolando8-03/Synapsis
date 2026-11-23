@@ -9,7 +9,7 @@ import { makeSaucer } from './saucer.js';
 export function createWebGL(canvas, photo) {
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'low-power' });
   renderer.autoClear = false;
-  renderer.setClearColor(new Color('#23182b'), 1);
+  renderer.setClearColor(new Color('#161f2d'), 1);
   const landscape = new Texture(photo);
   landscape.minFilter = LinearFilter;
   landscape.generateMipmaps = false;
@@ -43,12 +43,12 @@ export function createWebGL(canvas, photo) {
   const camera = new PerspectiveCamera(36, 1, .1, 80);
   camera.position.set(0, 0, 22);
   const light = new DirectionalLight('#f7d6df', 2.33);
-  const cool = new DirectionalLight('#b78bd8', 1.02);
+  const cool = new DirectionalLight('#83dce0', 1.02);
   const glow = new DirectionalLight('#ffb06b', .54);
   light.position.set(2.8, 4.8, 5.8);
   cool.position.set(-4, 1.2, -4);
   glow.position.set(1.3, -4, 5);
-  objects.add(new AmbientLight('#d6bddc', .95), light, cool, glow);
+  objects.add(new AmbientLight('#baccdf', .95), light, cool, glow);
   const { ship, amber, pearl } = makeSaucer();
   objects.add(ship);
   const engine = new Vector3();

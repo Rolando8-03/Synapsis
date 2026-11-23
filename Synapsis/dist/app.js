@@ -44,7 +44,7 @@ function applyTheme() {
   theme.querySelector('span').textContent = `Tema ${next}`;
   theme.setAttribute('aria-label', `Cambiar al tema ${next}`);
   theme.title = theme.getAttribute('aria-label');
-  themeColor.content = serious ? (selected === 'dark' ? '#191320' : '#fcf8ff') : '#100e1c';
+  themeColor.content = serious ? (selected === 'dark' ? '#101f35' : '#f4f9fc') : '#0b172b';
 }
 function applyView() {
   const paused = stopped === null ? preference.matches : stopped === 'true';

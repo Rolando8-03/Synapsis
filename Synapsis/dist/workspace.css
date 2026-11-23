@@ -3,35 +3,35 @@
 .workspace-open .skip { display: none; }
 
 #workspace {
-  --ws-bg: #16121f;
-  --ws-sidebar: #1a1423;
-  --ws-panel: #21192c;
-  --ws-input: #17111f;
-  --ws-chip: #2b2137;
-  --ws-line: #a995bc40;
-  --ws-accent: color-mix(in srgb, var(--workspace-ink, #ffd16f) 72%, #ffdf9d);
-  --ws-text: #faf2fb;
-  --ws-muted: #c9b9d1;
+  --ws-bg: #0c1a2f;
+  --ws-sidebar: #101f35;
+  --ws-panel: #132840;
+  --ws-input: #0e2036;
+  --ws-chip: #1a334d;
+  --ws-line: #8ea8c340;
+  --ws-accent: color-mix(in srgb, var(--workspace-ink, #ffc96f) 72%, #ffdf9d);
+  --ws-text: #f7faff;
+  --ws-muted: #c5d6e6;
   --ws-error: #ffb9cb;
-  --ws-accent-ink: #201626;
-  --ws-shadow: #08060a48;
+  --ws-accent-ink: #0b1b2d;
+  --ws-shadow: #06080a48;
   min-height: calc(100svh - var(--bar));
-  background: radial-gradient(ellipse at 90% 0%, #63385a24, transparent 38%), var(--ws-bg);
+  background: radial-gradient(ellipse at 90% 0%, #33486824, transparent 38%), var(--ws-bg);
   color: var(--ws-text);
 }
 .serious[data-serious-theme="light"] #workspace {
-  --ws-bg: #f5f0f8;
-  --ws-sidebar: #f1e9f5;
-  --ws-panel: #fffafd;
-  --ws-input: #fffafd;
-  --ws-chip: #f2e9f6;
-  --ws-line: #65507744;
-  --ws-accent: color-mix(in srgb, var(--workspace-ink, #ffd16f) 22%, #46265e);
-  --ws-text: #292033;
-  --ws-muted: #5b4d65;
+  --ws-bg: #edf5fa;
+  --ws-sidebar: #e8eff6;
+  --ws-panel: #fbfdff;
+  --ws-input: #fbfdff;
+  --ws-chip: #e8eff7;
+  --ws-line: #455d8244;
+  --ws-accent: color-mix(in srgb, var(--workspace-ink, #ffc96f) 22%, #0c4551);
+  --ws-text: #0c233a;
+  --ws-muted: #425a70;
   --ws-error: #982746;
   --ws-accent-ink: #fffafa;
-  --ws-shadow: #42324f12;
+  --ws-shadow: #2d3d5412;
   background: var(--ws-bg);
 }
 
@@ -255,3 +255,12 @@
 #workspace .ws-matrix-formula { min-width: 0; }
 
 .ws-plot-legend:nth-child(3)::before { border-top-style: solid; }
+
+.ws-detailed-steps { padding-inline-start: 27px; }
+.ws-detailed-steps > li::marker { color: var(--ws-accent); font-weight: 700; }
+.ws-step-card { border: 1px solid var(--ws-line); border-radius: 12px; padding: 12px 14px; background: var(--ws-input); }
+.ws-step-card h3 { font-size: 1.02rem; line-height: 1.35; }
+.ws-step-data { margin-top: 5px; color: var(--ws-muted); }
+.ws-step-data summary { cursor: pointer; }
+.ws-active-expression { margin-top: 10px; color: var(--ws-muted); overflow-wrap: anywhere; }
+.ws-active-expression code { color: var(--ws-text); }

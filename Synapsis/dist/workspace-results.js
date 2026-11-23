@@ -59,8 +59,8 @@ function table(headings, rows, caption = '', independent = false) {
   return scroll;
 }
 
-function matrixView(rows, caption = '', independent = false, headings = null) {
-  return matrixFormula(rows, caption, independent) ?? table(headings, rows, caption, independent);
+function matrixView(rows, caption = '', independent = false, headings = null, pivots = []) {
+  return matrixFormula(rows, caption, independent, pivots) ?? table(headings, rows, caption, independent);
 }
 
 function valueView(value) {
@@ -153,7 +153,7 @@ function systemResult(out, choices) {
     const forms = node('div', 'ws-result-stack');
     forms.append(matrixView(out.matriz_inicial, 'Matriz aumentada original [A | b]', true, headings),
       matrixView(out.matriz_escalonada, 'Forma escalonada · Gauss', true, headings),
-      matrixView(out.matriz_rref, 'Forma reducida · Gauss-Jordan', true, headings));
+      matrixView(out.matriz_rref, 'Forma reducida · Gauss-Jordan · pivotes recuadrados', true, headings, out.posiciones_pivote));
     panels.push(['Matrices', forms]);
   }
 
@@ -190,11 +190,59 @@ function systemResult(out, choices) {
   return panels;
 }
 
+function procedureView(entries) {
+  const stack = node('div','ws-result-stack');
+  const list = node('ol','ws-step-list ws-detailed-steps');
+  const more = node('button','secondary','Ver los siguientes pasos');
+  more.type = 'button';
+  let shown = 0;
+  function appendSteps() {
+    const added = document.createDocumentFragment();
+    const start = shown;
+    for (const step of entries.slice(shown,shown+18)) {
+      const item = node('li');
+      const body = node('div','ws-step-card');
+      body.append(node('h3','',step.description));
+      if (step.formula) body.append(math(step.formula,step.formula,true));
+      const {matriz, antes, separador, formula, desarrollo, ...remainder} = step.data ?? {};
+      if (matriz) {
+        const split = separador && separador < matriz[0]?.length ? separador : false;
+        if (antes) body.append(matrixView(antes, 'Antes', split));
+        body.append(matrixView(matriz, antes ? 'Después' : 'Matriz', split));
+      }
+      if (Object.keys(remainder).length) {
+        const data = node('details','ws-step-data');
+        data.append(node('summary','','Ver cálculos y datos de este paso'));
+        data.open = !matriz && !step.formula;
+        if (data.open) data.append(valueView(remainder));
+        data.addEventListener('toggle', () => {
+          if (data.open && data.childElementCount === 1) data.append(valueView(remainder));
+        });
+        body.append(data);
+      }
+      item.append(body);
+      added.append(item);
+      shown++;
+    }
+    list.append(added);
+    more.hidden = shown >= entries.length;
+    if (start) {
+      const item = list.children[start];
+      item.tabIndex = -1;
+      item.focus();
+    }
+  }
+  more.addEventListener('click',appendSteps);
+  stack.append(list,more);
+  appendSteps();
+  return stack;
+}
+
 function genericResult(response) {
   const output = response.result;
   const main = node('div', 'ws-result-stack');
   const panels = [['Resultado', main]];
-  const {points, parametric, muestras, tabla, encabezados, formula_latex, series, diagrama_vectores, ...general} = output;
+  const {points, parametric, muestras, tabla, encabezados, formula_latex, series, diagrama_vectores, grafico_raiz, ...general} = output;
   if (output.convencion && output.L && output.U) {
     main.append(math(output.convencion, output.convencion, true));
     const factors = node('div','ws-factors');
@@ -211,6 +259,7 @@ function genericResult(response) {
     main.append(lead);
   }
   if (series?.points?.length) main.append(addPlot(series));
+  if (grafico_raiz?.points?.length) panels.push(['Gráfica', () => addPlot(grafico_raiz)]);
   if (diagrama_vectores?.length) main.append(addPlot({diagram:diagrama_vectores}));
   if (formula_latex) main.append(math(formula_latex, formula_latex, true));
   if (points?.length) {
@@ -223,8 +272,15 @@ function genericResult(response) {
     const first = tabla[0];
     const body = node('div','ws-result-stack');
     if (first.x_decimal !== undefined) {
-      body.append(table(['k','Extremo inferior','Extremo superior','xₖ','f(xₖ)','Error relativo','Cota'],
-        tabla.map(row => [row.iteracion,row.a,row.b,row.x_decimal,row.fx,row.error_aproximado_relativo,row.cota_intervalo])));
+      const bracket = first.a !== undefined;
+      const formatDecimal = value => value == null ? null : (typeof value === 'string' && value.includes('/') ? value : scalar(value));
+      const cols = bracket
+        ? ['k','a','b','xᵣ','f(a)','f(b)','f(xᵣ)','Signo f(a)f(xᵣ)','εₐ (%)','Cota']
+        : ['k','xₖ','f(xₖ)',first.derivada_x !== undefined ? 'f′(xₖ)' : 'f(xₖ₋₁)','xₖ₊₁','εₐ (%)','Error absoluto','|f(xₖ₊₁)|'];
+      body.append(table(cols, tabla.map(row => (bracket
+        ? [row.iteracion,row.a,row.b,row.x_decimal,row.fa,row.fb,row.fx,row.signo_fa_por_fx,row.error_porcentual,row.cota_intervalo]
+        : [row.iteracion,row.x_anterior,row.f_anterior_actual,row.derivada_x ?? row.f_anterior,
+          row.x_decimal,row.error_porcentual,row.error_aproximado_absoluto,row.residual]).map(formatDecimal))));
     } else if (first.vector_decimal) {
       body.append(table(['k','xₖ · aproximado','‖Ax−b‖','Cambio absoluto','Cambio relativo','Error por componente (%)'],
         tabla.map(row => [row.iteracion,row.vector_decimal,row.norma_residual_decimal,
@@ -238,21 +294,7 @@ function genericResult(response) {
     body.append(exact);
     return body;
   }]);
-  if (response.steps?.length) panels.push(['Procedimiento', () => {
-    const steps = node('ol', 'ws-step-list');
-    response.steps.forEach(step => {
-      const row = node('li');
-      row.append(node('p', '', step.description));
-      if (step.formula) row.append(math(step.formula, step.formula, true));
-      if (step.data && Object.keys(step.data).length) {
-        const detail = node('details');
-        detail.append(node('summary','','Ver datos de este paso'), valueView(step.data));
-        row.append(detail);
-      }
-      steps.append(row);
-    });
-    return steps;
-  }]);
+  if (response.steps?.length) panels.push(['Procedimiento', () => procedureView(response.steps)]);
   if (response.verification && Object.keys(response.verification).length) {
     panels.push(['Comprobación', valueView(response.verification)]);
   }
@@ -273,6 +315,12 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
   actions.append(edit);
   header.append(heading, actions);
   target.append(header);
+  if (response.result?.expresion) {
+    const expression = node('p','ws-active-expression');
+    expression.append(node('strong','','Función '),node('code','',response.result.expresion));
+    if (response.result.derivada) expression.append(node('strong','',' Derivada '),node('code','',response.result.derivada));
+    target.append(expression);
+  }
   if (response.status !== 'ok' && !originalSystem) {
     const status = ({iteration_limit:'Máximo de iteraciones alcanzado', stagnated:'El método se estancó',
       infinite:'Infinitas soluciones', inconsistent:'Sistema incompatible', not_applicable:'Método no aplicable',

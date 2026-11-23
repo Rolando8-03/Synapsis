@@ -67,6 +67,9 @@ def study(vectors, ambient, ctx):
     pivots = reduced["pivots"]
     relations = kernel(C, ctx)
     images = [matvec(C, v, ctx) for v in relations]
+    ctx.emit("independencia","Comparar el número de pivotes con el número de vectores.",
+             {"RREF":reduced["matrix"], "columnas_pivote":[j+1 for j in pivots],
+              "relaciones_dependencia":relations}, r"Ax=0")
     return {
         "dimension_ambiente": ambient,
         "cantidad": len(vectors),
@@ -119,6 +122,10 @@ def verify_basis(vectors, target, ambient, ctx):
     relation_checks = [
         not any(matvec(columns(vectors, ambient), v, ctx)) and any(v) for v in relations
     ]
+    ctx.emit("independencia","Extraer una familia independiente de cada espacio.",
+             {"base_candidata":B,"base_del_objetivo":target_basis,"independiente":independent})
+    ctx.emit("generacion","Comparar las dimensiones de los espacios y de la unión de sus generadores.",
+             {"dimension_candidata":len(B),"dimension_objetivo":len(target_basis),"mismo_generado":same_span})
     reconstructions = []
     if same_span:
         for generators, objects in ((vectors, target), (target, vectors)):
@@ -152,9 +159,15 @@ def subspaces(U, V, ambient, ctx, intersection=False):
     sum_basis = basis(BU + BV, ambient, ctx)
     # [BU|-BV](a,b)=0 representa exactamente BU a = BV b.
     joined = [[a[i] for a in BU] + [-b[i] for b in BV] for i in range(ambient)]
-    relations = kernel(joined, ctx)
+    ctx.emit("familias","Reducir las familias para obtener bases de U, V y de su suma.",
+             {"base_U":BU,"base_V":BV,"base_suma":sum_basis})
+    ctx.emit("igualar","Igualar dos combinaciones, una por cada espacio.",
+             {"matriz":joined,"separador":len(BU)},r"[B_U\\mid-B_V]\\begin{bmatrix}a\\\\b\\end{bmatrix}=0")
+    relations = solve(joined,[F(0)]*ambient,ctx)["direcciones"]
     candidates = [matvec(columns(BU, ambient), v[: len(BU)], ctx) for v in relations]
     inter_basis = basis(candidates, ambient, ctx)
+    ctx.emit("interseccion","Transformar los coeficientes en vectores comunes y conservar una base.",
+             {"candidatos":candidates,"base_interseccion":inter_basis})
     selected = inter_basis if intersection else sum_basis
     checks = []
     for v in inter_basis:
