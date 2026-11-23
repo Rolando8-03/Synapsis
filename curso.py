@@ -3,6 +3,7 @@ import ast
 from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP, localcontext
 from fractions import Fraction
 from functools import reduce
+from itertools import combinations
 from math import factorial, gcd, lcm
 import re
 import sys
@@ -150,6 +151,36 @@ def from_equations(data, solve, ctx):
     }
 
 
+def rank_polynomials(matrix, parameter):
+    """El mcd de los menores de cada orden se anula justo cuando cae el rango."""
+    profile = {}
+    for order in range(1, min(matrix.shape) + 1):
+        divisor = sp.Poly(0, parameter, domain=sp.QQ)
+        for rows in combinations(range(matrix.rows), order):
+            for cols in combinations(range(matrix.cols), order):
+                minor = matrix.extract(rows, cols).det(method="berkowitz")
+                divisor = divisor.gcd(sp.Poly(minor, parameter, domain=sp.QQ))
+                if divisor.degree() == 0:
+                    break
+            if divisor.degree() == 0:
+                break
+        if divisor.is_zero:
+            break
+        profile[order] = divisor
+    return profile
+
+
+def classify_ranks(rank_a, rank_ab, variables):
+    if rank_a != rank_ab:
+        classification = "Sin solución"
+    elif rank_a == variables:
+        classification = "Solución única"
+    else:
+        classification = "Infinitas soluciones"
+    return {"rango_A": rank_a, "rango_aumentada": rank_ab, "incognitas": variables,
+            "clasificacion": classification}
+
+
 def parametric(data, ctx):
     variables = symbols(data['variables'])
     params = symbols(data['parametro'])
@@ -166,14 +197,42 @@ def parametric(data, ctx):
               'determinante': str(det.as_expr()), 'formula_latex': r'\det(A)=' + sp.latex(det.as_expr())}
     ctx.emit("determinante","Calcular y simplificar el determinante de la matriz de coeficientes.",
              {"A":rows_text(A),"determinante":str(det.as_expr()),"factorizado":str(sp.factor(det.as_expr()))},result["formula_latex"])
+    coefficient_ranks = rank_polynomials(A, parameter)
+    augmented_ranks = rank_polynomials(A.row_join(b), parameter)
+
+    def rank_at(profile, factor):
+        return max((order for order, divisor in profile.items() if not divisor.rem(factor).is_zero), default=0)
+
+    # Con determinante idénticamente nulo también pueden cambiar ambos rangos.
+    critical = sp.Poly(1, parameter, domain=sp.QQ)
+    for profile in (coefficient_ranks, augmented_ranks):
+        if profile:
+            critical = critical.lcm(profile[max(profile)])
+    cases = {}
+    for factor, _ in critical.factor_list()[1]:
+        for root in factor.real_roots():
+            case = classify_ranks(rank_at(coefficient_ranks, factor), rank_at(augmented_ranks, factor), A.cols)
+            if root.is_Rational:
+                case = analyze_affine(A.subs(parameter, root), b.subs(parameter, root))
+            else:
+                case["polinomio_minimo"] = str(factor.monic().as_expr())
+            cases[root] = case
+    ordered = sorted(cases, key=lambda root: root.evalf())
+    singular = det.real_roots(multiple=False) if not det.is_zero else []
+    result.update(valores_singulares_reales=[str(root) for root, _ in singular],
+                  casos_singulares={str(root): cases[root] for root in ordered})
+    ctx.emit("ceros", "Separar los puntos reales donde puede cambiar el rango.",
+             {"valores": [str(root) for root in ordered]}, sp.latex(critical.as_expr()) + "=0")
+    for root in ordered:
+        ctx.emit("caso_singular", "Clasificar con rangos exactos en el valor excepcional.",
+                 {"parametro": str(root), **cases[root]}, sp.latex(parameter) + "=" + sp.latex(root))
     if det.is_zero:
-        result.update(solucion_unica='Ningún valor real del parámetro',
-                      criterio='El determinante es idénticamente cero. Para un valor concreto, usá Resolver y clasificar.')
+        generic = classify_ranks(max(coefficient_ranks, default=0), max(augmented_ranks, default=0), A.cols)
+        result.update(solucion_unica="Ningún valor real del parámetro",
+                      fuera_de_los_valores_excepcionales=generic,
+                      criterio="El determinante es idénticamente cero. La compatibilidad se decide por los rangos.")
+        ctx.emit("compatibilidad_generica", "Comparar los rangos fuera de los valores excepcionales.", generic)
         return result
-    exceptional = set(det.real_roots())
-    result['valores_singulares_reales'] = [str(root) for root in sorted(exceptional, key=lambda value: value.evalf())]
-    ctx.emit("ceros","Resolver det(A)=0 y separar los valores excepcionales.",
-             {"valores":result["valores_singulares_reales"]},r"\det(A)=0")
     formulas = {}
     for i, variable in enumerate(variables):
         replaced = A.copy()
@@ -186,14 +245,6 @@ def parametric(data, ctx):
                  sp.latex(variable)+r"=\frac{"+sp.latex(numerator)+"}{"+sp.latex(det.as_expr())+"}="+sp.latex(quotient))
     result['criterio'] = 'Solución única cuando el parámetro es distinto de los valores singulares.'
     result['solucion_por_cramer'] = formulas
-    # Los valores algebraicos de grado alto se muestran exactamente como raíces
-    # ordenadas sin forzar una reducción simbólica costosa sobre ellos.
-    result['casos_singulares'] = {
-        str(root): analyze_affine(A.subs(parameter, root), b.subs(parameter, root))
-        for root in exceptional if root.is_Rational
-    }
-    for value, case in result["casos_singulares"].items():
-        ctx.emit("caso_singular","Sustituir el parámetro y comparar los rangos.",{"parametro":value,**case})
     return result
 
 
