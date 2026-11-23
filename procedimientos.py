@@ -4,14 +4,25 @@ import ast
 
 from motor_matematico.algorithms.linear.context import Context, matrix, tex, vector
 from motor_matematico.parsing.numbers import parse_number
-from motor_matematico.algorithms.linear.worked import dot_formula, parenthesize, product_steps
+from motor_matematico.algorithms.linear.worked import dot_formula, parenthesize, product_steps, row_replacement
 from motor_matematico.algorithms.calculo import analizar, evaluar
 
 
 def original_rows(ctx, steps):
+    previous = None
     for step in steps:
-        data = {"matriz":step["matriz"],"separador":len(step["matriz"][0])-1} if step["mostrar_matriz"] else {}
-        ctx.emit("fila_original",step["titulo"],data,step.get("formula_latex",""))
+        current = step["matriz"]
+        data = {"matriz": current, "separador": len(current[0])-1} if step["mostrar_matriz"] else {}
+        op = step["operacion"]
+        formula = step.get("formula_latex", "")
+        if previous is not None and op["tipo"] == "combinacion":
+            target, source = int(op["destino"]), int(op["origen"])
+            data.update(antes=previous, pivote=op["p"], entrada_a_eliminar=op["b"], factor=op["k"])
+            factor = rf"k=-\frac{{{tex(op['b'])}}}{{{tex(op['p'])}}}={tex(op['k'])}"
+            entries = row_replacement(previous[target], previous[source], op["k"], current[target], target)
+            formula = factor + r"\qquad " + entries
+        ctx.emit("fila_original", step["titulo"], data, formula)
+        previous = current
 
 
 def legacy_trace(op, out, ctx):
@@ -22,11 +33,13 @@ def legacy_trace(op, out, ctx):
             return
         ctx.emit("metodo", "Comenzar la fase de Gauss-Jordan.", {})
         original_rows(ctx, out["pasos_jordan"])
+        last = next((row for row in reversed(out["matriz_rref"]) if any(Fraction(x) for x in row)),
+                    out["matriz_rref"][-1])
         ctx.emit("teorema", "Aplicar el teorema de Rouché–Capelli.", {"teorema": {
             "enunciado": r"Ax=b\text{ tiene solución}\iff\operatorname{rang}(A)=\operatorname{rang}([A\mid b])",
             "hipotesis": f"El sistema tiene {out['numero_ecuaciones']} ecuaciones y {out['numero_variables']} incógnitas.",
             "evidencia": {"rango_A": out["rango_A"], "rango_aumentada": out["rango_aumentada"],
-                          "forma_reducida": out["matriz_rref"]},
+                          "forma_reducida": out["matriz_rref"], "ultima_fila_no_nula": last},
             "conclusion": out["conclusion"],
         }})
         for step in out.get("pasos_sustitucion", []):
@@ -41,6 +54,13 @@ def legacy_trace(op, out, ctx):
         else:
             ctx.emit("contradiccion","La fila contradictoria prueba la incompatibilidad.",
                      {"fila":out.get("fila_contradiccion_datos")})
+        for free, direction in zip(out["variables_libres"], out.get("direcciones", [])):
+            image = [sum(Fraction(a) * Fraction(v) for a, v in zip(row, direction)) for row in out["A"]]
+            variable = free + 1
+            ctx.emit("direccion_nucleo", f"Fijar la variable libre x{variable} en 1 y las otras libres en 0.",
+                     {"variable_libre": variable, "direccion": direction, "Av": image},
+                     rf"Av_{{{variable}}}=0")
+            matvec_steps(ctx, out["A"], direction, image, rf"Av_{{{variable}}}")
         for i, proof in enumerate(out.get("comprobaciones") or [],1):
             actual, expected = proof["resultado"], proof["esperado"]
             ctx.emit("sustitucion",f"Sustituir la solución particular en la ecuación {i}.",proof,
@@ -83,8 +103,27 @@ def legacy_trace(op, out, ctx):
         ctx.emit("suma","Sumar u y v componente a componente.",{"u":out["u"],"v":out["v"],"suma":out["u_mas_v"]})
         for vec, res, label in (("u","Au","Au"),("v","Av","Av"),("u_mas_v","Au_mas_v","A(u+v)"),("cu","Acu","A(cu)")):
             matvec_steps(ctx,out["A"],out[vec],out[res],label)
+        for i, (u, v, total) in enumerate(zip(out["Au"], out["Av"], out["Au_mas_v"]), 1):
+            ctx.emit("distributividad_componente", f"Sumar las componentes de Au y Av en la fila {i}.",
+                     {"Au": u, "Av": v, "A_u_mas_v": total},
+                     rf"({tex(u)})+({tex(v)})={tex(total)}")
+        columns = list(zip(*out["A"]))
+        ctx.emit("combinacion_columnas", "Ponderar cada columna de A por la componente correspondiente de u+v.",
+                 {"columnas": list(zip(columns, out["u_mas_v"])), "resultado": out["Au_mas_v"]},
+                 r"A(u+v)=\sum_j(u_j+v_j)A_{:j}=Au+Av")
         for prop in out["propiedades"]:
             ctx.emit("igualdad","Comparar los miembros de "+prop["nombre"]+".",prop)
+
+
+def model_rows(ctx, A, b, symbol, model, units):
+    for index, (row, rhs) in enumerate(zip(A, b), 1):
+        terms = [
+            rf"({tex(value)}){symbol}_{{{j}}}"
+            for j, value in enumerate(row, 1) if Fraction(value)
+        ]
+        ctx.emit("ecuacion_modelo", f"Construir la ecuación {index} de {model} con sus signos.",
+                 {"coeficientes": row, "independiente": rhs, "unidades": units},
+                 ("+".join(terms) or "0") + "=" + tex(rhs))
 
 
 def matvec_steps(ctx,A,v,w,label):
@@ -133,12 +172,17 @@ def error_trace(op, data, out, ctx):
     if op=="errores.redondeo":
         ctx.emit("escala","Mover el corte decimal a una posición entera.",{"valor_exacto":data["numero"],"decimales":data["decimales"]},r"y=|x|\,10^d")
         ctx.emit("redondeo","Truncar hacia cero. Para redondear, aplicar el ajuste de media unidad.",{"truncado":out["truncado"],"redondeado":out["redondeado"]})
+        ctx.emit("errores_de_aproximacion", "Comparar el truncamiento y el redondeo con el valor original.",
+                 {key: out[key] for key in ("referencia", "fraccion_descartada_en_la_ultima_posicion",
+                   "error_de_truncamiento", "error_de_redondeo", "error_relativo_truncamiento",
+                   "error_relativo_redondeo", "motivo_relativo_indefinido")},
+                 r"E=x-\widetilde{x},\quad e_r=|E|/|x|\quad(x\ne0)")
         ctx.emit("tolerancia","Evaluar la tolerancia porcentual de las cifras pedidas.",{"cifras":data["cifras"],"tolerancia":out["tolerancia_porcentual"]},out["formula_latex"])
     elif op=="errores.propagacion":
         for title, keys, formula in (
             ("Evaluar la derivada en el punto de referencia.",("derivada","metodo"),r"f'(x)"),
             ("Multiplicar la derivada por la perturbación.",("diferencial",),out["formula_latex"]),
-            ("Evaluar la diferencia real y restar la aproximación lineal.",("variacion","error_absoluto"),r"|f(x+\Delta x)-f(x)-f'(x)\Delta x|"),
+            ("Evaluar la diferencia real y restar la aproximación lineal.",("variacion","error_absoluto","error_relativo","motivo_relativo_indefinido"),r"|f(x+\Delta x)-f(x)-f'(x)\Delta x|"),
         ):
             ctx.emit("propagacion",title,{"x":data["x"],"delta":data["delta"],**{k:out[k] for k in keys}},formula)
     elif op in ("errores.acumulacion","errores.taylor"):

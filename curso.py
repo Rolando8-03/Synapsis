@@ -3,6 +3,7 @@ import ast
 from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP, localcontext
 from fractions import Fraction
 from functools import reduce
+from itertools import combinations
 from math import factorial, gcd, lcm
 import re
 import sys
@@ -150,6 +151,36 @@ def from_equations(data, solve, ctx):
     }
 
 
+def rank_polynomials(matrix, parameter):
+    """El mcd de los menores de cada orden se anula justo cuando cae el rango."""
+    profile = {}
+    for order in range(1, min(matrix.shape) + 1):
+        divisor = sp.Poly(0, parameter, domain=sp.QQ)
+        for rows in combinations(range(matrix.rows), order):
+            for cols in combinations(range(matrix.cols), order):
+                minor = matrix.extract(rows, cols).det(method="berkowitz")
+                divisor = divisor.gcd(sp.Poly(minor, parameter, domain=sp.QQ))
+                if divisor.degree() == 0:
+                    break
+            if divisor.degree() == 0:
+                break
+        if divisor.is_zero:
+            break
+        profile[order] = divisor
+    return profile
+
+
+def classify_ranks(rank_a, rank_ab, variables):
+    if rank_a != rank_ab:
+        classification = "Sin solución"
+    elif rank_a == variables:
+        classification = "Solución única"
+    else:
+        classification = "Infinitas soluciones"
+    return {"rango_A": rank_a, "rango_aumentada": rank_ab, "incognitas": variables,
+            "clasificacion": classification}
+
+
 def parametric(data, ctx):
     variables = symbols(data['variables'])
     params = symbols(data['parametro'])
@@ -166,14 +197,43 @@ def parametric(data, ctx):
               'determinante': str(det.as_expr()), 'formula_latex': r'\det(A)=' + sp.latex(det.as_expr())}
     ctx.emit("determinante","Calcular y simplificar el determinante de la matriz de coeficientes.",
              {"A":rows_text(A),"determinante":str(det.as_expr()),"factorizado":str(sp.factor(det.as_expr()))},result["formula_latex"])
+    coefficient_ranks = rank_polynomials(A, parameter)
+    augmented_ranks = rank_polynomials(A.row_join(b), parameter)
+
+    def rank_at(profile, factor):
+        return max((order for order, divisor in profile.items() if not divisor.rem(factor).is_zero), default=0)
+
+    # Con determinante idénticamente nulo también pueden cambiar ambos rangos.
+    critical = sp.Poly(1, parameter, domain=sp.QQ)
+    for profile in (coefficient_ranks, augmented_ranks):
+        if profile:
+            critical = critical.lcm(profile[max(profile)])
+    cases = {}
+    for factor, _ in critical.factor_list()[1]:
+        for root in factor.real_roots():
+            case = classify_ranks(rank_at(coefficient_ranks, factor), rank_at(augmented_ranks, factor), A.cols)
+            if root.is_Rational:
+                case = analyze_affine(A.subs(parameter, root), b.subs(parameter, root))
+            else:
+                case["polinomio_minimo"] = str(factor.monic().as_expr())
+            cases[root] = case
+    ordered = sorted(cases, key=lambda root: root.evalf())
+    singular = det.real_roots(multiple=False) if not det.is_zero else []
+    result.update(valores_singulares_reales=[str(root) for root, _ in singular],
+                  casos_singulares={str(root): cases[root] for root in ordered})
+    ctx.emit("ceros", "Separar los puntos reales donde puede cambiar el rango.",
+             {"valores": [str(root) for root in ordered]},
+             sp.latex(critical.as_expr()) + "=0" if critical.degree() else "")
+    for root in ordered:
+        ctx.emit("caso_singular", "Clasificar con rangos exactos en el valor excepcional.",
+                 {"parametro": str(root), **cases[root]}, sp.latex(parameter) + "=" + sp.latex(root))
     if det.is_zero:
-        result.update(solucion_unica='Ningún valor real del parámetro',
-                      criterio='El determinante es idénticamente cero. Para un valor concreto, usá Resolver y clasificar.')
+        generic = classify_ranks(max(coefficient_ranks, default=0), max(augmented_ranks, default=0), A.cols)
+        result.update(solucion_unica="Ningún valor real del parámetro",
+                      fuera_de_los_valores_excepcionales=generic,
+                      criterio="El determinante es idénticamente cero. La compatibilidad se decide por los rangos.")
+        ctx.emit("compatibilidad_generica", "Comparar los rangos fuera de los valores excepcionales.", generic)
         return result
-    exceptional = set(det.real_roots())
-    result['valores_singulares_reales'] = [str(root) for root in sorted(exceptional, key=lambda value: value.evalf())]
-    ctx.emit("ceros","Resolver det(A)=0 y separar los valores excepcionales.",
-             {"valores":result["valores_singulares_reales"]},r"\det(A)=0")
     formulas = {}
     for i, variable in enumerate(variables):
         replaced = A.copy()
@@ -186,14 +246,6 @@ def parametric(data, ctx):
                  sp.latex(variable)+r"=\frac{"+sp.latex(numerator)+"}{"+sp.latex(det.as_expr())+"}="+sp.latex(quotient))
     result['criterio'] = 'Solución única cuando el parámetro es distinto de los valores singulares.'
     result['solucion_por_cramer'] = formulas
-    # Los valores algebraicos de grado alto se muestran exactamente como raíces
-    # ordenadas sin forzar una reducción simbólica costosa sobre ellos.
-    result['casos_singulares'] = {
-        str(root): analyze_affine(A.subs(parameter, root), b.subs(parameter, root))
-        for root in exceptional if root.is_Rational
-    }
-    for value, case in result["casos_singulares"].items():
-        ctx.emit("caso_singular","Sustituir el parámetro y comparar los rangos.",{"parametro":value,**case})
     return result
 
 
@@ -209,13 +261,27 @@ def transformation(data, ctx):
         ctx.emit("componente",f"Ordenar y analizar la componente {i}.",{"grado":int(poly.total_degree()),"constante":str(poly.TC())},
                  rf"T_{{{i}}}="+sp.latex(component))
         if poly.total_degree() > 1 or poly.TC() != 0:
-            scale = sp.Symbol("lambda", real=True)
+            scale = sp.Dummy("lambda", real=True)
             changed = component.xreplace({v:scale*v for v in variables})
             failure = sp.expand(changed-scale*component)
             ctx.emit("demostrar_no_lineal","Restar los lados de la condición de homogeneidad.",
                      {"diferencia":str(failure)},
                      rf"T_{{{i}}}(\lambda x)-\lambda T_{{{i}}}(x)={sp.latex(failure)}\not\equiv0")
-            result.update(lineal=False, componente=i,
+            values = {}
+            remaining = failure
+            for symbol in (scale, *variables):
+                degree = int(sp.degree(remaining, symbol))
+                choice = next(k for k in range(2, degree + 3) if remaining.subs(symbol, k) != 0)
+                values[symbol] = choice
+                remaining = remaining.subs(symbol, choice)
+            point = {v: values[v] for v in variables}
+            image_scaled = component.subs({v: values[scale] * values[v] for v in variables})
+            scaled_image = values[scale] * component.subs(point)
+            witness = {"vector": list(point.values()), "escalar": values[scale],
+                       "T_del_vector_escalado": str(image_scaled), "escalar_por_T": str(scaled_image)}
+            ctx.emit("contraejemplo", "Sustituir valores concretos que rompen la homogeneidad.",
+                     witness, sp.latex(image_scaled) + r"\ne " + sp.latex(scaled_image))
+            result.update(lineal=False, componente=i, contraejemplo=witness,
                           motivo='Aparece un término de grado mayor que uno.' if poly.total_degree() > 1 else 'La imagen del cero no es el cero.',
                           formula_latex=rf'T_{{{i}}}=' + sp.latex(component))
             return result
@@ -266,6 +332,10 @@ def subspace(data, ctx):
                       justificacion='Si Au=Av=0, entonces A(αu+βv)=αAu+βAv=0.')
     else:
         result['justificacion'] = 'El vector cero no satisface una o más ecuaciones.' if affine['rango_A'] == affine['rango_aumentada'] else 'El conjunto es vacío.'
+        failed, rhs = next((i, value) for i, value in enumerate(b, 1) if value)
+        ctx.emit("testigo_subespacio", "El origen incumple una de las restricciones.",
+                 {"vector_cero": [0] * len(variables), "ecuacion": failed, "obtenido": 0, "requerido": str(rhs)},
+                 r"0\ne " + sp.latex(rhs))
     return result
 
 
@@ -353,6 +423,9 @@ def economy(data, ctx):
     if any(value < 0 for row in M for value in row):
         raise ValueError('Las participaciones deben ser no negativas.')
     A = [[entry / scale for entry in row] for row in M]
+    ctx.emit("unidades_economia", "Leer las columnas como sectores productores y las filas como sectores receptores.",
+             {"unidades_de_entrada": data["unidades"], "divisor": scale, "proporciones": A},
+             r"m_{ij}=	ext{parte de la producción de }j	ext{ que recibe }i")
     for i in range(n):
         total = sum(A[j][i] for j in range(n) if i != j)
         if total > 1:
@@ -373,6 +446,8 @@ def economy(data, ctx):
     from motor_matematico.algorithms.linear.reduction import solve
     ctx.emit("modelo","Trasladar la producción distribuida y añadir el precio de referencia cuando esté indicado.",
              {"tabla_intercambio":A,"matriz":rows_text(C.row_join(b)),"separador":C.cols},r"(I-M)p=0")
+    from procedimientos import model_rows
+    model_rows(ctx, rows_text(C), list(map(str, b)), "p", "equilibrio", "precio en la unidad monetaria de referencia")
     solve(matrix(rows_text(C)),vector(list(map(str,b))),ctx)
     return {'tabla_intercambio': A, 'modelo': rows_text(C.row_join(b)),
             'equilibrio': analyze_affine(C,b), 'formula_latex': r'(I-M)p=0'}
@@ -384,6 +459,9 @@ def balance(data, ctx):
         raise ValueError('La matriz de átomos debe contener cantidades enteras con signo.')
     S = sp.Matrix(A)
     from motor_matematico.algorithms.linear.reduction import solve
+    from procedimientos import model_rows
+    model_rows(ctx, A, [Fraction(0)] * len(A), "c", "conservación",
+               "átomos por compuesto; positivo en reactivos, negativo en productos")
     solved = solve(A,[Fraction(0)]*len(A),ctx)
     basis = [sp.Matrix(v) for v in solved["direcciones"]]
     out = {'matriz_de_balance': A, 'dimension_del_nucleo': len(basis),
@@ -417,6 +495,9 @@ def nonnegative(data, ctx):
         raise ValueError('Este análisis admite hasta 8 variables de flujo.')
     out = analyze_affine(S,d)
     from motor_matematico.algorithms.linear.reduction import solve
+    from procedimientos import model_rows
+    model_rows(ctx, A, b, "x", "balance de flujos",
+               "cada flujo y término independiente se expresa en la misma unidad por período")
     solve(A,b,ctx)
     ctx.emit("restricciones","Restringir la familia a flujos no negativos.",{},r"x_i\ge0")
     from sympy.solvers.simplex import InfeasibleLPError, UnboundedLPError, linprog
@@ -456,9 +537,15 @@ def precision(data):
     def display(n):
         digits = str(n).zfill(places+1)
         return ('-' if sign < 0 and n else '') + (digits[:-places]+'.'+digits[-places:] if places else digits)
-    return {'truncado': display(truncated), 'redondeado': display(rounded),
-            'error_de_truncamiento': exact - Fraction(sign*truncated, scale),
-            'error_de_redondeo': exact - Fraction(sign*rounded, scale),
+    truncation_error = exact - Fraction(sign * truncated, scale)
+    rounding_error = exact - Fraction(sign * rounded, scale)
+    return {'referencia': exact, 'truncado': display(truncated), 'redondeado': display(rounded),
+            'fraccion_descartada_en_la_ultima_posicion': scaled - truncated,
+            'error_de_truncamiento': truncation_error,
+            'error_de_redondeo': rounding_error,
+            'error_relativo_truncamiento': abs(truncation_error / exact) if exact else None,
+            'error_relativo_redondeo': abs(rounding_error / exact) if exact else None,
+            'motivo_relativo_indefinido': 'La referencia es cero.' if not exact else None,
             'tolerancia_porcentual': str(Decimal(5).scaleb(1-digits)),
             'formula_latex': r'\varepsilon_s=0.5\times10^{2-n}\,\%'}
 
@@ -484,6 +571,8 @@ def propagation(data):
                 'metodo': method, 'diferencial': str(decimal(linear)),
                 'variacion': str(decimal(actual)),
                 'error_absoluto': str(decimal(abs(actual-linear))),
+                'error_relativo': str(decimal(abs((actual-linear)/actual))) if actual else None,
+                'motivo_relativo_indefinido': 'La variación de referencia es cero.' if not actual else None,
                 'formula_latex': r'\Delta y\approx f^{\prime}(x)\Delta x'}
 
 

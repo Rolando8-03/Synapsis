@@ -15,6 +15,8 @@ const LABELS = {
   matriz_aumentada:'Matriz aumentada [A | b]', dimension:'Dimensión', incognitas:'Incógnitas',
   clasificacion:'Clasificación', nulidad:'Nulidad', nucleo:'Base del núcleo',
   base_imagen:'Base de la imagen', es_subespacio:'Es subespacio', metodo:'Método',
+  residual: 'Residuo', ultimo_punto: 'Último punto', origen_derivada: 'Origen de la derivada',
+  motivo_parada: 'Motivo de parada',
   error_truncamiento:'Error de truncamiento', error_redondeo:'Error de redondeo', valor_decimal: 'Valor decimal', A: 'A', B: 'B', U: 'U', L: 'L', P: 'P',
 };
 
@@ -192,8 +194,13 @@ function systemResult(out, choices, steps) {
   if (choices.steps && steps?.length) panels.push(['Procedimiento', () => procedureView(steps)]);
 
   if (choices.verify && out.comprobaciones) {
-    panels.push(['Comprobación', table(['Ecuación','Ax','b','Coincide'],
-      out.comprobaciones.map((row, i) => [`F${i+1}`, row.resultado,row.esperado,row.cumple]), 'Sustitución de la solución particular')]);
+    const proofs = node('div', 'ws-result-stack');
+    proofs.append(table(['Ecuación','Ax','b','Coincide'],
+      out.comprobaciones.map((row, i) => [`F${i+1}`, row.resultado,row.esperado,row.cumple]), 'Sustitución de la solución particular'));
+    if (out.comprobaciones_direcciones?.length) {
+      proofs.append(valueView({'Producto Av de cada dirección': out.comprobaciones_direcciones}));
+    }
+    panels.push(['Comprobación', proofs]);
   }
   return panels;
 }
@@ -370,9 +377,26 @@ function genericResult(response) {
     for (const key of ['P','L','U','convencion']) delete general[key];
   }
   if (output.aproximacion_decimal) {
-    const lead = math(`x\\approx${numericTex(output.aproximacion_decimal) ?? output.aproximacion_decimal}`,
-      `x ≈ ${output.aproximacion_decimal}`, true);
-    lead.classList.add('ws-result-lead');
+    const lead = node('div', 'ws-result-lead');
+    const stopped = response.status !== 'ok';
+    if (stopped) lead.append(node('p', 'ws-feature', 'Último punto calculado'));
+    const value = output.aproximacion_decimal;
+    const exactDisplay = output.error_redondeo_decimal === '0';
+    const sign = exactDisplay ? '=' : '\\approx';
+    lead.append(math(`x${sign}${numericTex(value) ?? value}`, `x ${exactDisplay ? '=' : '≈'} ${value}`, true));
+    if (stopped && output.residual !== undefined) {
+      const residual = numericTex(output.residual);
+      lead.append(residual ? math(`|f(x)|=${residual}`, `|f(x)| = ${output.residual}`, true)
+        : node('p', 'ws-value', `Residuo: ${output.residual}`));
+      const reasons = {
+        derivada_nula_o_demasiado_pequena: 'La derivada es cero o demasiado pequeña para dividir.',
+        denominador_secante_nulo: 'Las dos ordenadas de la secante coinciden.',
+        denominador_falsa_posicion_nulo: 'Los valores en los extremos coinciden a la precisión de trabajo.',
+        maximo_de_iteraciones: 'Se alcanzó el máximo de iteraciones.',
+        precision_agotada: 'El nuevo punto coincide con el anterior a la precisión de trabajo.',
+      };
+      if (reasons[output.motivo_parada]) lead.append(node('p', 'ws-muted', reasons[output.motivo_parada]));
+    }
     main.append(lead);
   }
   if (series?.points?.length) main.append(addPlot(series));
@@ -451,13 +475,17 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
   if (response.result?.expresion && response.operation_id !== 'calculo.derivar') {
     const expression = node('p','ws-active-expression');
     expression.append(node('strong','','Función '),node('code','',response.result.expresion));
-    if (response.result.derivada) expression.append(node('strong','',' Derivada '),node('code','',response.result.derivada));
+    if (response.result.derivada) {
+      const derivative = response.metadata?.derivada_latex;
+      expression.append(node('strong', '', ' Derivada '),
+        derivative ? math(derivative, response.result.derivada) : node('code', '', response.result.derivada));
+    }
     target.append(expression);
   }
   if (response.status !== 'ok' && !originalSystem) {
     const status = ({iteration_limit:'Máximo de iteraciones alcanzado', stagnated:'El método se estancó',
       infinite:'Infinitas soluciones', inconsistent:'Sistema incompatible', not_applicable:'Método no aplicable',
-      cycle_detected:'Se detectó un ciclo', breakdown:'El método se detuvo', singular:'Matriz singular',
+      cycle_detected:'Se detectó un ciclo', domain_error:'Evaluación fuera del dominio', breakdown:'El método se detuvo', singular:'Matriz singular',
     })[response.status];
     if (status) target.append(node('p','ws-warning',status));
   }
