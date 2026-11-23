@@ -20,7 +20,7 @@ function groupEnd(latex, start) {
   throw new Error(incomplete);
 }
 
-function expression(latex, intervalMethod, variables) {
+function expression(latex, variables) {
   // MathLive puede omitir huecos cuando exporta a texto.
   if (/\\placeholder\b|\{\s*\}/u.test(latex)) throw new Error(incomplete);
   const symbols = latex.replace(/\\(?:m?left|m?right|cdot|times|div|sin|cos|tan|ln|log|exp|pi|frac|sqrt)\b/g, '');
@@ -40,30 +40,30 @@ function expression(latex, intervalMethod, variables) {
     latex = latex.slice(0, index) + delimiter + latex.slice(index);
   }
   const ascii = convertLatexToAsciiMath(latex).trim();
-  return intervalMethod ? explicitProducts(ascii, true, variables) : ascii;
+  return explicitProducts(ascii, true, variables);
 }
 
-function visualLatex(text, intervalMethod, variables) {
+function visualLatex(text, variables) {
   const normalize = s => s.replace(/\s+/g, '').replaceAll('**', '^');
   try {
     const latex = convertAsciiMathToLatex(text.replaceAll('**', '^'));
-    if (normalize(expression(latex, intervalMethod, variables)) === normalize(intervalMethod ? explicitProducts(text, false, variables) : text)) return latex;
+    if (normalize(expression(latex, variables)) === normalize(explicitProducts(text, false, variables))) return latex;
   } catch { /* Conservá la entrada original si no hay conversión fiel. */ }
   return null;
 }
 
-export function expressionField(definition, initial, onChange, differential, intervalMethod) {
-  const variables = ({parcial:['x', 'y'], sumatoria:['k']})[definition.editor] ?? ['x'];
+export function expressionField(definition, initial, onChange, {differential, variables = ['x']}) {
+  variables = ({parcial:['x', 'y'], sumatoria:['k']})[definition.editor] ?? variables;
   const element = node('div', 'ws-field ws-full-field ws-derivative');
   const label = node('label', '', definition.label);
   const math = new MathfieldElement();
-  math.id = 'ws-derivative-math';
+  math.id = `ws-math-${definition.name}`;
   math.setAttribute('aria-label', definition.label);
   math.mathVirtualKeyboardPolicy = 'manual';
   math.smartSuperscript = false;
 
   const text = node('input');
-  text.id = 'ws-derivative-text';
+  text.id = `ws-text-${definition.name}`;
   text.type = 'text';
   text.maxLength = 500;
   text.autocomplete = 'off';
@@ -75,7 +75,7 @@ export function expressionField(definition, initial, onChange, differential, int
   for (const [caption, command, name] of [
     ...variables.map(variable => [variable, ['insert', variable]]), ['□ⁿ', 'moveToSuperscript', 'Exponente'],
     ['□⁄□', ['insert', '\\frac{#0}{#?}'], 'Fracción'],
-    ...(intervalMethod ? [['(□)', ['insert', '\\left(#0\\right)'], 'Paréntesis']] : []),
+    ['(□)', ['insert', '\\left(#0\\right)'], 'Paréntesis'],
     ['√□', ['insert', '\\sqrt{#0}'], 'Raíz cuadrada'],
     ...Array.from('1234567890', digit => [digit, ['insert', digit]]),
     ['+', ['insert', '+']], ['−', ['insert', '-']], ['×', ['insert', '\\cdot'], 'Multiplicar'],
@@ -132,9 +132,10 @@ export function expressionField(definition, initial, onChange, differential, int
     useVisual(!isText);
   }
 
+  let lastVisual;
   toggle.addEventListener('click', () => {
     if (math.hidden) {
-      const latex = visualLatex(text.value, intervalMethod, variables);
+      const latex = lastVisual?.text === text.value ? lastVisual.latex : visualLatex(text.value, variables);
       if (latex === null) {
         feedback.textContent = 'Esta expresión se edita como texto. Para empezar una expresión nueva en el editor, vaciá el campo.';
         feedback.hidden = false;
@@ -144,8 +145,9 @@ export function expressionField(definition, initial, onChange, differential, int
       useVisual(true);
       math.focus();
     } else {
-      try { text.value = expression(math.value, intervalMethod, variables); }
+      try { text.value = expression(math.value, variables); }
       catch { text.value = math.value; }
+      lastVisual = {text: text.value, latex: math.value};
       useVisual(false);
       text.focus();
     }
@@ -172,9 +174,18 @@ export function expressionField(definition, initial, onChange, differential, int
       }
     },
     raw: () => math.hidden ? text.value : {latex:math.value},
-    value: () => {
-      if (!math.hidden) return expression(math.value, intervalMethod, variables);
-      return intervalMethod ? explicitProducts(text.value, false, variables) : text.value.trim();
+    value() {
+      if (math.hidden) return explicitProducts(text.value, false, variables);
+      try {
+        return expression(math.value, variables);
+      } catch (error) {
+        math.focus();
+        if (math.value.includes('\\placeholder')) {
+          math.position = 0;
+          math.executeCommand('moveToNextPlaceholder');
+        }
+        throw error;
+      }
     },
   };
 }

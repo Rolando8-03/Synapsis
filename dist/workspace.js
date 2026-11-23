@@ -6,8 +6,12 @@ const OPTIONS = [
   ['solution','Solución'], ['ranks','Rangos y clasificación'], ['forms','Matrices escalonadas'],
   ['steps','Procedimiento'], ['verify','Comprobación'],
 ];
-const intervalMethods = new Set(['raices.biseccion', 'raices.falsa_posicion']);
-const visualExpressionOps = new Set(['calculo.derivar', 'calculo.primitiva', 'calculo.limite_lateral', 'calculo.derivada_parcial', 'calculo.sumatoria', ...intervalMethods]);
+const visualFields = {
+  'calculo.derivar':['expresion'], 'calculo.primitiva':['expresion'],
+  'calculo.limite_lateral':['expresion'], 'calculo.derivada_parcial':['expresion'],
+  'calculo.sumatoria':['expresion'], 'raices.biseccion':['expresion'], 'raices.falsa_posicion':['expresion'],
+  'grafica.explicita':['expr'], 'grafica.parametrica':['expr', 'y'], 'funciones.evaluar':['expresion'],
+};
 const HISTORY_KEY = 'synapsis-historial-escritorio';
 const exampleMatrix = [['2','1','-1','8'],['-3','-1','2','-11'],['-2','1','2','-3']];
 
@@ -218,9 +222,11 @@ export function bindWorkspace(setOpen) {
 
   function elementField(definition, value) {
     const {name, label, kind, choices} = definition;
-    if (visualExpressionOps.has(state.op) && name === 'expresion') {
-      const differential = catalog.operations[state.op].fields.find(field => field.name === 'variable');
-      return expressionField(definition, value, queueAutomatic, state.op === 'calculo.primitiva' ? differential?.default : null, Boolean(definition.editor) || intervalMethods.has(state.op));
+    if (visualFields[state.op]?.includes(name)) {
+      return expressionField(definition, value, queueAutomatic, {
+        differential: state.op === 'calculo.primitiva' ? 'x' : null,
+        variables: state.op === 'grafica.parametrica' ? ['t'] : undefined,
+      });
     }
     if (state.op === 'calculo.primitiva' && name === 'variable') {
       // La plantilla muestra dx. Enviá esa misma variable también al recuperar un historial antiguo.
@@ -506,7 +512,7 @@ export function bindWorkspace(setOpen) {
     if (revision !== generation) return;
     const ids = catalog.modules[module].flatMap(([, ids]) => ids);
     const op = ids.includes(requested) ? requested : ids[0];
-    if (visualExpressionOps.has(op) && !expressionField) {
+    if (visualFields[op] && !expressionField) {
       try {
         ({expressionField} = await import('./derivative-field.js'));
       } catch {
