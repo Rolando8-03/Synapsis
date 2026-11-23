@@ -53,7 +53,7 @@ function visualLatex(text, variables) {
 }
 
 export function expressionField(definition, initial, onChange, {differential, variables = ['x']}) {
-  variables = ({parcial:['x', 'y'], sumatoria:['k']})[definition.editor] ?? variables;
+  variables = ({parcial:['x', 'y'], bivariado:['x','y'], sumatoria:['k']})[definition.editor] ?? variables;
   const element = node('div', 'ws-field ws-full-field ws-derivative');
   const label = node('label', '', definition.label);
   const math = new MathfieldElement();
@@ -101,7 +101,7 @@ export function expressionField(definition, initial, onChange, {differential, va
   feedback.setAttribute('role', 'status');
   element.append(label);
   const operator = node('span');
-  if (definition.editor) {
+  if (definition.editor && definition.editor !== 'bivariado') {
     const row = node('div', 'ws-integral-template');
     row.append(operator, math, text);
     element.append(row);
@@ -163,7 +163,7 @@ export function expressionField(definition, initial, onChange, {differential, va
   return {
     definition, element, set,
     updateNotation(values) {
-      if (definition.editor === 'parcial') {
+      if (definition.editor === 'parcial' && values.variable) {
         const variable = values.variable === 'y' ? 'y' : 'x';
         operator.replaceChildren(formula(`\\frac{\\partial}{\\partial ${variable}}`, `derivada parcial respecto de ${variable}`));
       }
@@ -174,8 +174,9 @@ export function expressionField(definition, initial, onChange, {differential, va
       }
       if (definition.editor === 'limite') {
         const point = values.punto ? numericTex(values.punto) ?? 'a' : 'a';
-        const side = values.lado === '-' ? '-' : '+';
-        operator.replaceChildren(formula(`\\lim_{x\\to ${point}^{${side}}}`, `límite de x hacia ${point} por ${side}`));
+        const side = ({'-':'^-', '+':'^+'})[values.lado] ?? '';
+        const direction = ({'-':'por la izquierda', '+':'por la derecha'})[values.lado] ?? 'por ambos lados';
+        operator.replaceChildren(formula(`\\lim_{x\\to ${point}${side}}`, `límite de x hacia ${point} ${direction}`));
       }
     },
     raw: () => math.hidden ? text.value : {latex:math.value},

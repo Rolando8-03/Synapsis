@@ -23,13 +23,14 @@ class FunctionNotation(StrPrinter):
         return "e"
 
 
-def derivative_text(tree, ctx):
-    x = sp.Symbol("x", real=True)
+def symbolic_expression(tree, ctx, x=None, *, check=None):
+    if x is None:
+        x = sp.Symbol("x", real=True)
     functions = {name: getattr(sp, name) for name in ("sin", "cos", "tan", "asin", "acos", "atan", "exp")}
     functions.update(ln=sp.log, abs=sp.Abs, factorial=sp.factorial)
     constants = {"x": x, "pi": sp.pi, "e": sp.E}
 
-    def visit(node):
+    def convert(node):
         ctx.tick()
         if isinstance(node, ast.Constant):
             return sp.Rational(parse_number(node._literal))
@@ -59,9 +60,20 @@ def derivative_text(tree, ctx):
             raise ResourceLimitError("La potencia supera el rango de evaluación de Newton.")
         return sp.Pow(a, b, evaluate=False)
 
+    def visit(node):
+        expression = convert(node)
+        if check is not None:
+            check(node, expression)
+        return expression
+
     if sum(1 for _ in ast.walk(tree)) > 160:
         raise ResourceLimitError("La función es demasiado extensa para derivación simbólica.")
-    expression = visit(tree)
+    return visit(tree)
+
+
+def derivative_text(tree, ctx):
+    x = sp.Symbol("x", real=True)
+    expression = symbolic_expression(tree, ctx, x)
     try:
         derived = sp.diff(expression, x)
     except (ValueError, NotImplementedError) as error:

@@ -28,8 +28,9 @@ from operaciones_matrices import _serializar
 from relaciones_vectoriales import ejecutar_relaciones
 from calculo_basico import ejecutar_calculo
 from formato_latex import lista_soluciones_latex, operacion_latex
-from temario import SESSIONS
+from temario import SESSIONS, CALCULUS_COURSES
 import operadores_calculo
+from catalogo_calculo_i import catalog_entries
 from procedimientos import (calculus_trace, compare_bisection, compare_iterations, error_trace, legacy_trace,
                             original_extra, original_rows, root_visual)
 
@@ -147,6 +148,9 @@ EXTRA.update({
         field("b", "Vector b · opcional", "vector", "", False)]),
 })
 
+CALCULUS_I, CALCULUS_HANDLERS, CALCULUS_GROUPS = catalog_entries(field, spec)
+EXTRA.update(CALCULUS_I)
+
 MODULES = {
     "sistemas": [("Resolución", ["original.sistema", "sistemas.resolver", "sistemas.homogeneo", "sistemas.cramer", "sistemas.parametrico", "sistemas.inversa"]),
         ("Factorización", ["factorizacion.lu", "factorizacion.plu", "factorizacion.resolver", "original.triangular"]),
@@ -158,7 +162,12 @@ MODULES = {
     "vectores": [("Operaciones", ["vectores.suma", "vectores.resta", "vectores.escalar", "vectores.producto_punto", "vectores.producto_cruz", "vectores.norma", "vectores.angulo", "vectores.combinacion", "vectores.paralelogramo", "vectores.proyeccion"]),
         ("Bases y subespacios", ["vectores.analizar", "vectores.generado", "espacios.polinomios", "espacios.subespacio", "espacios.fundamentales", "espacios.base", "espacios.suma", "espacios.interseccion", "espacios.coordenadas", "espacios.cambio_base"]),
         ("Transformaciones", ["transformaciones.formula", "transformaciones.analizar", "transformaciones.desde_imagenes", "transformaciones.componer", "transformaciones.representar", "original.relaciones"])],
-    "grafica": [("Gráficas", ["grafica.explicita", "grafica.parametrica", "funciones.evaluar"]), ("Cálculo", ["calculo.derivar", "calculo.primitiva", "original.primitiva", "calculo.definida", "calculo.numerica", "calculo.limite_lateral", "calculo.derivada_parcial", "calculo.sumatoria"])],
+    "grafica": [
+        ("Gráficas", ["grafica.explicita", "grafica.parametrica", "funciones.evaluar"]),
+        ("Derivada e integral básica", ["calculo.derivar", "calculo.derivada_parcial", "calculo.primitiva",
+            "original.primitiva", "calculo.definida", "calculo.numerica", "calculo.sumatoria"]),
+        *CALCULUS_GROUPS,
+    ],
     "raices": [("Métodos de intervalo", ["raices.biseccion", "raices.falsa_posicion"]), ("Métodos abiertos", ["raices.newton", "raices.secante"])],
     "iterativos": [("Métodos de aproximación", ["iterativos.jacobi", "iterativos.gauss_seidel", "iterativos.sor", "iterativos.dominancia","iterativos.comparar"])],
     "errores": [("Análisis numérico", ["errores.calcular", "errores.redondeo", "errores.propagacion", "errores.acumulacion", "errores.taylor", "errores.exactitud", "errores.maquina", "calculadora.evaluar"])],
@@ -173,7 +182,7 @@ def catalog():
         item = definitions[key]
         item.update(title=name, description="Ingresá únicamente la matriz A. Vas a obtener los factores, el procedimiento y la comprobación del producto.")
         item["fields"] = [f for f in item["fields"] if f["name"] == "A"]
-    return {"modules": MODULES, "operations": definitions, "sessions": SESSIONS}
+    return {"modules": MODULES, "operations": definitions, "sessions": SESSIONS, "calculus_courses": CALCULUS_COURSES}
 
 def solve_original(data):
     rows = data.get("matrix")
@@ -329,7 +338,7 @@ def vector_pair(data):
     return u,v
 
 COURSE_HANDLERS = {
-    "calculo.limite_lateral": operadores_calculo.limit,
+    **CALCULUS_HANDLERS,
     "calculo.derivada_parcial": operadores_calculo.partial,
     "calculo.sumatoria": operadores_calculo.summation,
     "matrices.notacion": entry, "matrices.comparar": matrix_compare,
@@ -341,7 +350,7 @@ COURSE_HANDLERS = {
     "errores.maquina": machine, "iterativos.dominancia": dominance, "vectores.paralelogramo": vector_diagram,
     "errores.taylor": taylor_exp, "errores.exactitud": accuracy,
 }
-WITH_CONTEXT = {"calculo.sumatoria", "calculo.limite_lateral", "calculo.derivada_parcial","matrices.notacion", "matrices.comparar", "matrices.teorema_invertible", "espacios.polinomios",
+WITH_CONTEXT = {*CALCULUS_HANDLERS,"calculo.sumatoria", "calculo.limite_lateral", "calculo.derivada_parcial","matrices.notacion", "matrices.comparar", "matrices.teorema_invertible", "espacios.polinomios",
                 "sistemas.parametrico","transformaciones.formula","espacios.subespacio","modelos.economia",
                 "modelos.balance","modelos.flujos","iterativos.dominancia"}
 
@@ -352,6 +361,8 @@ def calculate(operation, data, steps=True):
     fields = EXTRA[operation]["fields"] if operation in EXTRA else CATALOG[operation].fields
     for f in fields:
         value = data.get(f["name"])
+        if f.get("required") and f["name"] not in data and operation in CALCULUS_HANDLERS:
+            raise ValueError(f'Completá «{f["label"]}».')
         if f["kind"] == "expression" and isinstance(value, str) and len(value) > 500:
             raise ValueError("La expresión admite hasta 500 caracteres.")
         if f["name"] in data and f["kind"] in {"matrix","vector","vectors"} and len(str(value)) > 15000:

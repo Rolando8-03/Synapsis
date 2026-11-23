@@ -57,7 +57,7 @@ function historyEntries() {
 }
 
 function optionLabel(value) {
-  return ({'-':'Izquierda (−)', '+':'Derecha (+)', x:'x', y:'y', completo:'Análisis completo', escalonada:'Solo escalonada (Gauss)',
+  return ({'-':'Izquierda (−)', '+':'Derecha (+)', x:'x', y:'y', ambos:'Ambos lados', plantear:'Solo plantear', resolver:'Resolver', completo:'Análisis completo', escalonada:'Solo escalonada (Gauss)',
     gauss_jordan:'Gauss-Jordan', gauss:'Gauss', falsa_posicion:'Falsa posición',
     gauss_seidel:'Gauss-Seidel', residual_y_paso:'Residual y paso', rref:'RREF',
     infinito:'Norma ∞', uno:'Norma 1', dos:'Norma 2 (euclidiana)', lu:'LU', plu:'PLU', sarrus:'Sarrus',
@@ -244,10 +244,11 @@ export function bindWorkspace(setOpen) {
 
   function elementField(definition, value) {
     const {name, label, kind, choices} = definition;
-    if (visualFields[state.op]?.includes(name)) {
+    if (definition.visual || visualFields[state.op]?.includes(name)) {
       return expressionField(definition, value, queueAutomatic, {
         differential: state.op === 'calculo.primitiva' ? 'x' : null,
-        variables: state.op === 'grafica.parametrica' ? ['t'] : undefined,
+        variables: state.op === 'grafica.parametrica' ? ['t']
+          : state.op === 'calculo.derivada_implicita' ? ['x', 'y'] : undefined,
       });
     }
     if (state.op === 'calculo.primitiva' && name === 'variable') {
@@ -267,7 +268,7 @@ export function bindWorkspace(setOpen) {
     const multiline = kind === 'set' || kind === 'multiline';
     const input = node(select ? 'select' : multiline ? 'textarea' : 'input');
     if (select) {
-      for (const choice of choices) input.add(new Option(optionLabel(String(choice)), choice));
+      for (const choice of choices) input.add(new Option(definition.choice_labels?.[choice] ?? optionLabel(String(choice)), choice));
     } else if (kind === 'boolean') {
       input.type = 'checkbox';
       wrap.classList.add('ws-field-checkbox');
@@ -459,6 +460,27 @@ export function bindWorkspace(setOpen) {
     showView('course');
     const list = get('ws-course-items');
     list.replaceChildren(node('p','ws-course-controls','Elegí una sesión y probá sus operaciones con datos editables.'));
+    for (const [course, units] of catalog.calculus_courses ?? []) {
+      const section = node('details', 'ws-course-session');
+      section.append(node('summary', '', course));
+      for (const [name, operations] of units) {
+        const unit = node('div', 'ws-course-session');
+        unit.append(node('h3', '', name));
+        for (const op of operations) {
+          const link = node('a', '', catalog.operations[op].title);
+          link.href = `#grafica/${op}`;
+          link.addEventListener('click', event => {
+            if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            history.pushState(history.state, '', link.hash);
+            sync();
+          });
+          unit.append(link);
+        }
+        section.append(unit);
+      }
+      list.append(section);
+    }
     for (const session of catalog.sessions) {
       const item = node('details','ws-course-session');
       const [number, name, description, formula, tools] = session;
@@ -536,7 +558,7 @@ export function bindWorkspace(setOpen) {
     if (revision !== generation) return;
     const ids = catalog.modules[module].flatMap(([, ids]) => ids);
     const op = ids.includes(requested) ? requested : ids[0];
-    if (visualFields[op] && !expressionField) {
+    if ((visualFields[op] || catalog.operations[op].fields.some(field => field.visual)) && !expressionField) {
       try {
         ({expressionField} = await import('./derivative-field.js'));
       } catch {

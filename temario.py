@@ -104,3 +104,23 @@ SESSIONS = [
      [numerical("raices","newton", expresion="exp(-x)-x", inicial="0", tolerancia_x="1e-4"),
       numerical("raices","newton", expresion="(x-1)^3", inicial="1.75", multiplicidad="3")]),
 ]
+
+# Los dos temarios usan las mismas rutas para las integrales que comparten.
+SHARED_INTEGRALS = ["calculo.primitiva", "calculo.definida", "calculo.sustitucion", "calculo.area"]
+CALCULUS_COURSES = [
+    ("Cálculo I", [
+        ("Funciones y dominio", ["calculo.dominio", "calculo.composicion", "calculo.inversa"]),
+        ("Límites y continuidad", ["calculo.limite_lateral", "calculo.limite_factorizacion",
+            "calculo.limite_racionalizacion", "calculo.limite_infinito",
+            "calculo.limite_al_infinito", "calculo.continuidad"]),
+        ("Derivadas", ["calculo.derivada_definicion", "calculo.derivar", "calculo.derivada_cadena",
+            "calculo.derivada_producto", "calculo.derivada_cociente", "calculo.derivada_exponencial",
+            "calculo.derivada_logaritmica", "calculo.derivada_trigonometrica", "calculo.derivada_implicita",
+            "calculo.derivada_parcial", "calculo.parcial_sucesiva"]),
+        ("Aplicaciones", ["calculo.criticos", "calculo.signos", "calculo.optimizacion", "calculo.hessiano",
+            "calculo.tasa_media", "calculo.tasa_instantanea", "calculo.tasas_relacionadas",
+            "calculo.elasticidad", "calculo.rolle", "calculo.medio", "calculo.intermedio"]),
+        ("Integración", [*SHARED_INTEGRALS, "calculo.promedio"]),
+    ]),
+    ("Cálculo II", [("Integración", SHARED_INTEGRALS)]),
+]
