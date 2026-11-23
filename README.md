@@ -49,3 +49,5 @@ Las operaciones aceptan datos editables. Los enunciados de modelación se traduc
 La pestaña **Procedimiento** muestra las sustituciones y estados intermedios de la misma ejecución. Los productos separan cada fila y columna. Gauss-Jordan identifica el bloque aumentado y los pivotes en la matriz reducida. Newton-Raphson presenta la derivada, las aproximaciones, el error y el residuo, con sus tangentes en la gráfica. El comparador ejecuta Jacobi y Gauss-Seidel con una misma configuración.
 
 Consultá la [cobertura de los procedimientos](COBERTURA.md). Para ejecutar las pruebas, desde la raíz del repositorio corré `python -m unittest discover -s pruebas -v`.
+
+[Plan de implementación de Synapsis por fases pequeñas](docs/plan/README.md)
