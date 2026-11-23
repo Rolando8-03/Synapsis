@@ -19,7 +19,9 @@ La traza actual ya desarrolla productos, reducciones, factorizaciones y métodos
 | [05 · Cálculo II](05-calculo-ii.md) | Técnicas, integrales definidas y aplicaciones. Incluye entregables de solo planteamiento. |
 | [06 · Laboratorio de Kepler](06-kepler.md) | Secuencia K01–K08 sobre un modelo físico y un reloj. Puede avanzar independientemente del teclado. |
 | [07 · Ampliaciones de los cuatro libros](07-libros.md) | Operaciones adicionales. Usá el resultado del curso como entrada al tema nuevo. |
-| [08 · Verificación y distribución](08-entrega.md) | Aplicá el control correspondiente a cada integración. Para distribución final, cubrí también escritorio y ZIP. |
+| [08 · Verificación y distribución](08-entrega.md) | Aplicá el control correspondiente a cada integración. Usá los controles de entrega junto con las pruebas de plataforma. |
+| [09 · Plataformas y artefactos](09-plataformas.md) | Entrada .py, Go Live, Pages, ejecutable e instalador Windows y APK firmado. |
+| [10 · Calidad matemática y gráfica](10-calidad.md) | Evaluar explicación paso a paso, objetivos parciales, manipulación, animación y fluidez por plataforma. |
 
 **Protección de la página principal.** El diseño de la portada animada queda protegido en todas las fases, incluidos composición, tarjetas públicas, navegación, paleta, recursos, río, montañas, nave y movimiento al desplazarse. El rediseño autorizado se limita al menú del modo serio. Si ambos comparten marcado o estilos, aislá los cambios bajo el contenedor del modo serio, del área de trabajo o del laboratorio. Comprobá la portada en escritorio y móvil antes de integrar una fase que toque archivos compartidos.
 
@@ -34,6 +36,6 @@ La traza actual ya desarrolla productos, reducciones, factorizaciones y métodos
 | Numérico | Bisección, falsa posición, secante, Newton, Jacobi, Gauss-Seidel, SOR, errores y Simpson | Derivación de Newton con SymPy, fallos claros y gráficos recorribles |
 | Cálculo | Evaluación, derivada, primitivas admitidas, integral definida y numérica | Cobertura de los dos sílabos y técnicas justificadas |
 | Laboratorio | Elipses, sectores y comparación de períodos en vistas independientes | Combinar medidas, reloj y enunciados en una escena |
-| Escritorio | Lanzadores Windows, recursos locales y arranque web alternativo | Verificar la distribución completa tras integrar las ampliaciones |
+| Plataformas | abrir.py abre Qt y sirve dist/index.html con motor local. Existen lanzadores auxiliares Windows. | Entrada gráfica sin consola, web estática funcional, app instalada en Windows y APK Android. |
 
 **Dependencias.** Los procedimientos pueden avanzar sobre el visor existente. Usá U05 antes de extender el teclado, U11 antes de sincronizar gráficas, L10 antes de L11 y L11 antes de mínimos cuadrados por QR. Los libros amplían el temario después de validar la operación del curso relacionada.

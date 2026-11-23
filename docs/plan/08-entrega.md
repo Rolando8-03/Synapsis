@@ -10,5 +10,7 @@ Estas fases validan recorridos completos desde la interfaz de Synapsis. Usá un 
 | V04 | Verificar portada en un cambio que use archivos compartidos. | Comparar capturas con la base aprobada a iguales dimensiones, preferencia de movimiento e instante. Comprobar continuidad visual al desplazarse y al entrar y salir del modo serio. |
 | V05 | Verificar una gráfica por sesión. | La fila elegida, su fórmula y sus marcas coinciden. Pausa y teclado funcionan; un estado vacío o un método detenido conserva la explicación. |
 | V06 | Medir una interacción lenta. | Registrar equipo, escenario y tiempo antes y después. Comprobar cálculo, carga diferida de pasos y número de repintados con el mismo ejercicio. |
-| V07 | Probar el arranque de escritorio en Windows. | Abrir el lanzador .cmd en una instalación limpia, resolver y cerrar. Comprobar ventana propia, motor Python local y archivos del teclado accesibles tras la instalación inicial. |
-| V08 | Verificar la distribución ZIP desde main. | Extraer el proyecto completo en otra carpeta, comprobar ambos lanzadores, dependencias, licencias y activos locales y resolver un caso. Identificar el SHA que contiene el ZIP distribuido. |
+| V07 | Probar el arranque de escritorio en Windows. | Abrir desde el archivo Python con dependencias instaladas y desde Inicio tras instalar el EXE en un equipo limpio. Resolver y cerrar. Comprobar ventana propia, motor Python local y archivos del teclado accesibles tras la instalación inicial. |
+| V08 | Verificar la distribución ZIP desde main. | Extraer el proyecto completo en otra carpeta, comprobar la entrada Python, el index.html para Go Live, dependencias, licencias y activos locales y resolver un caso. Registrar el SHA fuente del ZIP. |
+
+Para verificar Pages, el instalador Windows y el APK firmado, seguir la [guía de plataformas](09-plataformas.md). Para la paridad matemática y gráfica, aplicar los [criterios de calidad](10-calidad.md).
