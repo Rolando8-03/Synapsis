@@ -42,7 +42,7 @@ function headerContent(heading) {
   return tex ? math(tex, heading) : document.createTextNode(heading);
 }
 
-function table(headings, rows, caption = '', independent = false) {
+function table(headings, rows, caption = '', independent = false, pivots = []) {
   const scroll = node('div', 'ws-table-scroll');
   const data = node('table', `ws-result-table${independent ? ' ws-augmented' : ''}`);
   if (caption) data.append(node('caption', '', caption));
@@ -55,12 +55,23 @@ function table(headings, rows, caption = '', independent = false) {
       row.append(th);
     }
   }
+  const split = independent === true ? rows[0]?.length - 1 : independent;
+  if (independent) data.classList.add('ws-augmented');
+  for (const header of data.tHead?.rows[0].cells ?? []) {
+    if (header.cellIndex === split) header.classList.add('ws-split');
+  }
+  const pivotCells = new Set(pivots.map(([row, col]) => `${row},${col}`));
   const body = data.createTBody();
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
     const rendered = body.insertRow();
     for (const value of row) {
       const cell = rendered.insertCell();
-      if (value == null || typeof value === 'boolean') cell.textContent = scalar(value);
+      if (cell.cellIndex === split) cell.classList.add('ws-split');
+      if (pivotCells.has(`${index},${cell.cellIndex}`)) {
+        cell.classList.add('ws-pivot');
+        cell.append(node('span', 'visually-hidden', 'Pivote '));
+      }
+      if (value == null || typeof value === 'boolean') cell.append(document.createTextNode(scalar(value)));
       else if (isScalar(value)) {
         const exact = typeof value === 'number' ? String(value) : value;
         const tex = numericTex(exact);
@@ -75,7 +86,7 @@ function table(headings, rows, caption = '', independent = false) {
 }
 
 function matrixView(rows, caption = '', independent = false, headings = null, pivots = []) {
-  return matrixFormula(rows, caption, independent, pivots) ?? table(headings, rows, caption, independent);
+  return matrixFormula(rows, caption, independent, pivots) ?? table(headings ?? (independent === true ? matrixLabels(rows[0].length - 1) : null), rows, caption, independent, pivots);
 }
 
 function valueView(value) {
@@ -423,7 +434,10 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
           item.replaceWith(document.createTextNode(item.dataset.plain + separator));
         });
         clone.querySelectorAll('tr').forEach(row => {
-          row.replaceWith(node('div','', [...row.cells].map(cell => cell.textContent).join('\t') + '\n'));
+          row.replaceWith(node('div','', [...row.cells].map(cell => {
+            cell.querySelector('.visually-hidden')?.remove();
+            return cell.textContent;
+          }).join('\t') + '\n'));
         });
         await navigator.clipboard.writeText(clone.innerText || clone.textContent.trim());
         copy.textContent = 'Copiado';
