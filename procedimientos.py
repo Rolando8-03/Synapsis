@@ -172,12 +172,17 @@ def error_trace(op, data, out, ctx):
     if op=="errores.redondeo":
         ctx.emit("escala","Mover el corte decimal a una posición entera.",{"valor_exacto":data["numero"],"decimales":data["decimales"]},r"y=|x|\,10^d")
         ctx.emit("redondeo","Truncar hacia cero. Para redondear, aplicar el ajuste de media unidad.",{"truncado":out["truncado"],"redondeado":out["redondeado"]})
+        ctx.emit("errores_de_aproximacion", "Comparar el truncamiento y el redondeo con el valor original.",
+                 {key: out[key] for key in ("referencia", "fraccion_descartada_en_la_ultima_posicion",
+                   "error_de_truncamiento", "error_de_redondeo", "error_relativo_truncamiento",
+                   "error_relativo_redondeo", "motivo_relativo_indefinido")},
+                 r"E=x-\widetilde{x},\quad e_r=|E|/|x|\quad(x\ne0)")
         ctx.emit("tolerancia","Evaluar la tolerancia porcentual de las cifras pedidas.",{"cifras":data["cifras"],"tolerancia":out["tolerancia_porcentual"]},out["formula_latex"])
     elif op=="errores.propagacion":
         for title, keys, formula in (
             ("Evaluar la derivada en el punto de referencia.",("derivada","metodo"),r"f'(x)"),
             ("Multiplicar la derivada por la perturbación.",("diferencial",),out["formula_latex"]),
-            ("Evaluar la diferencia real y restar la aproximación lineal.",("variacion","error_absoluto"),r"|f(x+\Delta x)-f(x)-f'(x)\Delta x|"),
+            ("Evaluar la diferencia real y restar la aproximación lineal.",("variacion","error_absoluto","error_relativo","motivo_relativo_indefinido"),r"|f(x+\Delta x)-f(x)-f'(x)\Delta x|"),
         ):
             ctx.emit("propagacion",title,{"x":data["x"],"delta":data["delta"],**{k:out[k] for k in keys}},formula)
     elif op in ("errores.acumulacion","errores.taylor"):

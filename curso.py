@@ -536,9 +536,15 @@ def precision(data):
     def display(n):
         digits = str(n).zfill(places+1)
         return ('-' if sign < 0 and n else '') + (digits[:-places]+'.'+digits[-places:] if places else digits)
-    return {'truncado': display(truncated), 'redondeado': display(rounded),
-            'error_de_truncamiento': exact - Fraction(sign*truncated, scale),
-            'error_de_redondeo': exact - Fraction(sign*rounded, scale),
+    truncation_error = exact - Fraction(sign * truncated, scale)
+    rounding_error = exact - Fraction(sign * rounded, scale)
+    return {'referencia': exact, 'truncado': display(truncated), 'redondeado': display(rounded),
+            'fraccion_descartada_en_la_ultima_posicion': scaled - truncated,
+            'error_de_truncamiento': truncation_error,
+            'error_de_redondeo': rounding_error,
+            'error_relativo_truncamiento': abs(truncation_error / exact) if exact else None,
+            'error_relativo_redondeo': abs(rounding_error / exact) if exact else None,
+            'motivo_relativo_indefinido': 'La referencia es cero.' if not exact else None,
             'tolerancia_porcentual': str(Decimal(5).scaleb(1-digits)),
             'formula_latex': r'\varepsilon_s=0.5\times10^{2-n}\,\%'}
 
@@ -564,6 +570,8 @@ def propagation(data):
                 'metodo': method, 'diferencial': str(decimal(linear)),
                 'variacion': str(decimal(actual)),
                 'error_absoluto': str(decimal(abs(actual-linear))),
+                'error_relativo': str(decimal(abs((actual-linear)/actual))) if actual else None,
+                'motivo_relativo_indefinido': 'La variación de referencia es cero.' if not actual else None,
                 'formula_latex': r'\Delta y\approx f^{\prime}(x)\Delta x'}
 
 

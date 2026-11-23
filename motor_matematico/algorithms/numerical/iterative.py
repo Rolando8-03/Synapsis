@@ -41,7 +41,7 @@ def iterative(method, data, ctx):
         for i in range(n)
     )
 
-    def update(old, rhs, details=None):
+    def update(old, rhs, details=None, k=0):
         current = old[:]
         for i in range(n):
             ctx.tick(n)
@@ -65,7 +65,14 @@ def iterative(method, data, ctx):
                 if omega != 1:
                     formula = rf"({tex(1-omega)})({tex(old[i])})+({tex(omega)})" + formula
                 value = format(decimal(current[i]),".12g")
-                details.append(rf"x_{{{i+1}}}&={formula}\approx {value}")
+                sources_text = ",\;".join(
+                    rf"x_{{{j+1}}}^{{({k if forward and j < i else k-1})}}={tex(current[j] if forward and j < i else old[j])}"
+                    for j in range(n) if i != j and A[i][j]
+                )
+                line = rf"x_{{{i+1}}}^{{({k})}}&={formula}\approx {value}"
+                if sources_text:
+                    line += rf"\quad\bigl({sources_text}\bigr)"
+                details.append(line)
         return current
 
     # Matriz de iteración exacta. Su norma infinito <1 es suficiente, no necesaria.
@@ -117,6 +124,9 @@ def iterative(method, data, ctx):
         )
 
     def finish(status, reason, v, r):
+        ctx.emit("parada_iterativa", "Leer el motivo observado de parada y el residuo final.",
+                 {"estado": status, "motivo": reason, "norma": kind, "residuo": r,
+                  "norma_residual": norm(r, kind), "iteraciones": len(table)})
         result.update(
             vector=v,
             residual=r,
@@ -137,13 +147,20 @@ def iterative(method, data, ctx):
     ctx.emit("despejar","Aislar la incógnita diagonal en cada ecuación.",
              {"matriz":A,"b":b,"vector_inicial":x,"usa_componentes_nuevas":forward},
              r"x_i=\frac{b_i-\sum_{j\ne i}a_{ij}x_j}{a_{ii}}")
+    if method == "sor":
+        ctx.emit("relajacion", "Mezclar la componente anterior con la propuesta de Gauss-Seidel.",
+                 {"omega": omega, "equivale_a_gauss_seidel": omega == 1},
+                 r"x_i^{(k+1)}=(1-\omega)x_i^{(k)}+\omega\widehat{x}_i^{(k+1)}")
+    ctx.emit("contraccion", "La contracción en norma infinito es una condición suficiente.",
+             {"norma_infinito_T": q, "contraccion_suficiente": q < 1,
+              "dominancia_diagonal_estricta": dominant}, r"\|T\|_\infty<1\implies\text{convergencia}")
     r = residual(x)
     threshold = atol + rtol * norm(b, kind)
     if not any(r) or (criterion == "solo_residual" and norm(r, kind) <= threshold):
         return finish("ok", "residual_inicial_suficiente", x, r)
     for k in range(1, limit + 1):
         details = [] if ctx.collect_steps else None
-        new = update(x, b, details)
+        new = update(x, b, details, k)
         r = residual(new)
         diff = [a-c for a,c in zip(new,x)]
         delta = norm(diff, kind)
@@ -175,8 +192,12 @@ def iterative(method, data, ctx):
         }
         table.append(row)
         if details is not None:
-            ctx.emit("iteracion_sistema",f"Sustituir los valores de la iteración {k} y comprobar su error.",
-                     row,r"\begin{aligned}"+r"\\".join(details)+r"\end{aligned}")
+            ctx.emit("iteracion_sistema",f"Sustituir las componentes de la iteración {k}.",
+                     {**row, "norma": kind, "cambio": diff}, r"\begin{aligned}"+r"\\".join(details)+r"\end{aligned}")
+            ctx.emit("normas_iterativas", "Medir el cambio y el residuo en la norma elegida.",
+                     {"norma": kind, "cambio": diff, "residuo": r, "norma_del_cambio": delta,
+                      "norma_del_residuo": nr, "umbral_paso": step_threshold, "umbral_residual": threshold},
+                     r"\Delta x=x^{(k)}-x^{(k-1)},\quad r=Ax^{(k)}-b")
         ctx.progress(k * 99 // limit)
         checks = {
             "paso_y_residual": delta <= step_threshold and nr <= threshold,

@@ -2,7 +2,7 @@
 
 from fractions import Fraction as F
 import re
-from ..linear.context import integer
+from ..linear.context import integer, tex
 from ...domain.models import InputError
 from ...parsing.numbers import parse_number
 
@@ -32,9 +32,13 @@ def errors(data, ctx):
             "denominador": denominator,
             "motivo_no_definido": None if denominator else "denominador_cero",
         }
-    ctx.emit(
-        "medidas_error", "Separar referencia y cambio entre aproximaciones.", result
-    )
+        description = ("Comparar contra la referencia." if field == "referencia"
+                       else "Medir el cambio desde la aproximación anterior.")
+        relative = (rf",\quad e_r=\frac{{{tex(absolute)}}}{{{tex(denominator)}}}"
+                    rf"={tex(absolute/denominator)}" if denominator else
+                    r",\quad e_r\text{ indefinido: denominador cero}")
+        ctx.emit("medidas_error", description, result[prefix],
+                 rf"E_a=|({tex(value)})-({tex(other)})|={tex(absolute)}" + relative)
     return result
 
 
