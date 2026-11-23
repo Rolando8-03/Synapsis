@@ -99,6 +99,7 @@ def _product(problem, checkpoint=None, on_progress=None):
 def execute(data, *, is_cancelled=None, on_progress=None):
     """Recibe una solicitud JSON y siempre devuelve el sobre público del contrato."""
     operation, inputs = "", {}
+    linear_context = None
 
     def finish(result):
         response = result.to_dict()
@@ -150,7 +151,8 @@ def execute(data, *, is_cancelled=None, on_progress=None):
             "calculo.definida",
             "calculo.derivar",
         ):
-            result = execute_linear(problem, Context(checkpoint, on_progress))
+            linear_context = Context(checkpoint, on_progress)
+            result = execute_linear(problem, linear_context)
             checkpoint()
             return finish(result)
         if operation == "matrices.producto":
@@ -186,6 +188,7 @@ def execute(data, *, is_cancelled=None, on_progress=None):
             inputs,
             error.status,
             error.details,
+            steps=linear_context.steps if linear_context else [],
             metadata={"index_base": 0},
             error={"code": error.status, "message": str(error)},
         ).to_dict()

@@ -19,7 +19,7 @@ from .reduction import reduce, rank, inverse
 from ..legacy import modulo_matrices as docente
 
 
-from .worked import product_steps
+from .worked import product_steps, parenthesize, entry_steps
 
 def square(A):
     if len(A) != len(A[0]):
@@ -31,6 +31,26 @@ def square(A):
 def add(A, B, sign=1):
     equal_shape(A, B)
     return [[a + sign * b for a, b in zip(row, other)] for row, other in zip(A, B)]
+
+
+def minor_steps(tree, ctx, path):
+    if not ctx.collect_steps:
+        return
+    terms = tree.get("terminos", [])
+    if terms:
+        selected = next((term for term in terms if term["elemento"]), terms[0])
+        minor_steps(selected["procedimiento_menor"], ctx, path + f" → ({selected['fila']},{selected['columna']})")
+        formula = "+".join(
+            rf"{parenthesize(term['elemento'])}({term['signo']}){parenthesize(term['det_menor'])}"
+            for term in terms
+        )
+    elif tree["caso"] == "dos":
+        (a, b), (c, d) = tree["matriz"]
+        formula = rf"{parenthesize(a)}{parenthesize(d)}-{parenthesize(b)}{parenthesize(c)}"
+    else:
+        formula = tex(tree["valor"])
+    ctx.emit("evaluar_menor", f"Calcular el determinante del menor {path}.",
+             {"matriz": tree["matriz"], "valor": tree["valor"]}, formula + "=" + tex(tree["valor"]))
 
 
 def determinant(A, ctx, method="reduccion", axis="fila", index=0):
@@ -53,7 +73,6 @@ def determinant(A, ctx, method="reduccion", axis="fila", index=0):
             r"\det(A)=\sum p_i-\sum n_i",
         )
         products = [((0,1,2), (1,2,0), (2,0,1)), ((0,2,1),(1,0,2),(2,1,0))]
-        from .worked import parenthesize
         for sign, triples, values in zip(("+","-"), products, (detail["positivas"],detail["negativas"])):
             for columns, term in zip(triples, values):
                 formula = r"\cdot".join(parenthesize(A[i][j]) for i,j in enumerate(columns))
@@ -70,6 +89,7 @@ def determinant(A, ctx, method="reduccion", axis="fila", index=0):
         for term in terms:
             ctx.tick()
             value += term["termino"]
+            minor_steps(term["procedimiento_menor"], ctx, f"({term['fila']},{term['columna']})")
             ctx.emit(
                 "cofactor",
                 "Desarrollar el término de la expansión por cofactores.",
@@ -82,25 +102,23 @@ def determinant(A, ctx, method="reduccion", axis="fila", index=0):
                     "cofactor": term["cofactor"],
                     "termino": term["termino"],
                 },
-                r"a_{ij}C_{ij}=a_{ij}(-1)^{i+j}\det(M_{ij})",
+                rf"a_{{ij}}C_{{ij}}={parenthesize(term['elemento'])}"
+                rf"({term['signo']}){parenthesize(term['det_menor'])}={tex(term['termino'])}",
             )
     elif method == "reduccion":
-        reduction = reduce(A, ctx, reduced=False)
-        value = F((-1) ** reduction["swaps"])
-        for i in range(n):
-            value *= reduction["matrix"][i][i]
-        value = freeze(value)
+        reduction = reduce(A, ctx, reduced=False, determinant_factors=True)
         diagonal = [reduction["matrix"][i][i] for i in range(n)]
-        factors = r"\cdot".join("(" + tex(x) + ")" for x in diagonal)
+        triangular_value = F(1)
+        for pivot in diagonal:
+            triangular_value *= pivot
+        scale = reduction["factor_determinante"]
+        value = freeze(triangular_value / scale)
+        factors = r"\cdot".join(parenthesize(x) for x in diagonal)
         ctx.emit(
-            "determinante",
-            "Corregir el signo de los intercambios y multiplicar la diagonal.",
-            {
-                "intercambios": reduction["swaps"],
-                "valor": value,
-                "triangular": reduction["matrix"],
-            },
-            rf"\det(A)=(-1)^{{{reduction['swaps']}}}{factors}={tex(value)}",
+            "determinante", "Multiplicar la diagonal y dividir por el factor acumulado.",
+            {"intercambios": reduction["swaps"], "valor": value, "factor_acumulado": scale,
+             "triangular": reduction["matrix"]},
+            rf"\det(A)=\frac{{{factors}}}{{{tex(scale)}}}={tex(value)}",
         )
     else:
         raise InputError("Método de determinante no admitido.")
@@ -146,7 +164,10 @@ def invert(A, ctx, method="gauss_jordan"):
                 "La matriz es singular; no existe inversa.",
                 {"determinante": F(0)},
             )
-        adjugate = transpose(cofactor_matrix(A, ctx))
+        cofactors = cofactor_matrix(A, ctx)
+        adjugate = transpose(cofactors)
+        ctx.emit("adjunta", "Transponer la matriz de cofactores.", {"antes": cofactors, "matriz": adjugate},
+                 r"\operatorname{adj}(A)=C^{\mathsf T}")
         result = [[x / value for x in row] for row in adjugate]
         ctx.emit(
             "inversa_adjugata",
@@ -154,6 +175,7 @@ def invert(A, ctx, method="gauss_jordan"):
             {"adjugata": adjugate, "determinante": value, "matriz": result},
             r"A^{-1}=\operatorname{adj}(A)/\det(A)",
         )
+        entry_steps(ctx, adjugate, result, "escalar", k=1/value)
     else:
         raise InputError("Método de inversa no admitido.")
     checks = {

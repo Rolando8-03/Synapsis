@@ -16,13 +16,14 @@ from .context import (
 from .worked import dot_formula
 
 
-def reduce(A, ctx=None, reduced=True, pivot_limit=None, trace=True):
+def reduce(A, ctx=None, reduced=True, pivot_limit=None, trace=True, determinant_factors=False):
     """Devuelve R y E con EA=R. El límite evita pivotar sobre el término b."""
     ctx = ctx or Context()
     R = [row[:] for row in A]
     m, total = len(R), len(R[0]) if R else 0
     n = total if pivot_limit is None else pivot_limit
     E, pivots, row, swaps = identity(m), [], 0, 0
+    det_factor = F(1)
     if trace:
         ctx.emit("matriz_inicial", "Matriz inicial del procedimiento.", {"matriz": R, "separador": pivot_limit})
     for col in range(n):
@@ -39,11 +40,13 @@ def reduce(A, ctx=None, reduced=True, pivot_limit=None, trace=True):
             R[row], R[chosen] = R[chosen], R[row]
             E[row], E[chosen] = E[chosen], E[row]
             swaps += 1
+            det_factor = -det_factor
             if trace:
                 ctx.emit(
                     "intercambio",
                     f"Intercambiar F{row+1} y F{chosen+1}.",
-                    {"fila": row, "otra_fila": chosen, "antes": before, "matriz": R, "separador":pivot_limit},
+                    {"fila": row, "otra_fila": chosen, "antes": before, "matriz": R, "separador":pivot_limit,
+                     **({"factor_determinante": -1, "factor_acumulado": det_factor} if determinant_factors else {})},
                     f"F_{{{row+1}}} \\leftrightarrow F_{{{chosen+1}}}",
                 )
         pivot = R[row][col]
@@ -51,16 +54,19 @@ def reduce(A, ctx=None, reduced=True, pivot_limit=None, trace=True):
             ctx.emit("pivote", f"Identificar el pivote de fila {row+1}, columna {col+1}.",
                      {"fila":row+1,"columna":col+1,"pivote":pivot},
                      rf"a_{{{row+1},{col+1}}}={tex(pivot)}")
-        if reduced and pivot != 1:
+        if (reduced or determinant_factors) and pivot != 1:
             before = [r[:] for r in R]
             factor = 1 / pivot
+            if determinant_factors:
+                det_factor = freeze(det_factor * factor)
             R[row] = freeze([x * factor for x in R[row]])
             E[row] = freeze([x * factor for x in E[row]])
             if trace:
                 ctx.emit(
                     "escala_fila",
                     f"Normalizar el pivote de F{row+1}.",
-                    {"fila": row, "factor": factor, "antes": before, "matriz": R, "separador":pivot_limit},
+                    {"fila": row, "factor": factor, "antes": before, "matriz": R, "separador":pivot_limit,
+                     **({"factor_determinante": factor, "factor_acumulado": det_factor} if determinant_factors else {})},
                     f"F_{{{row+1}}} \\leftarrow ({tex(factor)})F_{{{row+1}}}",
                 )
         targets = range(m) if reduced else range(row + 1, m)
@@ -92,7 +98,7 @@ def reduce(A, ctx=None, reduced=True, pivot_limit=None, trace=True):
     if trace:
         ctx.emit("reduccion_final","Leer la forma obtenida y las columnas pivote.", {"matriz":R,"separador":pivot_limit,
                  "columnas_pivote":[j+1 for j in pivots]})
-    return {"matrix": R, "E": E, "pivots": pivots, "swaps": swaps}
+    return {"matrix": R, "E": E, "pivots": pivots, "swaps": swaps, "factor_determinante": det_factor}
 
 
 def rank(A, ctx=None):
