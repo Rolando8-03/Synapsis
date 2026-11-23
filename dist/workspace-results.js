@@ -219,11 +219,19 @@ function procedureView(entries, selection) {
         byIteration.set(step.data.iteracion, item);
         item.addEventListener('click', () => selection.select(step.data.iteracion));
       }
-      const {matriz, antes, separador, formula, desarrollo, ...remainder} = step.data ?? {};
+      const {matriz, antes, separador, formula, desarrollo, teorema, ...remainder} = step.data ?? {};
       if (matriz) {
         const split = separador && separador < matriz[0]?.length ? separador : false;
         if (antes) body.append(matrixView(antes, 'Antes', split));
         body.append(matrixView(matriz, antes ? 'Después' : 'Matriz', split));
+      }
+      if (teorema) {
+        const card = node('details', 'ws-step-data ws-theorem-card');
+        card.append(node('summary', '', 'Ficha del teorema'), node('h4', '', 'Enunciado'),
+          math(teorema.enunciado, teorema.enunciado, true), node('h4', '', 'Hipótesis'),
+          node('p', '', teorema.hipotesis), node('h4', '', 'Evidencia'),
+          valueView(teorema.evidencia), node('h4', '', 'Conclusión'), node('p', '', teorema.conclusion));
+        body.append(card);
       }
       if (Object.keys(remainder).length) {
         const data = node('details','ws-step-data');

@@ -335,6 +335,12 @@ def invertible_theorem(data, context):
                 'nucleo_trivial', 'inyectiva', 'sobreyectiva', 'inversa_a_izquierda',
                 'inversa_a_derecha', 'transpuesta_invertible'], value),
            'formula_latex': r'\det(A)\ne0\iff\operatorname{rang}(A)=n\iff A\text{ es invertible}'}
+    context.emit("teorema", "Aplicar el teorema de la matriz invertible.", {"teorema": {
+        "enunciado": r"\det(A)\ne0\iff\operatorname{rang}(A)=n\iff A\text{ es invertible}",
+        "hipotesis": f"A es una matriz cuadrada de orden {n}.",
+        "evidencia": {"determinante": determinant_value, "rango_A": rank, "rref": rref["matrix"]},
+        "conclusion": "A es invertible." if value else "A es singular.",
+    }})
     if value:
         out['inversa'], _ = invert(A, context)
     return out
