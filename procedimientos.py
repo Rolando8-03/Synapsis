@@ -22,6 +22,13 @@ def legacy_trace(op, out, ctx):
             return
         ctx.emit("metodo", "Comenzar la fase de Gauss-Jordan.", {})
         original_rows(ctx, out["pasos_jordan"])
+        ctx.emit("teorema", "Aplicar el teorema de Rouché–Capelli.", {"teorema": {
+            "enunciado": r"Ax=b\text{ tiene solución}\iff\operatorname{rang}(A)=\operatorname{rang}([A\mid b])",
+            "hipotesis": f"El sistema tiene {out['numero_ecuaciones']} ecuaciones y {out['numero_variables']} incógnitas.",
+            "evidencia": {"rango_A": out["rango_A"], "rango_aumentada": out["rango_aumentada"],
+                          "forma_reducida": out["matriz_rref"]},
+            "conclusion": out["conclusion"],
+        }})
         for step in out.get("pasos_sustitucion", []):
             variable, expression = step["variable"] + 1, step["expresion"]
             terms = [tex(expression["constante"])]
