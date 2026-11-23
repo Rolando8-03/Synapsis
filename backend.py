@@ -12,7 +12,7 @@ from motor_matematico.application.service import execute
 from motor_matematico.algorithms.linear.context import Context, vector as parse_vector, matrix as bounded_matrix
 from motor_matematico.algorithms.numerical.functions import Function, decimal
 from motor_matematico.domain.models import DomainError, serializar
-from motor_matematico.algorithms.linear.factorization import factor
+from motor_matematico.algorithms.linear.factorization import factor, reuse_factors
 from curso import (
     accumulation, accuracy, balance, dominance, economy, entry, from_equations,
     invertible_theorem, machine, matrix_compare, nonnegative, parametric,
@@ -421,7 +421,10 @@ def calculate(operation, data, steps=True):
         if rhs is None or rhs == [] or isinstance(rhs, str) and not rhs.strip():
             raise ValueError("Para resolver Ax=b, ingresá el vector b. Para obtener solo los factores, alcanza con A.")
         b = parse_vector(rhs, len(A))
-        output, verification = factor(A, context, method == "plu", b)
+        if "factores" in data:
+            output, verification = reuse_factors(A, b, data["factores"], method == "plu", context)
+        else:
+            output, verification = factor(A, context, method == "plu", b)
     elif operation=="iterativos.comparar":
         output=compare_iterations(data,context)
         metadata["exact"]=False

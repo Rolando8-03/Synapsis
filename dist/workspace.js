@@ -92,6 +92,7 @@ export function bindWorkspace(setOpen) {
   for (const [id, card] of cards) sections.add(new Option(card.name,id));
 
   let expressionField;
+  let savedFactors;
   let catalogPromise;
   let catalog;
   let state;
@@ -120,7 +121,12 @@ export function bindWorkspace(setOpen) {
     const values = {};
     for (const [name, control] of controls) values[name] = control.raw();
     const options = Object.fromEntries([...choiceControls].map(([key, element]) => [key, element.checked]));
-    return {values, options};
+    const draft = {values, options};
+    if (savedFactors && state.op === 'factorizacion.resolver'
+        && values.metodo === savedFactors.method && JSON.stringify(values.A) === savedFactors.matrix) {
+      draft.savedFactors = savedFactors;
+    }
+    return draft;
   }
 
   function remember() {
@@ -154,6 +160,19 @@ export function bindWorkspace(setOpen) {
 
   function displayResult(response, draft, original) {
     renderResult(results, response, draft.options, original, edit);
+    if (['factorizacion.lu', 'factorizacion.plu'].includes(state.op) && response.verification?.passed) {
+      const {L, U, P} = response.result;
+      const method = state.op.split('.')[1];
+      const button = node('button', 'secondary', 'Resolver con estos factores');
+      button.type = 'button';
+      button.addEventListener('click', async () => {
+        history.pushState(history.state, '', '#sistemas/factorizacion.resolver');
+        await sync({restore: {values: {A: draft.values.A, metodo: method}, options: draft.options,
+          savedFactors: {method, matrix: JSON.stringify(draft.values.A), factors: {L, U, P}}}});
+        controls.get('b')?.element.querySelector('input')?.focus();
+      });
+      results.querySelector('.ws-result-actions').append(button);
+    }
     showView('result');
     get('ws-result-title').focus({preventScroll:true});
     window.scrollTo({top:0,behavior:'instant'});
@@ -279,6 +298,7 @@ export function bindWorkspace(setOpen) {
 
   function renderForm(definition) {
     const saved = drafts.get(state.op);
+    savedFactors = saved?.savedFactors;
     const original = state.op === 'original.sistema';
     controls = new Map();
     choiceControls = new Map();
@@ -398,6 +418,7 @@ export function bindWorkspace(setOpen) {
         }
         if (value !== '') input[name] = value;
       }
+      if (draft.savedFactors) input.factores = draft.savedFactors.factors;
       button.disabled = reveal;
       status.textContent = 'Calculando…';
       const http = await fetch('/api/calcular',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},
