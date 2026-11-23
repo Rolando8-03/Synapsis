@@ -7,7 +7,7 @@ const OPTIONS = [
   ['steps','Procedimiento'], ['verify','Comprobación'],
 ];
 const intervalMethods = new Set(['raices.biseccion', 'raices.falsa_posicion']);
-const visualExpressionOps = new Set(['calculo.derivar', 'calculo.primitiva', ...intervalMethods]);
+const visualExpressionOps = new Set(['calculo.derivar', 'calculo.primitiva', 'calculo.limite_lateral', ...intervalMethods]);
 const HISTORY_KEY = 'synapsis-historial-escritorio';
 const exampleMatrix = [['2','1','-1','8'],['-3','-1','2','-11'],['-2','1','2','-3']];
 
@@ -50,7 +50,7 @@ function historyEntries() {
 }
 
 function optionLabel(value) {
-  return ({completo:'Análisis completo', escalonada:'Solo escalonada (Gauss)',
+  return ({'-':'Izquierda (−)', '+':'Derecha (+)', x:'x', y:'y', completo:'Análisis completo', escalonada:'Solo escalonada (Gauss)',
     gauss_jordan:'Gauss-Jordan', gauss:'Gauss', falsa_posicion:'Falsa posición',
     gauss_seidel:'Gauss-Seidel', residual_y_paso:'Residual y paso', rref:'RREF',
     infinito:'Norma ∞', uno:'Norma 1', dos:'Norma 2 (euclidiana)', lu:'LU', plu:'PLU', sarrus:'Sarrus',
@@ -209,6 +209,7 @@ export function bindWorkspace(setOpen) {
       fields.querySelector('.ws-theorem').hidden = partial;
     }
     for (const [,control] of controls) {
+      control.updateNotation?.(values);
       const condition = control.definition?.when;
       const enabled = !condition || Object.entries(condition).every(([name, allowed]) => allowed.includes(values[name]));
       control.element.hidden = !enabled;
@@ -219,7 +220,7 @@ export function bindWorkspace(setOpen) {
     const {name, label, kind, choices} = definition;
     if (visualExpressionOps.has(state.op) && name === 'expresion') {
       const differential = catalog.operations[state.op].fields.find(field => field.name === 'variable');
-      return expressionField(definition, value, queueAutomatic, differential?.default, intervalMethods.has(state.op));
+      return expressionField(definition, value, queueAutomatic, differential?.default, Boolean(definition.editor) || intervalMethods.has(state.op));
     }
     if (state.op === 'calculo.primitiva' && name === 'variable') {
       // La plantilla muestra dx. Enviá esa misma variable también al recuperar un historial antiguo.

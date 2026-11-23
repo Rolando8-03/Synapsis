@@ -1,5 +1,5 @@
 import { MathfieldElement, convertAsciiMathToLatex, convertLatexToAsciiMath } from './vendor/mathlive/mathlive.min.mjs';
-import { math as formula } from './math-format.js';
+import { math as formula, numericTex } from './math-format.js';
 import { explicitProducts } from './expression-input.mjs';
 import { node } from './matrix-input.js';
 
@@ -99,7 +99,12 @@ export function expressionField(definition, initial, onChange, differential, int
   const feedback = node('span', 'ws-field-help');
   feedback.setAttribute('role', 'status');
   element.append(label);
-  if (differential) {
+  const operator = node('span');
+  if (definition.editor) {
+    const row = node('div', 'ws-integral-template');
+    row.append(operator, math, text);
+    element.append(row);
+  } else if (differential) {
     const row = node('div', 'ws-integral-template');
     row.setAttribute('role', 'group');
     row.setAttribute('aria-label', `Integral indefinida respecto de ${differential}`);
@@ -149,6 +154,13 @@ export function expressionField(definition, initial, onChange, differential, int
   set(initial);
   return {
     definition, element, set,
+    updateNotation(values) {
+      if (definition.editor === 'limite') {
+        const point = values.punto ? numericTex(values.punto) ?? 'a' : 'a';
+        const side = values.lado === '-' ? '-' : '+';
+        operator.replaceChildren(formula(`\\lim_{x\\to ${point}^{${side}}}`, `límite de x hacia ${point} por ${side}`));
+      }
+    },
     raw: () => math.hidden ? text.value : {latex:math.value},
     value: () => {
       if (!math.hidden) return expression(math.value, intervalMethod);
