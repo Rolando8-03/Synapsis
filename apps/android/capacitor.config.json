@@ -1,8 +1,0 @@
-{
-  "appId": "org.nexolineal.app",
-  "appName": "NexoLineal",
-  "webDir": "../frontend/dist",
-  "server": {
-    "androidScheme": "https"
-  }
-}

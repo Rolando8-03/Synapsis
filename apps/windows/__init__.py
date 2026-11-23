@@ -1,1 +1,0 @@
-"""Prototipo de escritorio Windows."""

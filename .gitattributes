@@ -1,7 +1,0 @@
-packages/core/** text eol=lf
-apps/** text=auto eol=lf
-apps/android/gradlew.bat text eol=crlf
-*.jar binary
-*.ico binary
-*.png binary
-tests/fixtures/fase08-project.json text eol=lf
