@@ -276,6 +276,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash plataformas/publicar.sh release
   paquete:
+    if: "!cancelled() && needs.release.result == 'success'"
     needs: release
     runs-on: ubuntu-24.04
     timeout-minutes: 15
