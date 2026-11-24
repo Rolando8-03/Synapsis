@@ -64,7 +64,7 @@ class Handler(SimpleHTTPRequestHandler):
             elif self.path == "/api/kepler/escena":
                 from kepler import scene_frames
                 self.send_json(scene_frames(float(data["excentricidad"]), float(data["semieje_b"]),
-                                            float(data.get("excentricidad_b", .25))))
+                                            float(data.get("excentricidad_b", .30))))
             else:
                 self.send_json(calculate(data.get("operation"), data.get("input"), data.get("steps") is not False))
         except (ValueError, KeyError, TypeError, ArithmeticError, DomainError, InputError, ResourceLimitError) as error:

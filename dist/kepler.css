@@ -14,7 +14,7 @@
 .kepler-legend-a, .kepler-legend-current { --swatch: var(--orbit-a); }
 .kepler-legend-b { --swatch: var(--orbit-b); }
 .kepler-legend-reference { --swatch: #c5afea; }
-.kepler-legend-b::before { border-bottom-style: dashed !important; }
+.kepler-legend .kepler-legend-b::before { border-bottom-style: dashed; }
 .kepler-chart :is(ellipse, path, line) { stroke-width: 1.55; vector-effect: non-scaling-stroke; }
 .kepler-track-a { stroke: var(--orbit-a); fill: none; }
 .kepler-track-b { stroke: var(--orbit-b); stroke-dasharray: 5 5; fill: none; }

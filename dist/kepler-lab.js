@@ -4,6 +4,9 @@ const number = new Intl.NumberFormat('es-NI', { maximumFractionDigits: 4, useGro
 const format = value => number.format(value);
 const interval = sector => `${format(sector.inicio_t)} a ${format(sector.fin_t)}`;
 const ids = ['A', 'B'];
+const updateText = (element, value) => {
+  if (element.textContent !== value) element.textContent = value;
+};
 
 function attributes(element, values) {
   for (const [name, value] of Object.entries(values)) element.setAttribute(name, value);
@@ -115,7 +118,16 @@ function bindScene(section) {
   const back = find('back');
   const forward = find('forward');
   const clockStatus = find('clock-status');
+  const distances = ['a','b'].map(id => find(`distance-${id}`));
+  const sectorCells = ['current','reference'].map(id => ({
+    interval:find(`interval-${id}`), area:find(`area-${id}`), speed:find(`speed-${id}`),
+  }));
+  const cache = new Map();
   let loading;
+  let delay;
+  let pendingKey;
+  let activeKey;
+  let initialized = false;
   let scene;
   let index = 0;
   let animation = 0;
@@ -127,9 +139,10 @@ function bindScene(section) {
   let inView = false;
 
   function sync() {
-    play.textContent = enabled && playing ? 'Pausar' : 'Reproducir';
+    updateText(play,enabled && playing ? 'Pausar' : 'Reproducir');
     play.disabled = !enabled;
-    const moving = scene && playing && enabled && inView && !obscured && !document.hidden;
+    play.title = enabled ? '' : 'Activá las animaciones de la página para reproducir.';
+    const moving = scene && !clock.disabled && playing && enabled && inView && !obscured && !document.hidden;
     if (moving && !animation) {
       started = null;
       startTime = scene.frames[index].t;
@@ -169,85 +182,122 @@ function bindScene(section) {
   }
 
   function seek(nextIndex, announce = true) {
-    if (!scene) return;
+    if (!scene || clock.disabled) return;
     playing = false;
     sync();
     if (nextIndex !== index) show(nextIndex);
     if (announce) clockStatus.textContent = `Tiempo simulado: ${timeValue.textContent}.`;
   }
 
-
   function draw(frame) {
     plot.draw(frame);
-    for (const id of ids) find(`distance-${id.toLowerCase()}`).textContent = format(frame[id].r);
-    for (const [id, sector] of [['current',frame.actual], ['reference',frame.referencia]]) {
-      find(`interval-${id}`).textContent = interval(sector);
-      find(`area-${id}`).textContent = format(sector.area);
-      find(`speed-${id}`).textContent = format(sector.v);
-    }
+    ids.forEach((id,i) => updateText(distances[i],format(frame[id].r)));
+    [frame.actual,frame.referencia].forEach((sector,i) => {
+      const cells = sectorCells[i];
+      updateText(cells.interval,interval(sector));
+      updateText(cells.area,format(sector.area));
+      updateText(cells.speed,format(sector.v));
+    });
   }
 
-  async function load() {
-    loading?.abort();
-    playing = false;
-    scene = null;
-    clock.disabled = true;
+  function ready() {
+    pendingKey = undefined;
+    note.textContent = '';
+    retry.hidden = true;
+    clock.disabled = false;
+    measurements.removeAttribute('aria-busy');
     sync();
+  }
+
+  function applyScene(key, result) {
+    cache.delete(key);
+    cache.set(key,result);
+    if (cache.size > 6) cache.delete(cache.keys().next().value);
+    activeKey = key;
+    scene = result;
+    time.max = scene.frames.at(-1).t;
+    time.step = scene.frames[1].t;
+    plot.show(scene);
+    for (const id of ids) {
+      const field = id.toLowerCase();
+      const orbit = scene[id];
+      updateText(find(`axis-${field}`),format(orbit.a));
+      updateText(find(`period-${field}`),format(orbit.periodo));
+      updateText(find(`ratio-${field}`),format(orbit.cociente));
+    }
+    updateText(find('mu'),`μ = ${format(scene.mu)} UA³/año² · 4π²/μ = ${format(scene.cociente_teorico)} años²/UA³`);
+    updateText(find('sector-duration'),`Duración de cada sector: ${format(scene.duracion_sector)} años.`);
+    show(index);
+    measurements.hidden = false;
+    procedure.element.hidden = false;
+    ready();
+  }
+
+  async function load(key, parameters) {
     const request = new AbortController();
     loading = request;
-    eValue.textContent = format(e.valueAsNumber);
-    aValue.textContent = `${format(a.valueAsNumber)} UA`;
-    note.textContent = 'Cargando las órbitas…';
-    retry.hidden = true;
-    measurements.hidden = true;
-    procedure.element.hidden = true;
-    find('model').setAttribute('hidden','');
     try {
       const response = await fetch('/api/kepler/escena', {
         method:'POST', signal:request.signal, headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({excentricidad:e.valueAsNumber, semieje_b:a.valueAsNumber}),
+        body: JSON.stringify(parameters),
       });
       if (!response.ok) throw new Error('Órbitas no disponibles');
       const result = await response.json();
-      if (request.signal.aborted) return;
-      scene = result;
-      time.max = scene.frames.at(-1).t;
-      time.step = scene.frames[1].t;
-      clock.disabled = false;
-      plot.show(scene);
-      for (const id of ids) {
-        const key = id.toLowerCase();
-        const orbit = scene[id];
-        find(`axis-${key}`).textContent = format(orbit.a);
-        find(`period-${key}`).textContent = format(orbit.periodo);
-        find(`ratio-${key}`).textContent = format(orbit.cociente);
-      }
-      find('mu').textContent = `μ = ${format(scene.mu)} UA³/año² · 4π²/μ = ${format(scene.cociente_teorico)} años²/UA³`;
-      find('sector-duration').textContent = `Duración de cada sector: ${format(scene.duracion_sector)} años.`;
-      show(index);
-      sync();
-      measurements.hidden = false;
-      procedure.element.hidden = false;
-      note.textContent = '';
+      if (!request.signal.aborted && pendingKey === key) applyScene(key,result);
     } catch (error) {
-      if (request.signal.aborted) return;
-      note.textContent = 'El motor orbital no respondió. Revisá que Synapsis esté abierto desde su lanzador.';
+      if (request.signal.aborted || pendingKey !== key) return;
+      note.textContent = scene
+        ? 'El motor orbital no respondió. Se muestran los parámetros anteriores.'
+        : 'El motor orbital no respondió. Revisá que Synapsis esté abierto desde su lanzador.';
+      measurements.removeAttribute('aria-busy');
       retry.hidden = false;
+    } finally {
+      if (loading === request) loading = undefined;
     }
+  }
+
+  function selectOrbits(wait = 0) {
+    initialized = true;
+    clearTimeout(delay);
+    loading?.abort();
+    const parameters = {excentricidad:e.valueAsNumber, semieje_b:a.valueAsNumber};
+    const key = `${parameters.excentricidad}:${parameters.semieje_b}`;
+    updateText(eValue,format(parameters.excentricidad));
+    updateText(aValue,`${format(parameters.semieje_b)} UA`);
+    e.setAttribute('aria-valuetext',eValue.textContent);
+    a.setAttribute('aria-valuetext',aValue.textContent);
+    if (key === activeKey) {
+      ready();
+      return;
+    }
+    playing = false;
+    clock.disabled = true;
+    sync();
+    pendingKey = key;
+    const cached = cache.get(key);
+    if (cached) {
+      applyScene(key,cached);
+      return;
+    }
+    updateText(note,scene ? 'Actualizando órbitas. Se muestran los parámetros anteriores.' : 'Cargando las órbitas…');
+    retry.hidden = true;
+    measurements.setAttribute('aria-busy','true');
+    if (wait) delay = setTimeout(() => load(key,parameters),wait);
+    else load(key,parameters);
   }
 
   procedure.element.addEventListener('toggle', () => {
     if (scene) procedure.draw(scene,scene.frames[index]);
   });
-  e.addEventListener('input',load);
-  a.addEventListener('input',load);
-  retry.addEventListener('click',load);
+  e.addEventListener('input',() => selectOrbits(80));
+  a.addEventListener('input',() => selectOrbits(80));
+  retry.addEventListener('click',() => selectOrbits());
   time.addEventListener('input',() => seek(Math.round(time.valueAsNumber/Number(time.step)),false));
   back.addEventListener('click',() => seek(index-1));
   forward.addEventListener('click',() => seek(index+1));
   find('reset').addEventListener('click',() => seek(0));
   play.addEventListener('click',() => {
-    if (!scene || !enabled) return;
+    if (!scene || clock.disabled || !enabled) return;
     playing = !playing;
     if (playing && index === scene.frames.length-1) show(0);
     if (!playing) clockStatus.textContent = `Pausa en ${timeValue.textContent}.`;
@@ -255,10 +305,10 @@ function bindScene(section) {
   });
   new IntersectionObserver(([entry]) => {
     inView = entry.isIntersecting;
+    if (inView && !initialized) selectOrbits();
     sync();
-  }).observe(section.querySelector('.kepler-figure'));
+  }).observe(section.querySelector('.kepler-layout'));
   document.addEventListener('visibilitychange',sync);
-  load();
   return {
     setEnabled(value) { enabled = value; sync(); },
     setObscured(value) { obscured = value; sync(); },
