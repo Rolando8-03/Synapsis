@@ -43,6 +43,7 @@ public final class MainActivity extends Activity {
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        settings.setUseWideViewPort(true);
         settings.setSupportZoom(true);
         settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
@@ -86,6 +87,8 @@ public final class MainActivity extends Activity {
         String mime;
         if (path.endsWith(".wasm")) mime = "application/wasm";
         else if (path.endsWith(".js") || path.endsWith(".mjs")) mime = "text/javascript";
+        else if (path.endsWith(".html")) mime = "text/html";
+        else if (path.endsWith(".css")) mime = "text/css";
         else if (path.endsWith(".json")) mime = "application/json";
         else if (path.endsWith(".svg")) mime = "image/svg+xml";
         else if (path.endsWith(".webp")) mime = "image/webp";

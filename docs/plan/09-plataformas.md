@@ -29,3 +29,39 @@ Conservá una interfaz y el mismo cálculo Python. El adaptador de escritorio us
 | P17 | Preparar la entrega versionada. | Desde el mismo SHA de main producir ZIP completo, instalador Windows y APK firmado; enlazar el sitio Pages, publicar sumas SHA-256 y documentar comandos reproducibles y versiones probadas. |
 
 Para P11 y P15 consultá las guías de [PyInstaller](https://pyinstaller.org/en/stable/usage.html) y [firma Android](https://developer.android.com/studio/publish/app-signing). La portada y la paleta se verifican con V04 antes de integrar cambios de entrada o empaquetado.
+
+## Compilar y publicar
+
+Las distribuciones de la versión `0.9.0` se generan con Python 3.12, PySide6 6.10.2, Pyodide 0.28.3, SymPy 1.14.0 y mpmath 1.3.0. El backend compartido despacha catálogo, cálculo, órbita histórica y escena de Kepler. El trabajador WebAssembly carga bajo demanda, informa el avance y se reinicia cuando se cancela un cálculo ya enviado. Los formularios, resultados y el laboratorio se comparten entre plataformas.
+
+| Destino | Comando o flujo |
+| --- | --- |
+| Escritorio | `python -m pip install -r requirements.txt` y `python abrir.py`. En Windows, `./plataformas/windows/acceso-directo.ps1` crea el acceso con `pythonw.exe`. Si elegís doble clic sobre un `.py`, usá **Abrir con** y seleccioná el `pythonw.exe` del entorno que tiene las dependencias. La asociación se configura en Windows. |
+| Go Live | Abrí `index.html` desde la raíz del clon. El índice conserva el enlace a cualquier módulo. Para usar un paquete independiente, ejecutá `python -m plataformas.web --output build/web` y abrí `build/web/index.html` con Live Server. |
+| Pages | En **Settings → Pages → Build and deployment → Source**, la fuente es **GitHub Actions**. El flujo **Publicar Synapsis en GitHub Pages** construye el paquete, publica desde `main` y verifica su revisión, un ejercicio, la gráfica y un clon servido como web estática. [Sitio](https://rolando8-03.github.io/Synapsis/) · [Flujo](https://github.com/Rolando8-03/Synapsis/actions/workflows/pages.yml). |
+| Windows x64 | Con Inno Setup 6 instalado, ejecutá `python -m pip install -r requirements.txt -r plataformas/windows/requirements-build.txt` y `./plataformas/windows/compilar.ps1` en PowerShell. La carpeta `build/windows` recibe el instalador y el ZIP portátil. Si solo necesitás compilar el ejecutable de carpeta, usá `-SoloEjecutable`. |
+| Android | Con JDK 17, SDK 35, Build Tools 35.0.0 y Gradle 8.11.1, generá `build/web` y ejecutá `gradle -p plataformas/android assembleDebug`. El APK sale en `plataformas/android/app/build/outputs/apk/debug/`. El proyecto declara Android 8.0 como mínimo. El equipo debe tener Android System WebView con soporte para Worker y WebAssembly. |
+| Release y ZIP | En **Actions → Distribuciones de Synapsis → Run workflow**, elegí `main` y marcá **Publicar la entrega firmada desde main**. El flujo exige que Pages muestre ese SHA. Publica el ZIP fuente, el paquete web, el instalador, el ZIP portátil, el APK `release` y `SHA256SUMS`. Subí `plataformas/VERSION` al preparar una nueva versión. [Flujo](https://github.com/Rolando8-03/Synapsis/actions/workflows/distribuciones.yml). |
+
+### Firma de Android
+
+Para compilar una release local, configurá `SYNAPSIS_ANDROID_KEYSTORE` con la ruta de tu keystore y las variables `SYNAPSIS_ANDROID_STORE_PASSWORD`, `SYNAPSIS_ANDROID_KEY_ALIAS` y `SYNAPSIS_ANDROID_KEY_PASSWORD`. Generá `build/web`, ejecutá `gradle -p plataformas/android assembleRelease` y verificá con `apksigner verify --verbose --print-certs` el `app-release.apk`. Para el flujo de GitHub, guardá el archivo como un secreto `SYNAPSIS_ANDROID_KEYSTORE_BASE64` y agregá las otras tres variables como secretos de Actions. Base64 es un formato de transporte. Conservá la clave y su respaldo fuera de Git y usá la misma firma para que Android acepte actualizaciones. El APK de depuración se identifica como `io.github.rolando803.synapsis.debug` y se puede instalar junto a la edición `release`.
+
+### Paridad y caché
+
+`python -m plataformas.verificar_web --directorio build/web --prefijo` usa un servidor HTTP de archivos y Qt WebEngine con las conexiones externas bloqueadas. Con `--url URL` probás el paquete publicado y con `--directorio . --cdn` probás el clon limpio y su primera descarga. En Linux sin pantalla, usá `QT_QPA_PLATFORM=offscreen` con el sandbox de Chromium cuando el entorno lo permita. El paquete local ocupa aproximadamente 23 MB y comprueba las sumas de sus dependencias al construirse. Pages puede conservar la distribución anterior hasta que venza la caché. Compará `version-compilada.json` con el SHA reclamado por la entrega.
+
+Los casos comparan el catálogo, los factores exactos de Solo LU, la derivada simbólica y sus pasos, un fallo de dominio, la gráfica de bisección y ambas interfaces de Kepler. Las fracciones, los pasos y los textos deben coincidir exactamente. En números de punto flotante se admite tolerancia absoluta de $10^{-12}$ o relativa de $10^{-11}$ por variaciones de trigonometría entre CPython nativo y WebAssembly. Para comparar, instalá solo `requirements.txt` en un entorno nuevo. Así se usa mpmath tanto en escritorio como en web para el contraste numérico de referencia. En Android, completá la matriz de paridad ejecutando los mismos casos y comprobando `pausa`, teclado, zoom y rotación en un dispositivo.
+
+## Evidencia y alcance de la verificación
+
+| Subfases | Validación |
+| --- | --- |
+| P01–P05 | La ventana Qt usa `abrir.py` y el mismo contrato Python que el trabajador. Se prueba cierre del puerto, ejercicio con el teclado visual y paridad de Solo LU, procedimiento, errores y órbitas. |
+| P06–P08 | En Debian 13 y Qt WebEngine 6.10.2, el paquete web ejecutó los siete casos con recursos internos bajo `/Synapsis/`. La primera carga medida tomó 6,3 s. Se observó la cancelación, una nueva petición, el resultado con KaTeX y el sector de Kepler a 0,50 años. |
+| P09–P10 | El índice y el paquete estático bajo `/Synapsis/` se probaron con HTTP local. El flujo de Pages verifica la URL pública y repite el ejercicio con un clon limpio. La verificación usa un servidor de archivos equivalente a Live Server. |
+| P11–P12 | PyInstaller e Inno Setup generaron el ZIP portátil y el instalador en Windows Server 2025. El flujo comprueba arranque con `pythonw`, registro, destino del acceso de Inicio, cálculo en la instalación, reinstalación y desinstalación. [Primera compilación Windows](https://github.com/Rolando8-03/Synapsis/actions/runs/45314773959). |
+| P13–P14 | Se compiló el APK de depuración y `apksigner` verificó su firma. Queda por validar en dispositivo el modo avión, el teclado, el zoom, la orientación y el paso al fondo. [Primera compilación Android](https://github.com/Rolando8-03/Synapsis/actions/runs/45315145332). |
+| P15 | Compilación y verificación de la firma `release` configuradas. El APK de distribución requiere la clave del propietario. La instalación y actualización de esa edición quedan para el dispositivo de prueba. |
+| P16 | El mismo conjunto de casos compara el JSON de pasos, resultados, errores y muestras. La paridad en dispositivo Android queda pendiente. |
+| P17 | El flujo genera artefactos del commit y un ZIP fuente con SHA-256. La publicación versionada condiciona la entrega a una firma Android válida y a la misma revisión en Pages. |

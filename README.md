@@ -1,15 +1,21 @@
 # Synapsis · Observatorio matemático
 
-Proyecto de escritorio para estudiar álgebra lineal y métodos numéricos. Esta edición parte de **Synapsis-Proyecto-Completo** e integra el solucionador de la **Calculadora de Álgebra Lineal del Grupo 4**. Incluye la portada animada, los ocho módulos, el modo serio claro u oscuro y el laboratorio de las tres leyes de Kepler.
+Calculadora para escritorio, navegador y Android para estudiar álgebra lineal y métodos numéricos. Esta edición parte de **Synapsis-Proyecto-Completo** e integra el solucionador de la **Calculadora de Álgebra Lineal del Grupo 4**. Incluye la portada animada, los ocho módulos, el modo serio claro u oscuro y el laboratorio de las tres leyes de Kepler.
 
-## Abrir en Windows
+## Cómo abrir Synapsis
 
-1. Cloná el repositorio o descargá y extraé el ZIP completo.
-2. Instalá **Python 3.10–3.14 de 64 bits** si aún no está disponible.
-3. Ejecutá **Abrir-Synapsis.cmd**. La primera vez prepara el entorno e instala las dependencias. Después abre Synapsis en su propia ventana.
-4. Si preferís el navegador, ejecutá **Abrir-Synapsis-Web.cmd**. Mantené su terminal abierta mientras uses la calculadora.
+| Plataforma | Inicio |
+| --- | --- |
+| Escritorio desde Python | Instalá `requirements.txt` y ejecutá `python abrir.py` desde el IDE o el intérprete. Se abre la ventana nativa de Synapsis. |
+| Windows sin consola | Ejecutá `plataformas/windows/acceso-directo.ps1` una vez. El acceso directo de escritorio abre `abrir.py` con `pythonw.exe`. |
+| Windows instalado | Descargá `Synapsis-Setup.exe` desde los [artefactos de compilación](https://github.com/Rolando8-03/Synapsis/actions/workflows/distribuciones.yml). Instala para tu usuario y crea el acceso en el menú Inicio. Para usar la edición portátil, extraé todo `Synapsis-Windows-x64.zip`. |
+| VS Code y Go Live | Abrí la carpeta de Synapsis, seleccioná el `index.html` raíz y usá **Open with Live Server**. La primera carga descarga el runtime fijado y abre el motor en un trabajador. |
+| Navegador | Abrí [Synapsis en GitHub Pages](https://rolando8-03.github.io/Synapsis/). Las fórmulas, los pasos y las órbitas se calculan con Python en el navegador. |
+| Android | Instalá el APK que genera **Distribuciones de Synapsis**. El APK empaqueta recursos, interfaz y motor Python para usarlos sin conexión. |
 
-La primera instalación necesita internet. Después, la aplicación funciona con el motor local de Python, imágenes y tipografías incluidas. El motor escucha en `127.0.0.1`. En Linux o macOS, instalá `requirements.txt` en un entorno virtual y ejecutá `python3 abrir.py`. El modo navegador usa `requirements-matematica.txt` y `python3 abrir.py --web`.
+Usá Python 3.12 para reproducir los builds automatizados. La instalación inicial de dependencias requiere conexión. El escritorio sirve su interfaz en `127.0.0.1`. También podés ejecutar `python abrir.py --web` para usar ese servidor local con tu navegador. El archivo índice requiere HTTP o HTTPS, como el que proporciona Live Server.
+
+Para preparar la web con todas las dependencias en una carpeta independiente, ejecutá `python -m plataformas.web --output build/web` y abrí `build/web/index.html` con Go Live. Después de preparar el paquete, su ejecución puede hacerse sin conexión. La [guía de plataformas](docs/plan/09-plataformas.md) documenta builds, firma y pruebas.
 
 ## Cómo usar la calculadora
 
@@ -39,7 +45,8 @@ Las operaciones aceptan datos editables. Los enunciados de modelación se traduc
 | Archivo o carpeta | Contenido |
 | --- | --- |
 | `abrir.py`, `backend.py`, `curso.py`, `kepler.py`, `temario.py` | Inicio, cálculo local y catálogo del curso. |
-| `dist/` | Interfaz, animaciones, simulaciones, KaTeX, Three.js y recursos de presentación. |
+| `index.html`, `dist/` | Entrada estática, única interfaz, animaciones, trabajador web y dependencias de presentación. |
+| `motor_api.py`, `plataformas/` | Contrato JSON compartido, compilación para web, Windows y Android y verificación de paridad. |
 | `motor_grupo4/` | Rutinas de cálculo y teoremas del Grupo 4 que usa Synapsis. |
 | `motor_matematico/` | Algoritmos Python de álgebra lineal y métodos numéricos. |
 | `recursos-originales/` | PNG originales de la nave y el paisaje. |
