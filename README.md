@@ -1,11 +1,11 @@
 # Synapsis
 
 [![Descargar para Windows (.exe)](https://img.shields.io/badge/Descargar%20para%20Windows-.exe-162c4b?style=for-the-badge)](https://github.com/Rolando8-03/Synapsis/releases/latest/download/Synapsis-Setup.exe)
-[![Descargar para Android (.apk)](https://img.shields.io/badge/Descargar%20para%20Android-.apk-162c4b?style=for-the-badge)](https://github.com/Rolando8-03/Synapsis/releases/latest/download/Synapsis-Android.apk)
+[![Descargar APK de prueba para Android](https://img.shields.io/badge/APK%20de%20prueba%20para%20Android-.apk-162c4b?style=for-the-badge)](https://github.com/Rolando8-03/Synapsis/releases/latest/download/Synapsis-Android-debug.apk)
 
 [Notas y SHA-256](https://github.com/Rolando8-03/Synapsis/releases) · [Paquete versionado en GitHub Packages](https://github.com/Rolando8-03/Synapsis/pkgs/container/synapsis)
 
-Las descargas directas se habilitan con la primera entrega firmada y verificada.
+El APK de prueba se instala directamente en Android y usa una firma de depuración. GitHub Releases ofrece las descargas públicas.
 
 [Plan de refactorización en cinco fases](docs/plan/refactorizacion.md)
 
@@ -20,7 +20,7 @@ Calculadora para escritorio, navegador y Android para estudiar álgebra lineal y
 | Windows instalado | Descargá `Synapsis-Setup.exe` con el botón de arriba. Instala para tu usuario y crea el acceso en el menú Inicio. |
 | VS Code y Go Live | Abrí la carpeta de Synapsis, seleccioná el `index.html` raíz y usá **Open with Live Server**. La primera carga descarga el runtime fijado y abre el motor en un trabajador. |
 | Navegador | Abrí [Synapsis en GitHub Pages](https://rolando8-03.github.io/Synapsis/). Las fórmulas, los pasos y las órbitas se calculan con Python en el navegador. |
-| Android | Descargá `Synapsis-Android.apk` con el botón de arriba. El APK empaqueta los recursos y el motor Python para usarlos sin conexión. |
+| Android | Descargá `Synapsis-Android-debug.apk` con el botón de arriba. El APK empaqueta los recursos y el motor Python para usarlos sin conexión. |
 
 Para pruebas de desarrollo están disponibles el ZIP portátil de Windows y el APK de depuración en [Actions](https://github.com/Rolando8-03/Synapsis/actions/workflows/distribuciones.yml).
 

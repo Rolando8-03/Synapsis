@@ -11,77 +11,29 @@ site="https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}/"
 package="ghcr.io/${GITHUB_REPOSITORY,,}:$version"
 package_url="$source_url/pkgs/container/$(basename "${GITHUB_REPOSITORY,,}")"
 windows=Synapsis-Setup.exe
-android=Synapsis-Android.apk
+android=Synapsis-Android-debug.apk
+signed_android=Synapsis-Android.apk
+
+root=$PWD
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-
-revision=
-for attempt in {1..24}; do
-  revision=$(curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' \
-    "${site}version-compilada.json?sha=$GITHUB_SHA" | jq -er .revision) || true
-  [[ "$revision" == "$GITHUB_SHA" ]] && break
-  sleep 10
-done
-if [[ "$revision" != "$GITHUB_SHA" ]]; then
-  echo "::error::Pages debe publicar $GITHUB_SHA antes de crear esta entrega."
-  exit 1
-fi
-
-cp "build/windows/$windows" "build/android/$android" "$work/"
 cd "$work"
-test "$(head -c 2 "$windows")" = MZ
-test "$(head -c 2 "$android")" = PK
-printf '{"auths":{}}\n' > anon.json
-printf '%s' "$GH_TOKEN" | oras login ghcr.io --username "$GITHUB_ACTOR" --password-stdin --registry-config auth.json
-if ! oras manifest fetch --registry-config auth.json "$package" > manifest.json 2> registry-error.txt; then
-  if ! grep -Eqi 'manifest unknown|not found|404|denied|forbidden' registry-error.txt; then
-    cat registry-error.txt >&2
-    exit 1
+
+check_tag() {
+  local ref peeled
+  ref=$(git -C "$root" ls-remote origin "refs/tags/$tag" "refs/tags/$tag^{}")
+  if [[ -n "$ref" ]]; then
+    peeled=$(tail -n 1 <<< "$ref" | cut -f1)
+    test "$peeled" = "$GITHUB_SHA"
   fi
-  oras push --registry-config auth.json \
-    --artifact-type application/vnd.synapsis.distribution.v1 \
-    --annotation "org.opencontainers.image.source=$source_url" \
-    --annotation "org.opencontainers.image.version=$version" \
-    --annotation "org.opencontainers.image.revision=$GITHUB_SHA" \
-    "$package" \
-    "$windows:application/vnd.synapsis.windows-x64.installer.v1" \
-    "$android:application/vnd.synapsis.android.installer.v1"
-fi
-if ! oras manifest fetch --registry-config anon.json "$package" > manifest.json; then
-  echo "::error::Hacé público el paquete Synapsis en $package_url y reintentá esta ejecución."
-  exit 1
-fi
+}
 
-jq -e --arg sha "$GITHUB_SHA" --arg source "$source_url" --arg version "$version" \
-  --arg windows "$windows" --arg android "$android" '
-  .annotations["org.opencontainers.image.revision"] == $sha and
-  .annotations["org.opencontainers.image.source"] == $source and
-  .annotations["org.opencontainers.image.version"] == $version and
-  (.layers | length) == 2 and
-  any(.layers[]; .annotations["org.opencontainers.image.title"] == $windows and
-                 .mediaType == "application/vnd.synapsis.windows-x64.installer.v1") and
-  any(.layers[]; .annotations["org.opencontainers.image.title"] == $android and
-                 .mediaType == "application/vnd.synapsis.android.installer.v1")
-' manifest.json >/dev/null
-oras pull --registry-config anon.json --output package "$package"
-for file in "$windows" "$android"; do
-  expected=$(jq -er --arg file "$file" '.layers[] | select(.annotations["org.opencontainers.image.title"] == $file) | .digest | sub("^sha256:";"")' manifest.json)
-  printf '%s  package/%s\n' "$expected" "$file" | sha256sum -c
-done
-test "$(head -c 2 "package/$windows")" = MZ
-test "$(head -c 2 "package/$android")" = PK
-(cd package && sha256sum "$windows" "$android") > SHA256SUMS
+download_public() {
+  curl -q -fsSL --retry 4 --retry-all-errors --max-time 180 --output "$2" "$source_url/releases/$1"
+}
 
-# Impide reutilizar una etiqueta con contenido de otra revisión.
-refs=$(git -C "$GITHUB_WORKSPACE" ls-remote origin "refs/tags/$tag" "refs/tags/$tag^{}")
-if [[ -n "$refs" ]]; then
-  sha=$(tail -n 1 <<< "$refs" | cut -f1)
-  test "$sha" = "$GITHUB_SHA"
-fi
-if gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json targetCommitish,isDraft,assets > release.json; then
-  jq -e --arg sha "$GITHUB_SHA" '.targetCommitish == $sha' release.json >/dev/null
-else
-  cat > notes.md <<NOTES
+render_notes() {
+  cat <<NOTES
 ## Synapsis $version
 
 Revisión: \`$GITHUB_SHA\`
@@ -90,43 +42,119 @@ Revisión: \`$GITHUB_SHA\`
 - [GitHub Packages]($package_url) · \`$package\`
 - [Pruebas de esta compilación]($source_url/actions/runs/$GITHUB_RUN_ID)
 
-### Instalación comprobada
+### Instalación y verificación
 
 - Windows Server 2025 x64: instalación por usuario, acceso desde Inicio, cálculo local, reinstalación y desinstalación.
-- Emulador Android API 35 x86_64: firma de distribución verificada, instalación y apertura de Synapsis sin conexión.
-
-### SHA-256
-
-\`\`\`text
-$(cat SHA256SUMS)
-\`\`\`
+- Android: APK de prueba para instalación directa, con firma de depuración verificada. El APK de prueba tiene su propio identificador de aplicación.
 NOTES
-  gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft \
-    --title "Synapsis $version" --notes-file notes.md
-  gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json targetCommitish,isDraft,assets > release.json
-fi
-mkdir release
-for file in "$windows" "$android"; do
-  if ! jq -e --arg file "$file" 'any(.assets[]; .name == $file)' release.json >/dev/null; then
-    gh release upload "$tag" "package/$file" --repo "$GITHUB_REPOSITORY"
+  if [[ -f "assets/$signed_android" ]]; then
+    printf '%s\n' '- APK de distribución: firma estable, instalación y arranque sin conexión verificados en el emulador Android API 35.'
   fi
-  gh release download "$tag" --pattern "$file" --dir release --repo "$GITHUB_REPOSITORY"
-done
-(cd release && sha256sum -c ../SHA256SUMS)
-if jq -e .isDraft release.json >/dev/null; then
-  gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
-fi
-
-# curl no usa credenciales de gh ni de ORAS.
-mkdir public
-for file in "$windows" "$android"; do
-  curl -q -fsSL --retry 5 --retry-all-errors --max-time 180 --output "public/$file" \
-    "$source_url/releases/latest/download/$file"
-done
-(cd public && sha256sum -c ../SHA256SUMS)
-{
-  printf '[Release](%s/releases/tag/%s) · [Paquete](%s)\n\n' "$source_url" "$tag" "$package_url"
+  printf '\n### SHA-256\n\n'
   printf '```text\n'
   cat SHA256SUMS
   printf '```\n'
-} >> "$GITHUB_STEP_SUMMARY"
+}
+
+publish_release() {
+  local revision= file source
+  for attempt in {1..24}; do
+    revision=$(curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' \
+      "${site}version-compilada.json?sha=$GITHUB_SHA" | jq -er .revision) || true
+    [[ "$revision" == "$GITHUB_SHA" ]] && break
+    sleep 10
+  done
+  if [[ "$revision" != "$GITHUB_SHA" ]]; then
+    echo "::error::Pages debe publicar $GITHUB_SHA antes de crear esta entrega."
+    exit 1
+  fi
+  check_tag
+
+  if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json targetCommitish,isDraft,assets > release.json; then
+    gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft \
+      --title "Synapsis $version" --notes "Compilación desde $GITHUB_SHA."
+    gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json targetCommitish,isDraft,assets > release.json
+  fi
+  jq -e --arg sha "$GITHUB_SHA" '.targetCommitish == $sha' release.json >/dev/null
+
+  files=("$windows" "$android")
+  if [[ -f "$root/build/android/$signed_android" ]] ||
+    jq -e --arg name "$signed_android" 'any(.assets[]; .name == $name)' release.json >/dev/null; then
+    files+=("$signed_android")
+  fi
+  mkdir assets received public
+  for file in "${files[@]}"; do
+    if jq -e --arg name "$file" 'any(.assets[]; .name == $name)' release.json >/dev/null; then
+      gh release download "$tag" --pattern "$file" --dir assets --repo "$GITHUB_REPOSITORY"
+    else
+      source="$root/build/android/$file"
+      [[ "$file" != "$windows" ]] || source="$root/build/windows/$file"
+      cp "$source" "assets/$file"
+      gh release upload "$tag" "assets/$file" --repo "$GITHUB_REPOSITORY"
+    fi
+    gh release download "$tag" --pattern "$file" --dir received --repo "$GITHUB_REPOSITORY"
+  done
+  test "$(head -c 2 "assets/$windows")" = MZ
+  test "$(head -c 2 "assets/$android")" = PK
+  (cd assets && sha256sum "${files[@]}") > SHA256SUMS
+  (cd received && sha256sum -c ../SHA256SUMS)
+  render_notes > notes.md
+  gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest --notes-file notes.md
+
+  for file in "${files[@]}"; do
+    download_public "latest/download/$file" "public/$file"
+  done
+  (cd public && sha256sum -c ../SHA256SUMS)
+  printf '[Descargas de Synapsis %s](%s/releases/tag/%s)\n' "$version" "$source_url" "$tag" >> "$GITHUB_STEP_SUMMARY"
+}
+
+publish_package() {
+  local file digest
+  check_tag
+  for file in "$windows" "$android"; do
+    download_public "download/$tag/$file" "$file"
+    digest=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" \
+      --jq ".assets[] | select(.name == \"$file\") | .digest")
+    [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+    printf '%s  %s\n' "${digest#sha256:}" "$file" | sha256sum -c
+  done
+  sha256sum "$windows" "$android" > SHA256SUMS
+  printf '{"auths":{}}\n' > anon.json
+  printf '%s' "$GH_TOKEN" | oras login ghcr.io --username "$GITHUB_ACTOR" --password-stdin --registry-config auth.json
+  if ! oras manifest fetch --registry-config auth.json "$package" > manifest.json 2> registry-error.txt; then
+    if ! grep -Eqi 'manifest unknown|not found|404|denied|forbidden' registry-error.txt; then
+      cat registry-error.txt >&2
+      exit 1
+    fi
+    oras push --registry-config auth.json \
+      --artifact-type application/vnd.synapsis.distribution.v1 \
+      --annotation "org.opencontainers.image.source=$source_url" \
+      --annotation "org.opencontainers.image.version=$version" \
+      --annotation "org.opencontainers.image.revision=$GITHUB_SHA" \
+      "$package" \
+      "$windows:application/vnd.synapsis.windows-x64.installer.v1" \
+      "$android:application/vnd.synapsis.android.debug.v1"
+    oras manifest fetch --registry-config auth.json "$package" > manifest.json
+  fi
+  jq -e --arg sha "$GITHUB_SHA" --arg source "$source_url" --arg version "$version" '
+    .annotations["org.opencontainers.image.revision"] == $sha and
+    .annotations["org.opencontainers.image.source"] == $source and
+    .annotations["org.opencontainers.image.version"] == $version and
+    (.layers | length) == 2
+  ' manifest.json >/dev/null
+  oras pull --registry-config auth.json --output package "$package"
+  (cd package && sha256sum -c ../SHA256SUMS)
+  if oras pull --registry-config anon.json --output public-package "$package"; then
+    (cd public-package && sha256sum -c ../SHA256SUMS)
+    printf '[Paquete público de Synapsis %s](%s)\n' "$version" "$package_url" >> "$GITHUB_STEP_SUMMARY"
+  else
+    echo "::warning::El paquete está publicado y sus archivos se verificaron con acceso. La descarga anónima queda pendiente de visibilidad en $package_url."
+    printf '[Paquete de Synapsis %s](%s) pendiente de acceso público.\n' "$version" "$package_url" >> "$GITHUB_STEP_SUMMARY"
+  fi
+}
+
+case "${1:-}" in
+  release) publish_release ;;
+  paquete) publish_package ;;
+  *) echo 'Uso: publicar.sh release|paquete' >&2; exit 2 ;;
+esac

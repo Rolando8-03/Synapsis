@@ -22,11 +22,11 @@ on:
   workflow_dispatch:
     inputs:
       publicar:
-        description: Publicar la entrega firmada desde main
+        description: Publicar la entrega desde main
         type: boolean
         default: false
-      limpiar_ramas:
-        description: Completar la limpieza de ramas de la fase 5 después de verificar la entrega 1.0.0
+      firmar_android:
+        description: Adjuntar también el APK con la clave de distribución
         type: boolean
         default: false
 permissions:
@@ -182,7 +182,7 @@ jobs:
           path: build/android/Synapsis-Android-debug.apk
           if-no-files-found: error
   android-firmado:
-    if: needs.plan.outputs.publicar == 'true'
+    if: needs.plan.outputs.publicar == 'true' && github.event_name == 'workflow_dispatch' && inputs.firmar_android
     needs: [plan, web]
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -244,16 +244,18 @@ jobs:
           path: build/android/Synapsis-Android.apk
           if-no-files-found: error
   release:
-    if: needs.plan.outputs.publicar == 'true'
-    needs: [plan, web, windows, android-firmado]
+    if: >-
+      !cancelled() && needs.plan.outputs.publicar == 'true' &&
+      needs.windows.result == 'success' && needs.android.result == 'success' &&
+      (needs.android-firmado.result == 'success' || needs.android-firmado.result == 'skipped')
+    needs: [plan, windows, android, android-firmado]
     concurrency:
       group: synapsis-release-${{ needs.plan.outputs.version }}
       cancel-in-progress: false
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 15
     permissions:
       contents: write
-      packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -262,28 +264,30 @@ jobs:
           path: build/windows
       - uses: actions/download-artifact@v4
         with:
+          name: Synapsis-Android-debug
+          path: build/android
+      - uses: actions/download-artifact@v4
+        if: needs.android-firmado.result == 'success'
+        with:
           name: Synapsis-Android-release
           path: build/android
+      - name: Publicar y comprobar las descargas de GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash plataformas/publicar.sh release
+  paquete:
+    needs: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
       - uses: oras-project/setup-oras@v1
         with:
           version: 1.2.3
-      - name: Publicar paquete y los dos instaladores
+      - name: Publicar la copia versionada en GitHub Packages
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash plataformas/publicar.sh
-  ramas-fase-5:
-    if: needs.plan.outputs.version == '1.0.0' && (github.event_name == 'push' || inputs.limpiar_ramas)
-    needs: [plan, release]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 8
-    permissions:
-      contents: write
-      pull-requests: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Revisar PR y ramas, y dejar únicamente main
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bash plataformas/verificar-ramas.sh
+        run: bash plataformas/publicar.sh paquete

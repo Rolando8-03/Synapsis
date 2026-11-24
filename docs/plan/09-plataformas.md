@@ -41,7 +41,7 @@ Las distribuciones de la versión `1.0.0` se generan con Python 3.12, PySide6 6.
 | Pages | En **Settings → Pages → Build and deployment → Source**, la fuente es **GitHub Actions**. El flujo **Publicar Synapsis en GitHub Pages** construye el paquete, publica desde `main` y verifica su revisión, un ejercicio, la gráfica y un clon servido como web estática. [Sitio](https://rolando8-03.github.io/Synapsis/) · [Flujo](https://github.com/Rolando8-03/Synapsis/actions/workflows/pages.yml). |
 | Windows x64 | Con Inno Setup 6 instalado, ejecutá `python -m pip install -r requirements.txt -r plataformas/windows/requirements-build.txt` y `./plataformas/windows/compilar.ps1` en PowerShell. La carpeta `build/windows` recibe el instalador y el ZIP portátil. Si solo necesitás compilar el ejecutable de carpeta, usá `-SoloEjecutable`. |
 | Android | Con JDK 17, SDK 35, Build Tools 35.0.0 y Gradle 8.11.1, generá `build/web` y ejecutá `gradle -p plataformas/android assembleDebug`. El APK sale en `plataformas/android/app/build/outputs/apk/debug/`. El proyecto declara Android 8.0 como mínimo. El equipo debe tener Android System WebView con soporte para Worker y WebAssembly. |
-| Release y ZIP | En **Actions → Distribuciones de Synapsis → Run workflow**, elegí `main` y marcá **Publicar la entrega firmada desde main**. El flujo exige que Pages muestre ese SHA. También se ejecuta al cambiar `plataformas/VERSION` en `main`. El flujo sube solo los dos instaladores a Releases y conserva los ZIP y el paquete web en CI. Publica las sumas SHA-256 en las notas. [Flujo](https://github.com/Rolando8-03/Synapsis/actions/workflows/distribuciones.yml). |
+| Release y ZIP | El flujo publica desde `main` si la versión aún no tiene etiqueta y Pages muestra el mismo SHA. Para ejecutarlo a mano, marcá **Publicar la entrega desde main**. Releases ofrece el instalador de Windows y el APK de prueba de Android. Los ZIP técnicos y la web se conservan en CI. Las notas incluyen las sumas SHA-256. [Flujo](https://github.com/Rolando8-03/Synapsis/actions/workflows/distribuciones.yml). |
 
 ### Firma de Android
 
@@ -49,9 +49,9 @@ Para compilar una release local, configurá `SYNAPSIS_ANDROID_KEYSTORE` con la r
 
 ### GitHub Packages y versión pública
 
-El flujo deposita los instaladores originales en `ghcr.io/rolando8-03/synapsis:1.0.0` con la revisión y el repositorio fuente en el manifiesto OCI. GitHub crea el paquete con visibilidad privada. En la primera publicación, un administrador del paquete debe abrir [GitHub Packages](https://github.com/Rolando8-03/Synapsis/pkgs/container/synapsis) y cambiar **Package settings → Change visibility → Public**. Luego se reintenta la ejecución de la misma versión. El flujo comprueba una descarga anónima y los SHA-256 del paquete antes de abrir la release estable.
+Después de abrir la release, el flujo copia sus binarios de Windows y Android de prueba a `ghcr.io/rolando8-03/synapsis:1.0.0`. Compara los SHA-256 de ambas copias. GitHub crea el paquete con visibilidad privada y permite cambiarla en **Package settings → Change visibility → Public**. Los binarios de Releases se descargan sin iniciar sesión. [GitHub Packages](https://github.com/Rolando8-03/Synapsis/pkgs/container/synapsis).
 
-El flujo prueba la instalación y arranque de Windows Server 2025 y, para la firma de distribución, la instalación y apertura en un emulador Android API 35. Las notas se generan tras ambas comprobaciones. Las pruebas con teléfonos físicos y actualización sobre una versión anterior se registran por separado.
+El flujo comprueba la instalación y el arranque de Windows Server 2025, además de los recursos internos y la firma del APK de prueba. El APK con clave estable se agrega mediante la opción manual **Adjuntar también el APK con la clave de distribución** si los secretos están configurados. Esa opción prueba la instalación y la apertura del APK en un emulador Android API 35.
 
 ### Paridad y caché
 
