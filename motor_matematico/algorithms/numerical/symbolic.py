@@ -28,7 +28,7 @@ def symbolic_expression(tree, ctx, x=None, *, check=None):
         x = sp.Symbol("x", real=True)
     functions = {name: getattr(sp, name) for name in ("sin", "cos", "tan", "asin", "acos", "atan", "exp")}
     functions.update(ln=sp.log, abs=sp.Abs, factorial=sp.factorial)
-    constants = {"x": x, "pi": sp.pi, "e": sp.E}
+    constants = {"x": x, "pi": sp.pi, "e": sp.E, "Ans": sp.S.Zero}
 
     def convert(node):
         ctx.tick()

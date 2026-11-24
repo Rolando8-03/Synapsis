@@ -6,6 +6,7 @@ from motor_matematico.algorithms.linear.context import Context, matrix, tex, vec
 from motor_matematico.parsing.numbers import parse_number
 from motor_matematico.algorithms.linear.worked import dot_formula, parenthesize, product_steps, row_replacement
 from motor_matematico.algorithms.calculo import analizar, evaluar
+from integracion import shared_definite
 
 
 def original_rows(ctx, steps):
@@ -224,14 +225,7 @@ def calculus_trace(op, data, out, ctx):
         walk(tree)
         return
     if op=="calculo.definida":
-        from motor_matematico.algorithms.calculo import integrar
-        try:
-            primitive=integrar(analizar(expression,variable=True))
-        except ValueError:
-            ctx.emit("metodo","Evaluar con la aproximación numérica seleccionada.",{"expresion":expression, "valor":out.get("valor")})
-            return
-        ctx.emit("primitiva","Obtener una primitiva en el intervalo.",{"F":primitive})
-        ctx.emit("extremos","Sustituir los dos límites y restar los valores de la primitiva.",data,r"\int_a^b f(x)\,dx=F(b)-F(a)")
+        shared_definite(data,out,ctx)
         return
     tree=analizar(expression,variable=True)
     derivative=op=="calculo.derivar"

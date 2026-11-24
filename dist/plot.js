@@ -4,7 +4,7 @@ const page = document.documentElement;
 const clamp = (value, lower, upper) => Math.min(upper, Math.max(lower, value));
 const tickFormat = new Intl.NumberFormat('es-NI', { maximumSignificantDigits: 3, useGrouping: false });
 
-export function addPlot({ points = [], parametric = false, names = [], diagram, tangents = [], markers = [], iteraciones = [], selection, caption }) {
+export function addPlot({ points = [], parametric = false, names = [], diagram, tangents = [], markers = [], iteraciones = [], selection, caption, overlay }) {
   const numericPoint = point => point.map(value => value === null ? null : Number(value));
   points = points.map(numericPoint);
   const arrows = diagram?.map(([label,start,end]) => [label,numericPoint(start),numericPoint(end)]);
@@ -20,13 +20,14 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
   if (!context) return canvas;
 
   const finite = arrows ? arrows.flatMap(([,start,end]) => [start,end]) : points.flatMap(([x,...ys]) => ys.filter(y => Number.isFinite(x) && Number.isFinite(y)).map(y => [x,y]));
+  if (overlay && !names.length) finite.push([finite[0][0],0]);
   const range = (index, trim) => {
     const values = finite.map(point => point[index]).sort((a, b) => a - b);
     const skip = trim ? Math.floor(values.length * .025) : 0;
     return [values[skip], values[values.length - 1 - skip]].map(value => clamp(value, -1e100, 1e100));
   };
   let [xmin, xmax] = range(0, parametric);
-  let [ymin, ymax] = range(1, true);
+  let [ymin, ymax] = range(1, !overlay);
   const padded = (min, max) => {
     const gap = max > min ? (max - min) * .09 : Math.max(1, Math.abs(max) * .09);
     return [min - gap, max + gap];
@@ -114,6 +115,24 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
         context.fill();
       });
     }
+    if (overlay?.rectangles) {
+      const baseline = yPixel(0);
+      context.fillStyle = colors[1];
+      context.strokeStyle = colors[1];
+      overlay.rectangles.forEach(([left,right,x,y]) => {
+        const top = yPixel(y);
+        const start = xPixel(left);
+        const width = xPixel(right) - start;
+        context.globalAlpha = .24;
+        context.fillRect(start, top, width, baseline - top);
+        context.globalAlpha = .9;
+        context.strokeRect(start, top, width, baseline - top);
+        context.beginPath();
+        context.arc(xPixel(x), top, 3, 0, Math.PI * 2);
+        context.fill();
+      });
+      context.globalAlpha = 1;
+    }
     const series = names.length || 1;
     for (let index = 0; index < series; index++) {
       context.beginPath();
@@ -139,6 +158,12 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
         context.fillStyle = colors[index];
         context.fill();
       }
+    }
+    if (overlay?.section) {
+      const [x, y0, y1] = overlay.section;
+      context.setLineDash([]);
+      context.lineWidth = 5;
+      line(xPixel(x), yPixel(y0), xPixel(x), yPixel(y1), color('--text'));
     }
     if (selectedPoint) {
       const [,x,y] = selectedPoint;
