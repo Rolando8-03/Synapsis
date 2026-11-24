@@ -678,38 +678,6 @@ def average(data, ctx):
             "integral":result["valor"],"exactitud":result["exactitud"],"formula_latex":formula}
 
 
-def substitution(data, ctx):
-    f, allowed, _ = function(data["expresion"],ctx)
-    inner, _, _ = function(data["sustitucion"],ctx)
-    slope=sp.diff(inner,X)
-    if slope == 0:
-        raise ValueError("La sustitución debe variar con x.")
-    u = sp.Symbol("u",real=True)
-    adjusted = sp.cancel(f/slope)
-    # Reduce módulo u-g(x) para verificar si todo el integrando ajustado depende solo de u.
-    quotient = adjusted
-    if adjusted.is_polynomial(X) and inner.is_polynomial(X):
-        quotient = sp.rem(adjusted, sp.expand(inner)-u, X)
-    if quotient.has(X) or not quotient.is_polynomial(u):
-        raise DomainError("Elegí una sustitución que deje un polinomio en u después de dividir por du/dx.")
-    primitive = sp.integrate(quotient,u).subs(u,inner)
-    if sp.simplify(sp.diff(primitive,X)-f) != 0:
-        raise DomainError("No se pudo comprobar la sustitución para esta entrada.")
-    emit(ctx, "Elegir u, calcular du y ajustar el integrando.", rf"u={sp.latex(inner)},\quad du={sp.latex(slope)}\,dx",
-         ajuste=str(quotient),dominio=str(allowed))
-    emit(ctx, "Integrar en u, regresar a x y comprobar por derivación.", sp.latex(primitive)+r"+C")
-    result = {"primitiva":str(primitive)+" + C","dominio":str(allowed),"formula_latex":sp.latex(primitive)+r"+C"}
-    if "inferior" in data or "superior" in data:
-        if not data.get("inferior") or not data.get("superior"):
-            raise ValueError("Ingresá ambos extremos para evaluar la integral definida.")
-        a,b,region = interval(data)
-        require_interval(allowed,region)
-        value=sp.simplify(primitive.subs(X,b)-primitive.subs(X,a))
-        emit(ctx, "Evaluar los extremos después de regresar a x.", sp.latex(value))
-        result["valor"]=str(value)
-    return result
-
-
 def area(data, ctx):
     a,b,region=interval(data)
     f=polynomial(data["expresion"],(X,))

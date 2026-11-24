@@ -2,6 +2,7 @@
 from functools import partial
 
 import calculo_i as calculus
+from integracion import substitution
 
 def catalog_entries(field, spec):
     def expr(default, label="Función f(x)", **options):
@@ -96,7 +97,7 @@ def catalog_entries(field, spec):
                    choice_labels={"plantear":"Verificar hipótesis","resolver":"Hallar puntos"})],partial(calculus.theorem,method=key))
     add(integrals,"sustitucion","Integral por sustitución","Ajustá el diferencial y verificá por derivación.",
         [expr("2*x*(x^2+1)^3"),secondary("sustitucion","Sustitución u(x)","x^2+1",True),
-         *bounds("0","1",False)],calculus.substitution)
+         *bounds("0","1",False)],substitution)
     add(integrals,"area","Área geométrica entre curvas","Planteá el área separando los tramos donde cambia la función superior.",
         [expr("x"),secondary("segunda","Segunda función · opcional","x^2"),*bounds("0","1"),mode("plantear")],calculus.area)
     add(integrals,"promedio","Valor promedio en un intervalo","Dividí la integral definida por la longitud del intervalo.",

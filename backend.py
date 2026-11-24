@@ -31,6 +31,7 @@ from formato_latex import lista_soluciones_latex, operacion_latex
 from temario import SESSIONS, CALCULUS_COURSES
 import operadores_calculo
 from catalogo_calculo_i import catalog_entries
+from integracion import shared_primitive
 from procedimientos import (calculus_trace, compare_bisection, compare_iterations, error_trace, legacy_trace,
                             original_extra, original_rows, root_visual)
 
@@ -390,9 +391,13 @@ def calculate(operation, data, steps=True):
                 comparison=None
             if comparison:
                 response["verification"]["contraste_independiente"]=serializar(comparison)
+        if operation == "calculo.primitiva" and response.get("result"):
+            context = Context(collect_steps=steps)
+            shared_primitive(data, response["result"], context)
+            response["steps"].extend(step.to_dict() for step in context.steps)
         if response.get("result") and steps:
             context = Context()
-            if operation in {"calculadora.evaluar","calculo.derivar","calculo.definida","calculo.primitiva"}:
+            if operation in {"calculadora.evaluar","calculo.derivar","calculo.definida"}:
                 calculus_trace(operation,data,response["result"],context)
             elif operation == "matrices.propiedades":
                 legacy_trace(operation,response["result"],context)
