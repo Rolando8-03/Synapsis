@@ -1,3 +1,4 @@
+import { loadingProgress } from './loading-progress.js';
 import { motor } from './transport.js';
 import { gridField, node } from './matrix-input.js';
 import { renderResult } from './workspace-results.js';
@@ -81,6 +82,14 @@ export function bindWorkspace(setOpen) {
   const fields = get('ws-fields');
   const header = get('ws-title');
   const status = get('ws-message');
+  const progress = loadingProgress(get('ws-loading'));
+  let startup = null;
+  const motorProgress = update => {
+    startup = update;
+    if (workspace.hidden) return;
+    if (update) status.textContent = '';
+    progress(update);
+  };
   const results = get('ws-results');
   window.addEventListener('synapsis:pause', () => {
     results.querySelector('#ws-result-content')?.firstElementChild?.pausePlayback?.();
@@ -104,6 +113,7 @@ export function bindWorkspace(setOpen) {
   let generation = 0;
   let request;
   let automatic;
+  let camera;
   let view = 'form';
   const drafts = new Map();
   const responses = new Map();
@@ -112,7 +122,7 @@ export function bindWorkspace(setOpen) {
 
   function getCatalog() {
     if (!catalogPromise) catalogPromise = motor.catalog({
-      onProgress(message) { if (!workspace.hidden) status.textContent = message; },
+      onProgress: motorProgress,
     }).catch(error => {
       catalogPromise = null;
       throw error;
@@ -162,6 +172,7 @@ export function bindWorkspace(setOpen) {
   }
 
   function displayResult(response, draft, original, updateResult = false) {
+    if (!updateResult) camera = {zoom:1,x:0,y:0};
     renderResult(results, response, draft.options, original, edit, async values => {
       try {
         for (const [key, value] of Object.entries(values)) {
@@ -172,7 +183,7 @@ export function bindWorkspace(setOpen) {
         return error.message;
       }
       return calculate(true, true);
-    });
+    },camera);
     if (['factorizacion.lu', 'factorizacion.plu'].includes(state.op) && response.verification?.passed) {
       const {L, U, P} = response.result;
       const method = state.op.split('.')[1];
@@ -441,7 +452,7 @@ export function bindWorkspace(setOpen) {
       const response = await motor.calculate({
         operation, input, steps:input.objetivo === 'escalonada' || draft.options.steps,
       }, {signal:controller.signal,
-        onProgress(message) { if (!controller.signal.aborted) status.textContent = message; },
+        onProgress(update) { if (!controller.signal.aborted) motorProgress(update); },
       });
       if (controller.signal.aborted || state?.op !== operation) return;
       status.textContent = '';
@@ -458,7 +469,10 @@ export function bindWorkspace(setOpen) {
       if (updateResult) return message;
       setError(message);
     } finally {
-      if (request === controller) button.disabled = false;
+      if (request === controller) {
+        progress(null);
+        button.disabled = false;
+      }
     }
   }
 
@@ -538,6 +552,7 @@ export function bindWorkspace(setOpen) {
     clearTimeout(automatic);
     request?.abort();
     if (!cards.has(module)) {
+      progress(null);
       const wasOpen = !workspace.hidden;
       remember();
       state = null;
@@ -564,7 +579,8 @@ export function bindWorkspace(setOpen) {
     setOpen(true);
     get('ws-history-link').disabled = true;
     get('ws-course-link').disabled = true;
-    status.textContent = 'Cargando herramientas…';
+    status.textContent = startup ? '' : 'Cargando herramientas…';
+    progress(startup);
     try {
       catalog = await getCatalog();
     } catch (error) {

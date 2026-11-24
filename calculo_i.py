@@ -343,6 +343,43 @@ def by_definition(data, ctx):
     return {"derivada": str(value), "formula_latex": formula}
 
 
+
+def tangent_model(f, slope, allowed, regular):
+    """Muestras y tangentes exactas en los subintervalos visibles del dominio."""
+    visible = allowed & sp.Interval(-4, 4)
+    intervals = visible.args if isinstance(visible, sp.Union) else (visible,)
+    if len(intervals) > 8 or not all(isinstance(part, sp.Interval) for part in intervals):
+        return None
+    curve, frames = [], []
+    for span in intervals:
+        left, right = span.start, span.end
+        if curve:
+            curve.append([float(left), None])
+        for i in range(65):
+            x = sp.simplify(left + (right-left)*i/64)
+            if span.contains(x) != sp.S.true:
+                curve.append([float(x), None])
+                continue
+            y = f.subs(X, x)
+            y_number = float(y)
+            if not isfinite(y_number) or abs(y_number) > 1e90:
+                curve.append([float(x), None])
+                continue
+            curve.append([float(x), y_number])
+            if regular.contains(x) != sp.S.true:
+                continue
+            m = slope.subs(X, x)
+            m_number = float(m)
+            if isfinite(m_number) and abs(m_number) <= 1e90:
+                frames.append({"x":str(x), "y":str(y), "m":str(m),
+                               "tangente":[float(x),y_number,m_number],
+                               "formula_latex":r"y=" + sp.latex(sp.expand(y+m*(X-x)))})
+    if frames:
+        initial = min(range(len(frames)), key=lambda i: abs(frames[i]["tangente"][0]))
+        return {"tipo":"tangente", "curva":curve, "cuadros":frames, "inicial":initial, "etiquetas":["f(x)"]}
+    return None
+
+
 def derivative_rule(data, ctx, rule):
     f, allowed, _ = function(data["expresion"], ctx)
     tree = analizar(data["expresion"], variable=True)
@@ -400,7 +437,18 @@ def derivative_rule(data, ctx, rule):
     result = sp.simplify(sp.diff(f, X))
     formula = "f'(x)=" + sp.latex(result)
     emit(ctx, "Simplificar el resultado de la regla.", formula)
-    return {"derivada": str(result), "dominio_funcion": str(allowed), "formula_latex": formula}
+    emit(ctx, "Conservar el dominio de la función de entrada al interpretar la expresión simplificada.",
+         r"D_f=" + sp.latex(allowed), dominio_funcion=str(allowed))
+    output = {"derivada": str(result), "dominio_funcion": str(allowed), "formula_latex": formula}
+    if rule == "cadena":
+        try:
+            _, regular = derivative_domain(f, allowed)
+            visual = tangent_model(f, result, allowed, regular)
+        except (DomainError, ArithmeticError, ValueError, TypeError, NotImplementedError):
+            visual = None
+        if visual:
+            output["visual_integral"] = visual
+    return output
 
 
 def implicit(data, ctx):

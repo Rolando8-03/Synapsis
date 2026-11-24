@@ -122,6 +122,24 @@ def partition(a, b, *expressions):
     return list(zip(cuts,cuts[1:]))
 
 
+
+def area_model(f, g, spans, terms):
+    """Conserva cada tramo exacto y su contorno para explorar el planteamiento."""
+    if len(spans) > 12:
+        return None
+    curve, frames = [], []
+    for (left,right), term in zip(spans,terms):
+        points = []
+        for i in range(33):
+            x = left + (right-left)*sp.Rational(i,32)
+            points.append([plot_number(value) for value in (x,f.subs(X,x),g.subs(X,x))])
+        curve.extend(points)
+        upper = 'f(x)' if f.subs(X,midpoint(left,right)) >= g.subs(X,midpoint(left,right)) else 'g(x)'
+        frames.append({'izquierda':str(left), 'derecha':str(right), 'superior':upper,
+                       'formula_latex':term, 'banda':points})
+    return {'tipo':'area', 'curva':curve, 'cuadros':frames, 'inicial':0, 'etiquetas':['f(x)','g(x)']}
+
+
 def area(data, ctx):
     second = str(data.get('segunda') or '').strip()
     g = polynomial(second,(X,)) if second else sp.S.Zero
@@ -172,6 +190,12 @@ def area(data, ctx):
             total += exact_integral(height,l,r)
     formula = 'A=' + '+'.join(terms)
     result = {'formula_latex':formula, 'cruces':crossings, 'curvas_coincidentes':difference==0}
+    try:
+        visual = area_model(f,g,spans,terms)
+    except (DomainError, ArithmeticError, ValueError, TypeError):
+        visual = None
+    if visual:
+        result['visual_integral'] = visual
     if evaluate:
         result['area'] = str(sp.simplify(total))
         if not second:
@@ -229,6 +253,7 @@ def volume(data, ctx, *, washers=False):
                      [plot_number(value) for value in (x,y,axis)])
         frames.append({'x':str(x), 'exterior':str(outer),'interior':str(inner),
                        'area':str(sp.pi*(outer**2-inner**2)),
+                       'formula_latex':rf'A={latex(sp.pi*(outer**2-inner**2))}',
                        'radios':[plot_number(outer),plot_number(inner)],
                        'segmento':[plot_number(value) for value in (x,y,z)]})
     result['visual_integral'] = {'tipo':'seccion', 'curva':curve, 'cuadros':frames, 'inicial':32,

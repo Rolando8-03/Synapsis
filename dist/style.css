@@ -478,3 +478,17 @@ label, legend { font-weight: 650; }
 
 /* Grade the same landscape without changing its framing or layers. */
 .land img, .live-scene { filter: url(#scene-navy); }
+
+/* El mismo ámbar sobre las superficies oscuras y claras. */
+:root { --highlight: #ffc276; }
+:root.serious[data-serious-theme="light"] { --highlight: #884400; }
+.loading-progress { margin: 0 0 .8rem; color: var(--text); }
+.loading-stage { font-weight: 650; }
+.loading-progress progress {
+  appearance: none; display: block; width: 100%; height: .52rem; margin-block: .35rem;
+  border: 0; border-radius: 1rem; overflow: hidden; background: var(--line);
+}
+.loading-progress progress::-webkit-progress-bar { background: var(--line); }
+.loading-progress progress::-webkit-progress-value { background: var(--highlight); }
+.loading-progress progress::-moz-progress-bar { background: var(--highlight); }
+.loading-timing { font-size: .86rem; color: var(--muted); font-variant-numeric: tabular-nums; }

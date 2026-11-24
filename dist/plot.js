@@ -135,6 +135,18 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
       });
       context.globalAlpha = 1;
     }
+    if (overlay?.region?.length) {
+      const band = overlay.region;
+      context.beginPath();
+      context.moveTo(xPixel(band[0][0]),yPixel(band[0][1]));
+      for (const [x,y] of band) context.lineTo(xPixel(x),yPixel(y));
+      for (let i=band.length-1; i>=0; i--) context.lineTo(xPixel(band[i][0]),yPixel(band[i][2]));
+      context.closePath();
+      context.fillStyle = color('--highlight');
+      context.globalAlpha = .35;
+      context.fill();
+      context.globalAlpha = 1;
+    }
     const series = names.length || 1;
     for (let index = 0; index < series; index++) {
       context.beginPath();
@@ -160,6 +172,16 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
         context.fillStyle = colors[index];
         context.fill();
       }
+    }
+    if (overlay?.tangent) {
+      const [x,y,m] = overlay.tangent;
+      context.setLineDash([]);
+      context.lineWidth = 2.5;
+      line(xPixel(xmin),yPixel(y+m*(xmin-x)),xPixel(xmax),yPixel(y+m*(xmax-x)),color('--highlight'));
+      context.beginPath();
+      context.arc(xPixel(x),yPixel(y),6,0,Math.PI*2);
+      context.fillStyle = color('--highlight');
+      context.fill();
     }
     if (overlay?.section) {
       const [x, y0, y1] = overlay.section;

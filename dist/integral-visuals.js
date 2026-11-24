@@ -1,5 +1,6 @@
 import { node } from './matrix-input.js';
 import { addPlot } from './plot.js';
+import { math } from './math-format.js';
 
 function framePicker(id, title, description, model) {
   const view = node('div', 'ws-result-stack');
@@ -45,7 +46,8 @@ export function sectionPlot(model) {
   inset.width = 240;
   inset.height = 200;
   inset.setAttribute('role', 'img');
-  view.append(inset);
+  const formula = node('div','ws-frame-formula');
+  view.append(inset,formula);
   const context = inset.getContext('2d');
   const largest = Math.max(...model.cuadros.map(frame => Number(frame.radios[0]))) || 1;
   const piText = text => text.replaceAll('pi','π').replaceAll('*','·');
@@ -67,12 +69,39 @@ export function sectionPlot(model) {
     const frame = model.cuadros[Number(input.value)];
     summary.textContent = `x = ${frame.x} · R = ${frame.exterior} · r = ${frame.interior} · A = ${piText(frame.area)}`;
     input.setAttribute('aria-valuetext', `x = ${frame.x}`);
+    formula.replaceChildren(math(frame.formula_latex,frame.area,true));
     inset.setAttribute('aria-label', `Sección circular. Radio exterior ${frame.exterior}, radio interior ${frame.interior}.`);
     overlay.section = frame.segmento;
     canvas.redrawPlot?.();
     inset.redrawPlot();
   };
   input.addEventListener('input', update);
+  update();
+  return view;
+}
+
+export function curveFrames(model) {
+  const tangent = model.tipo === 'tangente';
+  const {view,input,summary,overlay,canvas} = framePicker(
+    tangent ? 'ws-tangent-x' : 'ws-area-piece',
+    tangent ? 'Punto de tangencia' : 'Tramo entre curvas',
+    tangent ? 'Función y recta tangente' : 'Región entre las dos curvas',
+    model,
+  );
+  const formula = node('div','ws-frame-formula');
+  view.append(formula);
+  function update() {
+    const frame = model.cuadros[Number(input.value)];
+    const description = tangent ? `x = ${frame.x} · f(x) = ${frame.y} · Pendiente = ${frame.m}`
+      : `[${frame.izquierda}, ${frame.derecha}] · Curva superior ${frame.superior}`;
+    summary.textContent = description;
+    input.setAttribute('aria-valuetext',description);
+    formula.replaceChildren(math(frame.formula_latex,frame.formula_latex,true));
+    overlay.tangent = frame.tangente?.map(Number);
+    overlay.region = frame.banda;
+    canvas.redrawPlot?.();
+  }
+  input.addEventListener('input',update);
   update();
   return view;
 }

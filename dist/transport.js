@@ -10,7 +10,7 @@ class WebMotor {
   active = null;
   serial = 0;
   timer = null;
-  progress = 'Preparando Python…';
+  progress = null;
 
   ask(action, body, {signal, onProgress} = {}) {
     if (signal?.aborted) return Promise.reject(aborted());
@@ -19,26 +19,30 @@ class WebMotor {
       item.abort = () => this.cancel(item);
       signal?.addEventListener('abort',item.abort,{once:true});
       this.queue.push(item);
-      if (!this.ready) onProgress?.(this.progress);
       if (!this.worker) this.start();
+      else if (!this.ready) onProgress?.(this.progress);
       this.dispatch();
     });
   }
 
   start() {
     try {
+      const startedAt = performance.now();
       const worker = this.worker = new Worker(new URL('./runtime/motor-worker.js',entry));
+      this.report({stage:0, startedAt, stageAt:startedAt});
       this.deadline(120000,'Python tardó demasiado en iniciar. Volvé a intentar.');
       worker.onmessage = ({data}) => {
         if (this.worker !== worker) return;
         switch (data.type) {
           case 'progress':
-            this.progress = data.message;
-            for (const item of this.queue) item.onProgress?.(data.message);
+            if (data.stage > this.progress.stage) {
+              this.report({stage:data.stage, startedAt, stageAt:performance.now()});
+            }
             break;
           case 'ready':
             clearTimeout(this.timer);
             this.ready = true;
+            this.report(null);
             this.dispatch();
             break;
           case 'boot-error':
@@ -58,6 +62,11 @@ class WebMotor {
     }
   }
 
+  report(progress) {
+    this.progress = progress;
+    for (const item of this.queue) item.onProgress?.(progress);
+  }
+
   dispatch() {
     if (!this.ready || this.active || !this.queue.length) return;
     const item = this.active = this.queue.shift();
@@ -71,6 +80,7 @@ class WebMotor {
   }
 
   settle(item, result, error) {
+    if (error) item.onProgress?.(null);
     item.signal?.removeEventListener('abort',item.abort);
     if (error) item.reject(error);
     else item.resolve(result);
@@ -90,7 +100,7 @@ class WebMotor {
     this.worker = null;
     this.ready = false;
     this.active = null;
-    this.progress = 'Preparando Python…';
+    this.progress = null;
   }
 
   cancel(item) {

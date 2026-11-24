@@ -22,6 +22,7 @@ def main():
     parser.add_argument("--ancho", type=int, default=1366)
     parser.add_argument("--dist", type=Path, default=ROOT / "dist", help="Activos de la revisión que se compara.")
     parser.add_argument("--medir", action="store_true", help="Ejecutar solo el escenario cronometrado.")
+    parser.add_argument("--calidad", action="store_true", help="Probar Q04–Q07 y medir el arrastre.")
     options = parser.parse_args()
     app = QApplication([])
     metrics = []
@@ -34,7 +35,7 @@ def main():
         view.setPage(page)
         view.resize(options.ancho, 900)
         view.show()
-        data = {"cases": [asdict(case) for case in CASES], "algebra": len(ALGEBRA), "measure": options.medir}
+        data = {"cases": [asdict(case) for case in CASES], "algebra": len(ALGEBRA), "measure": options.medir, "quality": options.calidad}
         script = "globalThis.delivery = " + json.dumps(data) + ";\n" + Path(__file__).with_suffix(".js").read_text(encoding="utf-8")
         view.loadFinished.connect(lambda ok: page.runJavaScript(script) if ok else app.exit(2))
 
