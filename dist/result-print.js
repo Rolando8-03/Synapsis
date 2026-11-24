@@ -39,7 +39,9 @@ export async function printReport(title, content) {
     report.remove();
     document.title = oldTitle;
   };
-  window.addEventListener('afterprint', cleanup, {once:true});
+  // Qt emite afterprint antes de que su adaptador guarde la página.
+  const finished = window.SynapsisDesktop ? 'synapsis:print-finished' : 'afterprint';
+  window.addEventListener(finished, cleanup, {once:true});
   document.title = 'Synapsis · ' + title;
   window.print();
 }

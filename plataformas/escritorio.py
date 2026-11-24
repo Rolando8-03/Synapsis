@@ -93,7 +93,7 @@ def desktop(url):
         from PySide6.QtGui import QIcon
         from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox
         from PySide6.QtWebEngineWidgets import QWebEngineView
-        from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
+        from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineScript, QWebEngineSettings
     except ImportError as error:
         raise RuntimeError("Falta PySide6. Instalá las dependencias de requirements.txt.") from error
 
@@ -112,6 +112,11 @@ def desktop(url):
     profile = QWebEngineProfile("Synapsis", window)
     page = LocalPage(profile, view)
     page.settings().setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanAccessClipboard, True)
+    print_context = QWebEngineScript()
+    print_context.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+    print_context.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+    print_context.setSourceCode("window.SynapsisDesktop = true;")
+    page.scripts().insert(print_context)
     view.setPage(page)
     window.setCentralWidget(view)
     def save_report_pdf():
@@ -120,10 +125,10 @@ def desktop(url):
         if path:
             view.printToPdf(path if path.lower().endswith(".pdf") else path + ".pdf")
         else:
-            page.runJavaScript("dispatchEvent(new Event('afterprint'))")
+            page.runJavaScript("dispatchEvent(new Event('synapsis:print-finished'))")
 
     def report_finished(path, success):
-        page.runJavaScript("dispatchEvent(new Event('afterprint'))")
+        page.runJavaScript("dispatchEvent(new Event('synapsis:print-finished'))")
         if not success:
             QMessageBox.warning(window, "Synapsis", f"No se pudo guardar el informe en {path}.")
 
