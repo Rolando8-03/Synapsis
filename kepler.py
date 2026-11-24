@@ -1,5 +1,6 @@
-"""Coordinate samples and readouts for the three interactive Kepler experiments."""
-from functools import lru_cache
+"""Modelo físico y muestras de los experimentos de Kepler de Synapsis."""
+from dataclasses import dataclass
+from functools import cached_property, lru_cache
 from math import cos, isfinite, pi, sin, sqrt, tau
 
 CENTER_X, CENTER_Y = 300, 174
@@ -7,6 +8,36 @@ MAJOR, REFERENCE = 154, 48
 WINDOW = tau * .08
 MAX_TIME = 12
 SAMPLES = 1200
+
+@dataclass(frozen=True)
+class Orbit:
+    """Órbita ligada alrededor de un cuerpo dominante, en UA y años."""
+
+    a: float
+    e: float
+    mu: float
+    units: str = 'UA, año'
+
+    def __post_init__(self):
+        if self.units != 'UA, año':
+            raise ValueError('Usá a en UA, t en años y μ en UA³/año².')
+        if not isfinite(self.a) or self.a <= 0:
+            raise ValueError('El semieje mayor debe ser positivo y finito.')
+        if not isfinite(self.e) or not 0 <= self.e < 1:
+            raise ValueError('La excentricidad debe ser mayor o igual a cero y menor que uno.')
+        if not isfinite(self.mu) or self.mu <= 0:
+            raise ValueError('El parámetro gravitacional debe ser positivo y finito.')
+        if not isfinite(self.period) or self.period <= 0 or self.b <= 0:
+            raise ValueError('Las dimensiones o el período exceden el rango de cálculo.')
+
+    @cached_property
+    def b(self):
+        return self.a*sqrt((1-self.e)*(1+self.e))
+
+    @cached_property
+    def period(self):
+        return tau*(self.a*sqrt(self.a/self.mu))
+
 
 def eccentric_anomaly(mean, e):
     mean %= tau
