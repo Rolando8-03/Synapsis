@@ -136,7 +136,7 @@
   border: 0; border-bottom: 2px solid transparent; color: var(--ws-muted); cursor: pointer;
 }
 .ws-result-tabs button[aria-selected="true"] { color: var(--ws-accent); border-bottom-color: var(--ws-accent); }
-.ws-result-stack { display: grid; gap: 11px; min-width: 0; }
+.ws-result-stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 11px; min-width: 0; }
 .ws-feature { color: var(--ws-accent); font: 660 1.21rem/1.27 var(--display); }
 .ws-result-table {
   text-align: left; font-size: .89rem; border-collapse: collapse; width: 100%;

@@ -17,6 +17,10 @@ MAX_BODY = 131_072
 LOCAL_PORT = 47836
 
 class Handler(SimpleHTTPRequestHandler):
+    # En Windows, la asociación del registro puede variar para módulos JavaScript.
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".js": "text/javascript",
+                      ".mjs": "text/javascript", ".css": "text/css"}
+
     def address(self):
         return f"127.0.0.1:{self.server.server_port}"
 
