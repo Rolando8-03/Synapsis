@@ -25,9 +25,33 @@ on:
         description: Publicar la entrega firmada desde main
         type: boolean
         default: false
+      limpiar_ramas:
+        description: Completar la limpieza de ramas de la fase 5 después de verificar la entrega 1.0.0
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
+  plan:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      publicar: ${{ steps.version.outputs.publicar }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: version
+        env:
+          MANUAL: ${{ github.event_name == 'workflow_dispatch' && inputs.publicar }}
+        run: |
+          version=$(cat plataformas/VERSION)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$MANUAL" == true ]] || { [[ "$GITHUB_EVENT_NAME" == push ]] && ! git diff --quiet HEAD^ HEAD -- plataformas/VERSION; }; then
+            echo "publicar=true" >> "$GITHUB_OUTPUT"
+          fi
   web:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -154,69 +178,109 @@ jobs:
           name: Synapsis-Android-debug
           path: build/android/Synapsis-Android-debug.apk
           if-no-files-found: error
-      - name: Generar APK release firmado
-        if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
+  android-firmado:
+    if: needs.plan.outputs.publicar == 'true'
+    needs: [plan, web]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - uses: actions/download-artifact@v4
+        with:
+          name: Synapsis-web
+          path: build/web
+      - name: Generar APK release con la firma de distribución
         env:
           SYNAPSIS_ANDROID_KEYSTORE_BASE64: ${{ secrets.SYNAPSIS_ANDROID_KEYSTORE_BASE64 }}
           SYNAPSIS_ANDROID_STORE_PASSWORD: ${{ secrets.SYNAPSIS_ANDROID_STORE_PASSWORD }}
           SYNAPSIS_ANDROID_KEY_ALIAS: ${{ secrets.SYNAPSIS_ANDROID_KEY_ALIAS }}
           SYNAPSIS_ANDROID_KEY_PASSWORD: ${{ secrets.SYNAPSIS_ANDROID_KEY_PASSWORD }}
         run: |
+          missing=0
           for variable in SYNAPSIS_ANDROID_KEYSTORE_BASE64 SYNAPSIS_ANDROID_STORE_PASSWORD SYNAPSIS_ANDROID_KEY_ALIAS SYNAPSIS_ANDROID_KEY_PASSWORD; do
             if [[ -z "${!variable}" ]]; then
-              echo "::error::Configurá el secreto $variable para firmar la entrega Android."
-              exit 1
+              echo "::error::Falta el secreto de Actions $variable para la firma de distribución."
+              missing=1
             fi
           done
+          test "$missing" = 0
+          sdk="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          "$sdk/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$sdk" 'platforms;android-35' 'build-tools;35.0.0'
           umask 077
-          export SYNAPSIS_ANDROID_KEYSTORE="$RUNNER_TEMP/synapsis-release.keystore"
+          export SYNAPSIS_ANDROID_KEYSTORE
+          SYNAPSIS_ANDROID_KEYSTORE=$(mktemp "$RUNNER_TEMP/synapsis-release.XXXXXXXX")
           trap 'rm -f "$SYNAPSIS_ANDROID_KEYSTORE"' EXIT
           printf '%s' "$SYNAPSIS_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$SYNAPSIS_ANDROID_KEYSTORE"
           unset SYNAPSIS_ANDROID_KEYSTORE_BASE64
           gradle -p plataformas/android --no-daemon assembleRelease
+          mkdir -p build/android
           cp plataformas/android/app/build/outputs/apk/release/app-release.apk build/android/Synapsis-Android.apk
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs build/android/Synapsis-Android.apk
+          "$sdk/build-tools/35.0.0/apksigner" verify --verbose --print-certs build/android/Synapsis-Android.apk
+      - name: Habilitar KVM para el emulador
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Instalar y abrir el APK firmado sin conexión
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          script: bash plataformas/android/verificar-apk.sh
       - uses: actions/upload-artifact@v4
-        if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
         with:
           name: Synapsis-Android-release
           path: build/android/Synapsis-Android.apk
           if-no-files-found: error
   release:
-    if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
-    needs: [web, windows, android, fuentes]
+    if: needs.plan.outputs.publicar == 'true'
+    needs: [plan, web, windows, android-firmado]
+    concurrency:
+      group: synapsis-release-${{ needs.plan.outputs.version }}
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
       contents: write
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: Synapsis-Windows-x64
-          path: build/release
+          path: build/windows
       - uses: actions/download-artifact@v4
         with:
           name: Synapsis-Android-release
-          path: build/release
-      - uses: actions/download-artifact@v4
+          path: build/android
+      - uses: oras-project/setup-oras@v1
         with:
-          name: Synapsis-web
-          path: build/web
-      - name: Publicar archivos y sumas SHA-256
+          version: 1.2.3
+      - name: Publicar paquete y los dos instaladores
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          version=$(cat plataformas/VERSION)
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          site='https://rolando8-03.github.io/Synapsis/'
-          published=$(curl --fail --silent --show-error --retry 3 -H 'Cache-Control: no-cache' "${site}version-compilada.json?sha=$GITHUB_SHA" | jq -er .revision)
-          if [[ "$published" != "$GITHUB_SHA" ]]; then
-            echo '::error::Pages debe publicar el mismo commit de main antes de crear esta entrega.'
-            exit 1
-          fi
-          git archive --format=zip --prefix=Synapsis/ -o "build/release/Synapsis-$version.zip" "$GITHUB_SHA"
-          (cd build/web && zip -qr "../release/Synapsis-web-$version.zip" .)
-          (cd build/release && sha256sum ./* > SHA256SUMS)
-          printf 'Commit %s\n\nSitio publicado %s\n\nVerificá las descargas con SHA256SUMS.\n' "$GITHUB_SHA" "$site" > build/release-notas.md
-          gh release create "v$version" --target "$GITHUB_SHA" --title "Synapsis $version" --notes-file build/release-notas.md build/release/*
+        run: bash plataformas/publicar.sh
+  ramas-fase-5:
+    if: needs.plan.outputs.version == '1.0.0' && (github.event_name == 'push' || inputs.limpiar_ramas)
+    needs: [plan, release]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Revisar PR y ramas, y dejar únicamente main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash plataformas/verificar-ramas.sh

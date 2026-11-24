@@ -6,7 +6,7 @@ import sympy as sp
 
 from .algebra import real_display, step
 from .geometria import points_from
-from curso import polynomial
+from motor_matematico.parsing.polynomials import polynomial
 from motor_matematico.algorithms.linear.context import freeze, integer
 from motor_matematico.algorithms.linear.reduction import solve
 from motor_matematico.algorithms.numerical.functions import Function, decimal

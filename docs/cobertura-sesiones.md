@@ -81,4 +81,4 @@ node --test pruebas/test_expression_input.mjs
 python -m plataformas.web --check
 ```
 
-El índice de las sesiones ejecuta sus ejemplos desde [temario.py](../temario.py). La auditoría de rutas y de pasos está en [test_procedimientos.py](../pruebas/test_procedimientos.py). Los valores de Horner, diferencias, dieta y fichas tienen [pruebas independientes](../pruebas/test_fase_procedimientos_pdf.py).
+El índice de las sesiones ejecuta sus ejemplos desde [temario.py](../motor_matematico/application/temario.py). La auditoría de rutas y de pasos está en [test_procedimientos.py](../pruebas/test_procedimientos.py). Los valores de Horner, diferencias, dieta y fichas tienen [pruebas independientes](../pruebas/test_fase_procedimientos_pdf.py).

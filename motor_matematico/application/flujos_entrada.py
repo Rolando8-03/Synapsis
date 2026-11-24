@@ -3,9 +3,9 @@ from fractions import Fraction
 
 import sympy as sp
 
-from calculo_i import X, function
-from curso import classify_ranks, symbols, system_data
-from integracion import elementary
+from motor_matematico.algorithms.calculo_docente.calculo_i import X, function
+from motor_matematico.application.curso import classify_ranks, symbols, system_data
+from motor_matematico.algorithms.calculo_docente.integracion import elementary
 from motor_matematico.algorithms.linear.context import Context, matrix
 from motor_matematico.algorithms.linear.reduction import reduce, solve
 from motor_matematico.domain.models import DomainError, serializar

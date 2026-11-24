@@ -15,8 +15,7 @@ CORE = ("pyodide.js", "pyodide.asm.js", "pyodide.asm.wasm", "pyodide-lock.json",
 
 
 def sources():
-    modules = sorted(path for path in ROOT.glob("*.py") if path.name != "abrir.py")
-    modules += sorted(path for name in SOURCE_PACKAGES for path in (ROOT / name).rglob("*.py"))
+    modules = sorted(path for name in SOURCE_PACKAGES for path in (ROOT / name).rglob("*.py"))
     if any(path.is_symlink() for path in modules):
         raise ValueError("La distribución solo admite fuentes regulares.")
     return modules

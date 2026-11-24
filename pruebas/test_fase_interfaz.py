@@ -1,7 +1,7 @@
 """Regresiones del contrato entre el área de trabajo y el motor."""
 import unittest
 
-from backend import calculate
+from motor_matematico.application.backend import calculate
 
 
 class FaseInterfazTest(unittest.TestCase):

@@ -17,27 +17,27 @@ from motor_matematico.algorithms.numerical.polynomials import difference_report,
 from motor_matematico.algorithms.calculo import analizar
 from motor_matematico.domain.models import DomainError, serializar
 from motor_matematico.algorithms.linear.factorization import factor, reuse_factors
-from curso import (
+from motor_matematico.application.curso import (
     accumulation, accuracy, balance, diet, dominance, economy, entry, from_equations,
     invertible_theorem, machine, matrix_compare, nonnegative, parametric,
     polynomials, precision, propagation, subspace, taylor_exp, transformation, vector_diagram,
 )
 from motor_matematico.parsing.numbers import parse_number
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "motor_grupo4"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "motor_grupo4"))
 from modulos.modulo_sistemas import resolver_desde_interfaz
 from modulos.modulo_matrices import ejecutar_programa5
 from operaciones_matrices import _serializar
 from relaciones_vectoriales import ejecutar_relaciones
 from calculo_basico import ejecutar_calculo
 from formato_latex import lista_soluciones_latex, operacion_latex
-from temario import SESSIONS, CALCULUS_COURSES
-import flujos_entrada as flows
-import operadores_calculo
-from catalogo_calculo_i import catalog_entries
-from catalogo_calculo_ii import catalog_entries as integral_entries
-from integracion import shared_primitive
-from procedimientos import (calculus_trace, compare_bisection, compare_iterations, error_trace, legacy_trace,
+from motor_matematico.application.temario import SESSIONS, CALCULUS_COURSES
+from motor_matematico.application import flujos_entrada as flows
+from motor_matematico.algorithms.calculo_docente import operadores_calculo
+from motor_matematico.application.catalogo_calculo_i import catalog_entries
+from motor_matematico.application.catalogo_calculo_ii import catalog_entries as integral_entries
+from motor_matematico.algorithms.calculo_docente.integracion import shared_primitive
+from motor_matematico.application.procedimientos import (calculus_trace, compare_bisection, compare_iterations, error_trace, legacy_trace,
                             original_extra, original_rows, root_visual)
 
 EXACT = "Exacto · fracciones"

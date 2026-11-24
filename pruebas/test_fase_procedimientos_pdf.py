@@ -1,7 +1,7 @@
 from fractions import Fraction
 import unittest
 
-from backend import calculate, catalog
+from motor_matematico.application.backend import calculate, catalog
 
 
 class ProcedimientosDocentesTest(unittest.TestCase):

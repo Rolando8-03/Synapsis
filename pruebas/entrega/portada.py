@@ -10,7 +10,7 @@ from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngin
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QApplication
 
-from abrir import Handler, ROOT
+from plataformas.escritorio import Handler, ROOT
 
 
 EXERCISE = """

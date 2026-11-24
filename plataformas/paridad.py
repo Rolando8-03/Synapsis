@@ -2,7 +2,7 @@
 import json
 import math
 
-from motor_api import invoke
+from motor_matematico.platforms.api import invoke
 
 CASES = (
     ("catalogo", None),
@@ -11,7 +11,7 @@ CASES = (
     ("calcular", {"operation": "raices.biseccion", "input": {"expresion": "1/x", "inferior": "-1", "superior": "1"}}),
     ("calcular", {"operation": "raices.biseccion", "input": {"expresion": "x^2-2", "inferior": "1", "superior": "2"}}),
     ("kepler", {"ley": 1, "forma": .55}),
-    ("kepler/escena", {"excentricidad": .55, "semieje_b": 2.25}),
+    ("kepler/escena", {"excentricidad": .0167, "semieje_b": 2.25, "excentricidad_b": .30}),
 )
 
 

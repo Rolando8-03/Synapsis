@@ -86,7 +86,7 @@ async function start() {
   progress(3);
   python.runPython(`import sys
 sys.path[:0] = ["/synapsis", "/synapsis-dependencias"]
-from motor_api import invoke_json
+from motor_matematico.platforms.api import invoke_json
 import sympy, mpmath
 assert sympy.__version__ == "1.14.0" and mpmath.__version__ == "1.3.0"
 `);

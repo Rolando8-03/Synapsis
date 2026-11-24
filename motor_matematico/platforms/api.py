@@ -1,8 +1,8 @@
 """Contrato JSON compartido por el servicio local y el trabajador WebAssembly."""
 import json
 
-from backend import calculate, catalog
-from kepler import orbital_frames, scene_frames
+from motor_matematico.application.backend import calculate, catalog
+from motor_matematico.algorithms.kepler import orbital_frames, scene_frames
 from motor_matematico.domain.models import DomainError, InputError, ResourceLimitError
 
 MAX_BODY = 131_072

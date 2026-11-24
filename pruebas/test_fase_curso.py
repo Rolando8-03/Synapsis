@@ -4,7 +4,7 @@ import unittest
 
 import sympy as sp
 
-from backend import calculate, catalog
+from motor_matematico.application.backend import calculate, catalog
 from motor_matematico.domain.models import DomainError
 from test_procedimientos import input_example
 

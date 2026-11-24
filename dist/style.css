@@ -403,97 +403,10 @@ label, legend { font-weight: 650; }
   background: radial-gradient(ellipse at 80% 22%, #1c2e48, transparent 75%), #16202d;
   box-shadow: 0 26px 80px #060c1442;
 }
-.orbit-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
-  margin-bottom: clamp(24px, 3.1vw, 43px);
-  padding: 5px;
-  background: #0f1722;
-  border: 1px solid #9ab6dc2f;
-  border-radius: 12px;
-}
-.orbit-tabs button {
-  min-height: 43px;
-  padding: 8px 11px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--muted);
-  font-size: .94rem;
-  line-height: 1.25;
-  font-weight: 650;
-}
-.orbit-tabs button span { color: #95b0d5; }
-.orbit-tabs button:hover { color: var(--text); background: #1d2a3c; }
-.orbit-tabs button[aria-selected="true"] {
-  background: #233248;
-  border-color: #77acf764;
-  color: #c4dbfc;
-}
-.orbit-tabs button[aria-selected="true"] span { color: var(--accent); }
-.orbit-panel {
-  display: grid;
-  grid-template-columns: minmax(235px, .7fr) minmax(0, 1.3fr);
-  gap: clamp(20px, 4vw, 66px);
-  align-items: center;
-}
-.orbit-actions { display: flex; flex-wrap: wrap; gap: 7px; }
-.orbit-content h2 {
-  font-size: clamp(2.15rem, 4vw, 4.1rem); line-height: .99; letter-spacing: -.065em;
-}
-.orbit-content .kicker { font-size: .73rem; margin-bottom: 13px; letter-spacing: .13em; }
-.orbit-content .kicker span { width: 16px; }
-.orbit-intro { color: var(--muted); margin-top: 15px; line-height: 1.49; max-width: 39ch; }
-.orbit-sliders { display: grid; row-gap: 6px; margin: 23px 0 16px; }
-.orbit-sliders label { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: .91rem; }
-.orbit-sliders label:not(:first-child) { margin-top: 9px; }
-.orbit-sliders output { color: var(--accent); font: 650 .95rem var(--display); font-variant-numeric: tabular-nums; }
-.orbit-sliders input { width: 100%; margin: 0; min-height: 24px; accent-color: var(--accent); cursor: pointer; }
-#orbit-play:disabled { opacity: .58; cursor: default; }
-.orbit-visual {
-  min-width: 0; border: 1px solid #95b5e22f; border-radius: 16px;
-  background: radial-gradient(ellipse at 64% 48%, #1a283b, #0f1824 76%);
-}
-.orbit-visual-head { display: flex; justify-content: space-between; gap: 10px; padding: 14px 16px 0; color: var(--muted); font-size: .82rem; }
-.orbit-visual-head span:first-child { color: #e8f0fa; font-weight: 650; }
-.orbit-chart { display: block; width: 100%; height: auto; }
-.orbit-chart text { fill: #a4c8fa; font: 550 14px var(--body); }
-.orbit-axes { stroke: #7393bf5e; stroke-dasharray: 4 7; fill: none; }
-.orbit-ellipse { stroke: #8eb4e9; stroke-opacity: .73; fill: none; stroke-width: 1.5; }
-.orbit-sector-reference { stroke: #a1c0ec; fill: #7ea9e631; stroke-width: 1.2; }
-.orbit-sector-live { stroke: #7baff7; fill: #76acf736; stroke-width: 1.2; }
-.orbit-vector { stroke: #9bc2f9; stroke-width: 1.3; stroke-dasharray: 3 3; }
-.orbit-vector-secondary { stroke: #adc8ef; }
-.orbit-chart .orbit-secondary-label { fill: #c9dbf4; }
-.orbit-track-a, .orbit-track-b { fill: none; stroke-width: 1.6; }
-.orbit-track-a { stroke: #7baff7; }
-.orbit-track-b { stroke: #8eb4e9; stroke-dasharray: 5 5; }
-.orbit-readouts {
-  border-top: 1px solid #95b5e225; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 0; padding: 11px 13px 13px; gap: 10px; font-size: .83rem; color: var(--muted);
-}
-.orbit-readouts > div { min-width: 0; }
-.orbit-readouts dd { margin: 2px 0 0; color: #a6c9fa; font: 650 1.14rem var(--display); font-variant-numeric: tabular-nums; }
 .result-heading { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 9px; }
 .result-heading .result-title { margin: 0; }
 .result-copy { min-height: 36px; padding: 5px 8px; font-size: .82rem; }
 .result-copy svg { width: 15px; height: 15px; }
-
-@media (max-width: 840px) {
-  .orbit-panel { grid-template-columns: 1fr; }
-  .orbit-content h2 br { display: none; }
-  .orbit-visual-head { flex-wrap: wrap; }
-}
-@media (max-width: 460px) {
-  .orbit-lab { padding: 14px; border-radius: 15px; }
-  .orbit-tabs { gap: 3px; padding: 3px; }
-  .orbit-tabs button { padding: 7px 3px; font-size: .79rem; }
-  .orbit-chart text { font-size: 16px; }
-  .orbit-readouts { gap: 6px; font-size: .74rem; padding-inline: 9px; }
-  .orbit-readouts dd { font-size: .95rem; }
-  .orbit-visual-head { gap: 3px; padding: 11px 11px 0; }
-}
 
 /* Grade the same landscape without changing its framing or layers. */
 .land img, .live-scene { filter: url(#scene-navy); }

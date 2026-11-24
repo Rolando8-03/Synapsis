@@ -1,10 +1,10 @@
 """Modelos de densidad, momentos y trabajo para Cálculo II."""
 import sympy as sp
 
-from aplicaciones_integrales import exact_integral, partition, wants_value
-from calculo_i import X, exact, interval, midpoint
-from curso import polynomial
-from integracion import elementary, integral_tex, latex, step
+from motor_matematico.algorithms.calculo_docente.aplicaciones_integrales import exact_integral, partition, wants_value
+from motor_matematico.algorithms.calculo_docente.calculo_i import X, exact, interval, midpoint
+from motor_matematico.parsing.polynomials import polynomial
+from motor_matematico.algorithms.calculo_docente.integracion import elementary, integral_tex, latex, step
 from motor_matematico.domain.models import DomainError
 
 
