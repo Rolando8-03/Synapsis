@@ -1,7 +1,7 @@
 """Modelo físico y muestras de los experimentos de Kepler de Synapsis."""
 from dataclasses import dataclass
 from functools import cached_property, lru_cache
-from math import cos, isfinite, pi, sin, sqrt, tau
+from math import cos, floor, hypot, isfinite, pi, remainder, sin, sqrt, tau
 
 CENTER_X, CENTER_Y = 300, 174
 MAJOR, REFERENCE = 154, 48
@@ -39,15 +39,72 @@ class Orbit:
         return tau*(self.a*sqrt(self.a/self.mu))
 
 
+
 def eccentric_anomaly(mean, e):
-    mean %= tau
-    angle = mean if e < .76 else pi
-    for _ in range(16):
-        correction = (angle - e*sin(angle) - mean) / (1 - e*cos(angle))
-        angle -= correction
-        if abs(correction) < 1e-12:
+    """Resolver M = E − e sen E en una vuelta mediante Newton acotado."""
+    signed_mean = remainder(mean, tau)
+    if not signed_mean or not e:
+        return signed_mean % tau
+    target = abs(signed_mean)
+    lo, hi = 0.0, pi
+    angle = target if e < .76 else pi
+    for _ in range(80):
+        if angle < .1:
+            z = angle*angle
+            # E − sen E sin cancelación cerca del perihelio.
+            difference = angle*z*(1/6-z*(1/120-z*(1/5040-z/362880)))
+        else:
+            difference = angle-sin(angle)
+        residual = (1-e)*angle + e*difference - target
+        if residual == 0:
             break
-    return angle
+        if residual > 0:
+            hi = angle
+        else:
+            lo = angle
+        slope = 1-e+2*e*sin(angle/2)**2
+        candidate = angle-residual/slope
+        if not lo < candidate < hi:
+            candidate = (lo+hi)/2
+        if candidate == angle or hi-lo <= 4e-15*max(hi,1e-15):
+            angle = candidate
+            break
+        angle = candidate
+    return (angle if signed_mean > 0 else -angle) % tau
+
+
+@dataclass(frozen=True)
+class Position:
+    turns: int
+    mean: float
+    anomaly: float
+    x: float
+    y: float
+    radius: float
+    speed: float
+
+
+def position(orbit, time):
+    """Posición heliocéntrica y rapidez en el tiempo físico, sin escala gráfica."""
+    cycles = time/orbit.period
+    if not isfinite(cycles):
+        raise ValueError('El tiempo debe representar un número finito de vueltas.')
+    turns = floor(cycles)
+    mean = tau*(cycles-turns)
+    E = eccentric_anomaly(mean,orbit.e)
+    deviation = 2*sin(E/2)**2
+    x = orbit.a*((1-orbit.e)-deviation)
+    y = orbit.b*sin(E)
+    radius = hypot(x,y)
+    speed = sqrt(orbit.mu/orbit.a)*sqrt(2/(radius/orbit.a)-1)
+    return Position(turns,mean,E,x,y,radius,speed)
+
+
+def planet_positions(first, second, time):
+    if first.mu != second.mu or first.units != second.units:
+        raise ValueError('Las dos órbitas deben compartir el cuerpo dominante y las unidades.')
+    return position(first,time), position(second,time)
+
 
 def point(angle, major, minor):
     return round(CENTER_X + major*cos(angle), 4), round(CENTER_Y - minor*sin(angle), 4)
