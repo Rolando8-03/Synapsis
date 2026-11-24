@@ -479,16 +479,32 @@ label, legend { font-weight: 650; }
 /* Grade the same landscape without changing its framing or layers. */
 .land img, .live-scene { filter: url(#scene-navy); }
 
-/* El mismo ámbar sobre las superficies oscuras y claras. */
-:root { --highlight: #ffc276; }
-:root.serious[data-serious-theme="light"] { --highlight: #884400; }
-.loading-progress { margin: 0 0 .8rem; color: var(--text); }
-.loading-stage { font-weight: 650; }
+/* Ámbar para el avance y las acciones de la calculadora y el laboratorio. */
+:root { --highlight: #ffb454; --highlight-fill: #ffb454; --highlight-ink: #23170d; }
+:root.serious[data-serious-theme="light"] { --highlight: #8a4300; }
+.loading-progress {
+  color: var(--text); margin: 0 0 1rem; max-width: 40rem; padding: 14px;
+  border: 1px solid color-mix(in srgb,var(--highlight) 42%,var(--line));
+  border-radius: 10px; background: color-mix(in srgb,var(--highlight) 6%,var(--surface));
+}
+.loading-header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.loading-stage { font-size: .92rem; font-weight: 650; }
+.loading-percent { color: var(--highlight); font-weight: 750; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .loading-progress progress {
-  appearance: none; display: block; width: 100%; height: .52rem; margin-block: .35rem;
+  appearance: none; display: block; width: 100%; height: .56rem; margin-block: .5rem;
   border: 0; border-radius: 1rem; overflow: hidden; background: var(--line);
 }
 .loading-progress progress::-webkit-progress-bar { background: var(--line); }
 .loading-progress progress::-webkit-progress-value { background: var(--highlight); }
 .loading-progress progress::-moz-progress-bar { background: var(--highlight); }
-.loading-timing { font-size: .86rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.loading-timing, .loading-remaining { font-size: .82rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.loading-remaining { margin-top: .26rem; }
+:where(#workspace, .kepler-lab) :is(#ws-calculate,#kepler-play).primary {
+  background: var(--highlight-fill); color: var(--highlight-ink); border-color: var(--highlight);
+}
+:where(#workspace, .kepler-lab) :is(#ws-calculate,#kepler-play).primary:hover:not(:disabled) {
+  background: color-mix(in srgb,var(--highlight-fill) 84%,white);
+}
+:where(#workspace, .kepler-lab) :is(#ws-calculate,#kepler-play):focus-visible {
+  outline-color: var(--highlight);
+}

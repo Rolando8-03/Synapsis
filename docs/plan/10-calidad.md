@@ -24,4 +24,12 @@ La animación corresponde a las gráficas del área de trabajo y al laboratorio.
 | Q06 | El reloj común de Kepler incorpora 0,5×, 1× y 2×. Al cambiar velocidad durante la reproducción se conserva el instante actual. También se conserva el control de pausa y paso a paso existente. |
 | Q07 | Se agruparon 120 eventos de puntero en 30 redibujos. En Qt WebEngine 6.10.2, Linux x86-64 y Xeon Platinum 8573C, la latencia visual P95 fue 22,6 ms a 1366 px y 16,7 ms a 390 px. El tiempo P95 por fotograma fue 16,8 y 16,7 ms. Los recorridos verificaron 65 muestras de tangente, 66 puntos de área y 65 secciones de arandela. La segunda resolución se simuló en el mismo equipo. Quedan pendientes las mediciones en dispositivos físicos. |
 
-Para reproducir el recorrido gráfico, ejecutá `python -m pruebas.entrega.interfaz --calidad --ancho 1366` y repetilo con `--ancho 390`. El arranque web se verifica con `python -m plataformas.verificar_web --directorio build/web --prefijo`. La barra muestra los cuatro hitos, el tiempo transcurrido y una estimación, se oculta al resolver el arranque y deja disponible el reintento si falla.
+Para reproducir el recorrido gráfico, ejecutá `python -m pruebas.entrega.interfaz --calidad --ancho 1366` y repetilo con `--ancho 390`. El arranque web se verifica con `python -m plataformas.verificar_web --directorio build/web --prefijo`.
+
+## Cierre del arranque y contraste
+
+La barra permanece desde el primer paso hasta que está disponible el editor, el resultado o el reloj de Kepler. Muestra cinco pasos en un arranque completo, el avance estimado, el paso siguiente, el tiempo transcurrido y el restante cuando puede estimarse. Go Live muestra también el número de recursos pendientes cuando el trabajador conoce el total. Al terminar se oculta. Un fallo deja un mensaje breve y **Reintentar**. La preparación automática de un cálculo termina en silencio.
+
+Se verificó el paquete estático bajo `/Synapsis/`, incluyendo la carga de un editor lento y el reintento tras un fallo del motor. El ámbar se usa en la barra, la acción principal y la selección activa del área de trabajo. La variante oscura del mismo tono conserva el contraste en el modo claro.
+
+Se repitió Q04–Q07 en Qt WebEngine 6.10.2 a 1366 y 390 px. En ambas vistas los 120 eventos produjeron 30 redibujos. El P95 de respuesta fue 23,8 y 16,7 ms respectivamente, con P95 de fotograma de 16,8 ms. El ancho móvil se simuló en el mismo equipo Linux. Las mediciones en dispositivos físicos quedan pendientes.

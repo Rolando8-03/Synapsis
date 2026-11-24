@@ -12,7 +12,7 @@ function sri(hex) {
   return 'sha256-' + btoa(String.fromCharCode(...hex.match(/../g).map(pair => Number.parseInt(pair, 16))));
 }
 
-const progress = stage => postMessage({type:'progress', stage});
+const progress = (stage, completedItems, totalItems) => postMessage({type:'progress', stage, completedItems, totalItems});
 
 async function start() {
   progress(0);
@@ -36,11 +36,16 @@ async function start() {
   FS.mkdirTree(sourceDir);
   FS.mkdirTree(wheelsDir);
 
-  progress(1);
-  for (const wheel of versions.wheels) {
+  progress(1,0,versions.wheels.length);
+  for (const [i,wheel] of versions.wheels.entries()) {
     const url = new URL(wheel.file, local ? here : versions.publicRuntime);
-    const bytes = await (await file(url, {integrity:sri(wheel.sha256)})).arrayBuffer();
-    python.unpackArchive(bytes, 'zip', {extractDir:wheelsDir});
+    const options = {integrity:sri(wheel.sha256)};
+    const response = await file(url,options).catch(error => {
+      if (local) throw error;
+      return file(wheel.url,options);
+    });
+    python.unpackArchive(await response.arrayBuffer(), 'zip', {extractDir:wheelsDir});
+    progress(1,i+1,versions.wheels.length);
   }
 
   progress(2);
@@ -49,14 +54,17 @@ async function start() {
     python.unpackArchive(bytes, 'zip', {extractDir:sourceDir});
   } else {
     const paths = await (await file(new URL('archivos.json', here), {cache:'no-cache'})).json();
+    progress(2,0,paths.length);
     for (let offset=0; offset<paths.length; offset+=12) {
-      await Promise.all(paths.slice(offset,offset+12).map(async path => {
+      const batch = paths.slice(offset,offset+12);
+      await Promise.all(batch.map(async path => {
         if (!/^[a-zA-Z0-9_]+(?:\/[a-zA-Z0-9_]+)*\.py$/.test(path)) throw new Error('Ruta inválida en el manifiesto.');
         const text = await (await file(new URL(path,root))).text();
         const target = sourceDir+'/'+path;
         FS.mkdirTree(target.slice(0,target.lastIndexOf('/')));
         FS.writeFile(target,text);
       }));
+      progress(2,offset+batch.length,paths.length);
     }
   }
   progress(3);

@@ -22,7 +22,14 @@
   if (!loading.querySelector('.loading-timing').textContent.includes('restantes') ||
       /SymPy|mpmath/.test(loading.textContent)) throw Error('La barra no muestra etapas y tiempo en lenguaje claro.');
   const catalog = await pendingCatalog;
+  await until(()=>{
+    if (document.querySelector('#ws-fields math-field') && !document.querySelector('#ws-operation').hidden) return true;
+    if (loading.hidden) throw Error('Desapareció la barra antes de abrir el editor.');
+    return false;
+  },'No se abrió el editor después del arranque');
   await until(()=>loading.hidden, 'La barra quedó visible después del arranque');
+  if (document.querySelector('#ws-message').textContent.trim()) throw Error('Quedó un aviso tras abrir la calculadora.');
+  if (Math.max(...progress) !== 4) throw Error('Falta la etapa final del arranque.');
   const startupMs = Math.round(performance.now()-start);
   const answers = [catalog];
   for (const [action,body] of cases.slice(1)) answers.push(await motor[methods[action]](body));
@@ -45,7 +52,7 @@
   document.querySelector('#ws-calculate').click();
   await until(()=>!document.querySelector('#ws-results').hidden && document.querySelector('#ws-result-content math'),
     'No se mostró el resultado con KaTeX. '+document.querySelector('#ws-message')?.textContent);
-  if (!loading.hidden || /SymPy|mpmath/.test(document.querySelector('#ws-message').textContent)) {
+  if (!loading.hidden || document.querySelector('#ws-message').textContent.trim()) {
     throw Error('Quedó un aviso técnico al volver a usar la calculadora.');
   }
   location.hash='orbita';
@@ -60,7 +67,9 @@
   slider.value='.50';
   slider.dispatchEvent(new Event('input',{bubbles:true}));
   if (chart.querySelector('#kepler-sector-current').getAttribute('d') === before) throw Error('La escena no avanzó.');
-  if (!document.querySelector('#kepler-loading').hidden) throw Error('La barra de Kepler quedó visible.');
+  if (!document.querySelector('#kepler-loading').hidden || document.querySelector('#kepler-status').textContent.trim()) {
+    throw Error('Quedó un aviso después de abrir Kepler.');
+  }
   window.synapsisParity={answers,loadingDismissed:true,startupMs,progress,cancellation:true,keyboardAndKatex:true,keplerTime:slider.value};
   document.title='PARIDAD OK';
 })().catch(error=>{ document.title='PARIDAD ERROR '+error.message; });
