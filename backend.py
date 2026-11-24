@@ -31,6 +31,7 @@ from formato_latex import lista_soluciones_latex, operacion_latex
 from temario import SESSIONS, CALCULUS_COURSES
 import operadores_calculo
 from catalogo_calculo_i import catalog_entries
+from catalogo_calculo_ii import catalog_entries as integral_entries
 from integracion import shared_primitive
 from procedimientos import (calculus_trace, compare_bisection, compare_iterations, error_trace, legacy_trace,
                             original_extra, original_rows, root_visual)
@@ -150,7 +151,9 @@ EXTRA.update({
 })
 
 CALCULUS_I, CALCULUS_HANDLERS, CALCULUS_GROUPS = catalog_entries(field, spec)
+CALCULUS_II, INTEGRAL_HANDLERS, INTEGRAL_GROUPS = integral_entries(field, spec)
 EXTRA.update(CALCULUS_I)
+EXTRA.update(CALCULUS_II)
 
 MODULES = {
     "sistemas": [("Resolución", ["original.sistema", "sistemas.resolver", "sistemas.homogeneo", "sistemas.cramer", "sistemas.parametrico", "sistemas.inversa"]),
@@ -168,6 +171,7 @@ MODULES = {
         ("Derivada e integral básica", ["calculo.derivar", "calculo.derivada_parcial", "calculo.primitiva",
             "original.primitiva", "calculo.definida", "calculo.numerica", "calculo.sumatoria"]),
         *CALCULUS_GROUPS,
+        *INTEGRAL_GROUPS,
     ],
     "raices": [("Métodos de intervalo", ["raices.biseccion", "raices.falsa_posicion"]), ("Métodos abiertos", ["raices.newton", "raices.secante"])],
     "iterativos": [("Métodos de aproximación", ["iterativos.jacobi", "iterativos.gauss_seidel", "iterativos.sor", "iterativos.dominancia","iterativos.comparar"])],
@@ -340,6 +344,7 @@ def vector_pair(data):
 
 COURSE_HANDLERS = {
     **CALCULUS_HANDLERS,
+    **INTEGRAL_HANDLERS,
     "calculo.derivada_parcial": operadores_calculo.partial,
     "calculo.sumatoria": operadores_calculo.summation,
     "matrices.notacion": entry, "matrices.comparar": matrix_compare,
@@ -351,7 +356,7 @@ COURSE_HANDLERS = {
     "errores.maquina": machine, "iterativos.dominancia": dominance, "vectores.paralelogramo": vector_diagram,
     "errores.taylor": taylor_exp, "errores.exactitud": accuracy,
 }
-WITH_CONTEXT = {*CALCULUS_HANDLERS,"calculo.sumatoria", "calculo.limite_lateral", "calculo.derivada_parcial","matrices.notacion", "matrices.comparar", "matrices.teorema_invertible", "espacios.polinomios",
+WITH_CONTEXT = {*CALCULUS_HANDLERS, *INTEGRAL_HANDLERS,"calculo.sumatoria", "calculo.limite_lateral", "calculo.derivada_parcial","matrices.notacion", "matrices.comparar", "matrices.teorema_invertible", "espacios.polinomios",
                 "sistemas.parametrico","transformaciones.formula","espacios.subespacio","modelos.economia",
                 "modelos.balance","modelos.flujos","iterativos.dominancia"}
 
@@ -362,7 +367,7 @@ def calculate(operation, data, steps=True):
     fields = EXTRA[operation]["fields"] if operation in EXTRA else CATALOG[operation].fields
     for f in fields:
         value = data.get(f["name"])
-        if f.get("required") and f["name"] not in data and operation in CALCULUS_HANDLERS:
+        if f.get("required") and f["name"] not in data and operation in CALCULUS_HANDLERS | INTEGRAL_HANDLERS:
             raise ValueError(f'Completá «{f["label"]}».')
         if f["kind"] == "expression" and isinstance(value, str) and len(value) > 500:
             raise ValueError("La expresión admite hasta 500 caracteres.")

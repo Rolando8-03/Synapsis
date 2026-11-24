@@ -105,6 +105,8 @@ SESSIONS = [
       numerical("raices","newton", expresion="(x-1)^3", inicial="1.75", multiplicidad="3")]),
 ]
 
+from catalogo_calculo_ii import course_groups
+
 # Los dos temarios usan las mismas rutas para las integrales que comparten.
 SHARED_INTEGRALS = ["calculo.primitiva", "calculo.definida", "calculo.sustitucion", "calculo.area"]
 CALCULUS_COURSES = [
@@ -122,5 +124,5 @@ CALCULUS_COURSES = [
             "calculo.elasticidad", "calculo.rolle", "calculo.medio", "calculo.intermedio"]),
         ("Integración", [*SHARED_INTEGRALS, "calculo.promedio"]),
     ]),
-    ("Cálculo II", [("Integración", SHARED_INTEGRALS)]),
+    ("Cálculo II", [("Integración", SHARED_INTEGRALS), *course_groups()]),
 ]
