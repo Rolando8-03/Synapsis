@@ -1,5 +1,7 @@
 # Plan de implementación de Synapsis
 
+**Plan vigente para la refactorización:** [cinco fases con pruebas de cierre](refactorizacion.md). Las guías 01–10 conservan el historial de implementación. Para esta refactorización rigen el orden y los cambios de portada autorizados en el plan vigente.
+
 **Integración obligatoria en `main`.** Una fase es una fila identificada en las guías. Ejecutá una sola fila por sesión de trabajo. Cada cierre deja la aplicación utilizable en `main`. Los archivos que agrupan filas son guías de consulta, no lotes de implementación.
 
 ## Punto de partida

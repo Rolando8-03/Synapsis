@@ -1,5 +1,7 @@
 # Synapsis · Observatorio matemático
 
+[Plan de refactorización en cinco fases](docs/plan/refactorizacion.md)
+
 Calculadora para escritorio, navegador y Android para estudiar álgebra lineal y métodos numéricos. Esta edición parte de **Synapsis-Proyecto-Completo** e integra el solucionador de la **Calculadora de Álgebra Lineal del Grupo 4**. Incluye la portada animada, los ocho módulos, el modo serio claro u oscuro y el laboratorio de las tres leyes de Kepler.
 
 ## Cómo abrir Synapsis
