@@ -32,6 +32,7 @@ try {
 $Files = Join-Path $Salida "bin/Synapsis"
 $BundledModules = & $Python -m PyInstaller.utils.cliutils.archive_viewer -r -b (Join-Path $Files 'Synapsis.exe')
 if ($LASTEXITCODE) { throw 'No se pudo inspeccionar el paquete Python.' }
+$BundledModules = $BundledModules | ForEach-Object { $_.Trim() }
 foreach ($Module in @('entrada_datos', 'analisis_sistema', 'operaciones_matrices', 'relaciones_vectoriales', 'calculo_basico', 'formato_latex')) {
     if ($BundledModules -notcontains $Module) { throw "Falta el módulo $Module en el ejecutable." }
 }
