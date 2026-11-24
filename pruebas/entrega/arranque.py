@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 from PySide6.QtCore import QTimer, qVersion
 from PySide6.QtWebEngineCore import QWebEngineUrlRequestInterceptor
-from PySide6 import QtWebEngineWidgets
+from PySide6 import QtWebEngineCore, QtWebEngineWidgets
 from PySide6.QtWidgets import QApplication
 
 import abrir
@@ -48,7 +48,7 @@ EXERCISE = r"""
   if (answer.result?.expresion !== '3*x^2' || !answer.steps?.length) throw Error('Derivada o pasos incorrectos');
   if (!document.querySelector('#ws-result-content math')) throw Error('No cargó KaTeX local');
   document.title='ARRANQUE OK';
-})().catch(error=>document.title='ARRANQUE ERROR '+error.message)
+})().catch(error=>document.title='ARRANQUE ERROR '+error.message+' · '+(document.querySelector('#ws-message')?.textContent || location.hash))
 """
 
 
@@ -63,6 +63,11 @@ def main():
     messages = []
     ports = []
     webview = QtWebEngineWidgets.QWebEngineView
+
+    class Page(QtWebEngineCore.QWebEnginePage):
+        def javaScriptConsoleMessage(self, level, message, line, source):
+            if level == self.JavaScriptConsoleMessageLevel.ErrorMessageLevel:
+                print(f"JavaScript: {message} ({source}:{line})",file=sys.stderr)
 
     class Probe(webview):
         def load(self, url):
@@ -89,7 +94,9 @@ def main():
             messages.append(title)
             QTimer.singleShot(0, window.close)
 
-    with patch.object(QtWebEngineWidgets, "QWebEngineView", Probe), patch.object(sys, "argv", ["abrir.py", "--puerto", "0"]):
+    with (patch.object(QtWebEngineWidgets, "QWebEngineView", Probe),
+          patch.object(QtWebEngineCore, "QWebEnginePage", Page),
+          patch.object(sys, "argv", ["abrir.py", "--puerto", "0"])):
         exit_code = abrir.main()
     if exit_code or messages != ["ARRANQUE OK"]:
         raise SystemExit(str(messages or exit_code))

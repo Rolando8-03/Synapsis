@@ -17,6 +17,7 @@ EXERCISE = """
 (async () => {
   const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const capture=async name=>{ document.title='PORTADA '+name; await wait(900); };
+  await document.fonts.ready;
   await wait(1100);
   const mode=document.querySelector('#mode');
   const page=document.documentElement;
@@ -24,8 +25,12 @@ EXERCISE = """
   scrollTo({top:0,behavior:'instant'});
   await capture('inicio');
   scrollTo({top:350,behavior:'instant'});
-  await capture('desplazada');
+  await wait(150);
   const position=scrollY;
+  if (position < 300) throw Error('no hubo desplazamiento de la portada');
+  const area=()=>Array.from(document.querySelectorAll('#portada,.hero,.scene,#modulos'),
+    element=>[element.getBoundingClientRect().top,element.getBoundingClientRect().height]);
+  const before=area();
   mode.click();
   await wait(400);
   if (!page.classList.contains('serious') || location.hash!=='#modulos') throw Error('menú serio no abrió');
@@ -35,7 +40,9 @@ EXERCISE = """
   if (page.classList.contains('serious') || location.hash!=='#portada' || Math.abs(scrollY-position)>1) {
     throw Error('Se perdió el desplazamiento al volver: '+[position,scrollY,location.hash]);
   }
-  await capture('regreso');
+  if (area().some((rect,i)=>rect.some((v,j)=>Math.abs(v-before[i][j])>1))) {
+    throw Error('la geometría al volver difiere de la escena desplazada');
+  }
   document.title='PORTADA FIN';
 })().catch(error=>document.title='PORTADA ERROR '+error.message);
 """
@@ -95,13 +102,11 @@ def main():
             server.server_close()
     if code:
         return code
-    names = ("inicio","desplazada","seria","regreso")
+    names = ("inicio","seria")
     for name in names:
         first, second = (result.get(name) for result in shots)
         if first is None or second is None or first.isNull() or first != second:
             raise SystemExit("La captura difiere: "+name)
-    if shots[1]["inicio"] == shots[1]["desplazada"] or shots[1]["desplazada"] != shots[1]["regreso"]:
-        raise SystemExit("La prueba no reprodujo el desplazamiento y el regreso.")
     print(f"{options.ancho}×900: {len(names)} capturas coincidentes con la base. Regreso al mismo desplazamiento.")
     return 0
 

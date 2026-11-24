@@ -132,7 +132,10 @@
       if (entry.absent.length) check(reply.result.formula_latex.includes('\\int_{0}^{1}'),'El área queda como integral');
       tab('Procedimiento');
       check($('#ws-result-content ol li') || $('#ws-result-content .ws-step-card'),entry.reference+' · sin pasos visibles');
-      check(document.documentElement.scrollWidth<=innerWidth, entry.reference+' · desbordamiento horizontal');
+      check(document.documentElement.scrollWidth<=innerWidth, entry.reference+' · desbordamiento horizontal '+
+        JSON.stringify(all('#ws-results *').filter(element=>element instanceof HTMLElement &&
+          !element.closest('table,.katex') && element.getBoundingClientRect().right>innerWidth+1)
+          .slice(0,10).map(element=>[element.tagName,element.className,Math.round(element.getBoundingClientRect().right)])));
     }
     for (const entry of cases.slice(0,algebra)) {
       document.documentElement.dataset.deliveryCase=entry.reference+' · fallo';
