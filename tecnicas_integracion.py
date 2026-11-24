@@ -55,8 +55,9 @@ def partial_fractions(data, ctx):
     whole, remainder = p.div(q)
     denominator = q.as_expr()
     _, factors = q.factor_list()
-    if any(factor.degree()!=1 for factor,power in factors):
-        raise DomainError('Este desarrollo admite factores lineales simples y repetidos.')
+    if any(factor.degree()>2 or (factor.degree()==2 and (power!=1 or sp.discriminant(factor)>=0))
+           for factor,power in factors):
+        raise DomainError('Usá factores lineales o cuadráticos irreducibles de multiplicidad uno y discriminante negativo.')
     if whole:
         step(ctx, 'Dividir el numerador por el denominador para separar la parte polinómica.',
              latex(f) + '=' + latex(whole.as_expr()) + '+' + latex(remainder.as_expr()/denominator),
@@ -65,8 +66,11 @@ def partial_fractions(data, ctx):
     step(ctx, 'Factorizar el denominador y conservar las exclusiones de la función original.',
          latex(denominator) + '=' + latex(factored), dominio=str(domain))
     unknowns = iter(sp.symbols(f'A_1:{q.degree()+1}'))
-    template = [(next(unknowns),factor,power) for factor,multiplicity in factors
-                for power in range(1,multiplicity+1)]
+    template = []
+    for factor, multiplicity in factors:
+        for power in range(1,multiplicity+1):
+            n = sum(next(unknowns)*X**k for k in range(factor.degree()-1,-1,-1))
+            template.append((n,factor,power))
     expanded = sum(n*q.exquo(factor**power).as_expr() for n,factor,power in template)
     identity = remainder.as_expr() - expanded
     coefficients = sp.Poly(identity,X).all_coeffs()
@@ -85,6 +89,25 @@ def partial_fractions(data, ctx):
         raise DomainError('La descomposición debe reconstruir exactamente el numerador.')
     step(ctx, 'Reconstruir el numerador antes de integrar.',
          rf'\left({latex(decomposition)}\right)\left({latex(factored)}\right)={latex(reconstructed)}')
-    primitive = elementary(decomposition, ctx=ctx)
+    primitive = elementary(whole.as_expr(),ctx=ctx) if whole else sp.S.Zero
+    for n, factor, power in template:
+        d, numerator = factor.as_expr(), n.subs(solved)
+        if numerator == 0:
+            continue
+        if factor.degree() == 1:
+            primitive += elementary(numerator/d**power,ctx=ctx)
+            continue
+        # d=L((x+h)^2+k^2) y n=A d' + B.
+        leading = factor.LC()
+        h = factor.nth(1)/(2*leading)
+        k = sp.sqrt(factor.nth(0)/leading-h**2)
+        A = sp.Poly(numerator,X).nth(1)/(2*leading)
+        B = sp.expand(numerator-A*sp.diff(d,X))
+        term = A*sp.log(d) + B/(leading*k)*sp.atan((X+h)/k)
+        step(ctx, 'Completar el cuadrado y separar el término de logaritmo del de arcotangente.',
+             rf'{latex(d)}={latex(leading)}\left({latex((X+h)**2)}+{latex(k**2)}\right),\quad {latex(numerator)}={latex(A*sp.diff(d,X))}+{latex(B)}')
+        step(ctx, 'Integrar la fracción con denominador cuadrático positivo.',
+             rf'\int {latex(numerator/d)}\,dx={latex(term)}+C')
+        primitive += term
     return {**primitive_result(original, primitive, domain, ctx), 'descomposicion':str(decomposition),
             'numerador_reconstruido':str(reconstructed)}
