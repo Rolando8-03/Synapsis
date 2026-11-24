@@ -55,8 +55,8 @@ def partial_fractions(data, ctx):
     whole, remainder = p.div(q)
     denominator = q.as_expr()
     _, factors = q.factor_list()
-    if any(factor.degree()!=1 or power!=1 for factor,power in factors):
-        raise DomainError('Este desarrollo admite factores lineales simples.')
+    if any(factor.degree()!=1 for factor,power in factors):
+        raise DomainError('Este desarrollo admite factores lineales simples y repetidos.')
     if whole:
         step(ctx, 'Dividir el numerador por el denominador para separar la parte polinómica.',
              latex(f) + '=' + latex(whole.as_expr()) + '+' + latex(remainder.as_expr()/denominator),
@@ -65,7 +65,8 @@ def partial_fractions(data, ctx):
     step(ctx, 'Factorizar el denominador y conservar las exclusiones de la función original.',
          latex(denominator) + '=' + latex(factored), dominio=str(domain))
     unknowns = iter(sp.symbols(f'A_1:{q.degree()+1}'))
-    template = [(next(unknowns),factor,power) for factor,power in factors]
+    template = [(next(unknowns),factor,power) for factor,multiplicity in factors
+                for power in range(1,multiplicity+1)]
     expanded = sum(n*q.exquo(factor**power).as_expr() for n,factor,power in template)
     identity = remainder.as_expr() - expanded
     coefficients = sp.Poly(identity,X).all_coeffs()
