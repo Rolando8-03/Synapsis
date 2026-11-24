@@ -53,7 +53,19 @@ jobs:
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           }
           ./plataformas/windows/compilar.ps1
+      - name: Abrir Python sin consola desde el destino del acceso directo
+        run: |
+          $Shortcut = ./plataformas/windows/acceso-directo.ps1
+          try {
+            $Link = (New-Object -ComObject WScript.Shell).CreateShortcut($Shortcut)
+            if ((Split-Path $Link.TargetPath -Leaf) -ne 'pythonw.exe') { throw 'El acceso directo no usa pythonw.' }
+            python -m plataformas.windows.verificar $Link.TargetPath --script abrir.py
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } finally { Remove-Item $Shortcut }
+      - name: Instalar, probar y desinstalar Synapsis
+        run: ./plataformas/windows/verificar-instalador.ps1
       - uses: actions/upload-artifact@v4
+        if: '!cancelled()'
         with:
           name: Synapsis-Windows-x64
           path: |
@@ -77,8 +89,13 @@ jobs:
         with:
           name: Synapsis-web
           path: build/web
-      - uses: android-actions/setup-android@v3
-      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Preparar el SDK Android del runner
+        run: |
+          sdk="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          printf 'ANDROID_HOME=%s\n' "$sdk" >> "$GITHUB_ENV"
+          tool="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$tool"
+          "$tool" --sdk_root="$sdk" 'platforms;android-35' 'build-tools;35.0.0'
       - name: Generar APK de depuración y verificar su firma
         run: |
           gradle -p plataformas/android --no-daemon assembleDebug

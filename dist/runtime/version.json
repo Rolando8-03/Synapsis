@@ -1,5 +1,6 @@
 {
   "pyodide": "0.28.3",
+  "publicRuntime": "https://rolando8-03.github.io/Synapsis/dist/runtime/",
   "wheels": [
     {
       "file": "mpmath-1.3.0-py3-none-any.whl",

@@ -21,8 +21,14 @@ async function start() {
   const packed = await fetch(new URL('empaquetado.json', here), {cache:'no-cache'});
   const local = packed.ok && (packed.headers.get('content-type') || '').includes('json')
     && (await packed.json()).local === true;
-  const base = local ? new URL('pyodide/', here).href : `https://cdn.jsdelivr.net/pyodide/v${versions.pyodide}/full/`;
-  importScripts(base + 'pyodide.js');
+  let base = local ? new URL('pyodide/', here).href : `https://cdn.jsdelivr.net/pyodide/v${versions.pyodide}/full/`;
+  try {
+    importScripts(base + 'pyodide.js');
+  } catch (error) {
+    if (local) throw error;
+    base = new URL('pyodide/', versions.publicRuntime).href;
+    importScripts(base + 'pyodide.js');
+  }
   const python = await self.loadPyodide({indexURL:base});
   const sourceDir = '/synapsis';
   const wheelsDir = '/synapsis-dependencias';
@@ -32,7 +38,7 @@ async function start() {
 
   progress('Cargando SymPy y mpmath…');
   for (const wheel of versions.wheels) {
-    const url = local ? new URL(wheel.file, here) : wheel.url;
+    const url = new URL(wheel.file, local ? here : versions.publicRuntime);
     const bytes = await (await file(url, {integrity:sri(wheel.sha256)})).arrayBuffer();
     python.unpackArchive(bytes, 'zip', {extractDir:wheelsDir});
   }

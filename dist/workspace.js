@@ -82,6 +82,9 @@ export function bindWorkspace(setOpen) {
   const header = get('ws-title');
   const status = get('ws-message');
   const results = get('ws-results');
+  window.addEventListener('synapsis:pause', () => {
+    results.querySelector('#ws-result-content')?.firstElementChild?.pausePlayback?.();
+  });
   const operations = get('ws-operation');
   const historyView = get('ws-history');
   const toggle = get('ws-sidebar-toggle');

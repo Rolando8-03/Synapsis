@@ -29,7 +29,8 @@ public final class MainActivity extends Activity {
         web.setBackgroundColor(Color.rgb(13,25,41));
         web.setOnApplyWindowInsetsListener((view,insets) -> {
             if (android.os.Build.VERSION.SDK_INT >= 35) {
-                android.graphics.Insets system = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                android.graphics.Insets system = insets.getInsets(WindowInsets.Type.systemBars()
+                        | WindowInsets.Type.displayCutout() | WindowInsets.Type.ime());
                 view.setPadding(system.left,system.top,system.right,system.bottom);
             }
             return insets;

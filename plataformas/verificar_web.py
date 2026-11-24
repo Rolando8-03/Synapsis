@@ -54,7 +54,7 @@ def verify(url, cdn):
     view.setPage(page)
     hosts = {urlsplit(url).hostname}
     if cdn:
-        hosts.update(('cdn.jsdelivr.net', 'files.pythonhosted.org'))
+        hosts.update(('cdn.jsdelivr.net', 'rolando8-03.github.io'))
     network = Network(hosts, view)
     page.profile().setUrlRequestInterceptor(network)
     view.resize(1120, 850)
