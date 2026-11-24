@@ -20,7 +20,7 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
   if (!context) return canvas;
 
   const finite = arrows ? arrows.flatMap(([,start,end]) => [start,end]) : points.flatMap(([x,...ys]) => ys.filter(y => Number.isFinite(x) && Number.isFinite(y)).map(y => [x,y]));
-  if (overlay) finite.push([finite[0][0],0]);
+  if (overlay && !names.length) finite.push([finite[0][0],0]);
   const range = (index, trim) => {
     const values = finite.map(point => point[index]).sort((a, b) => a - b);
     const skip = trim ? Math.floor(values.length * .025) : 0;
@@ -158,6 +158,12 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
         context.fillStyle = colors[index];
         context.fill();
       }
+    }
+    if (overlay?.section) {
+      const [x, y0, y1] = overlay.section;
+      context.setLineDash([]);
+      context.lineWidth = 5;
+      line(xPixel(x), yPixel(y0), xPixel(x), yPixel(y1), color('--text'));
     }
     if (selectedPoint) {
       const [,x,y] = selectedPoint;

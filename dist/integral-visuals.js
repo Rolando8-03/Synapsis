@@ -16,13 +16,14 @@ function framePicker(id, title, description, model) {
   summary.setAttribute('aria-live', 'polite');
   view.append(label, input, summary);
   const overlay = {};
-  const plot = addPlot({ points: model.curva, overlay, caption: description });
+  const plot = addPlot({ points: model.curva, names: model.etiquetas, overlay, caption: description });
   view.append(plot);
-  return { view, input, summary, overlay, plot };
+  const canvas = plot.matches('canvas') ? plot : plot.querySelector('canvas');
+  return { view, input, summary, overlay, canvas };
 }
 
 export function riemannPlot(model) {
-  const { view, input, summary, overlay, plot } = framePicker('ws-riemann-n', 'Número de rectángulos',
+  const { view, input, summary, overlay, canvas } = framePicker('ws-riemann-n', 'Número de rectángulos',
     'Gráfica de la función y los rectángulos de Riemann', model);
   const update = () => {
     const frame = model.cuadros[Number(input.value)];
@@ -30,7 +31,46 @@ export function riemannPlot(model) {
     summary.textContent = `n = ${frame.n} · Δx = ${frame.ancho} · Primera muestra x₁* = ${frame.primera_muestra} · Sₙ ${relation} ${frame.suma}`;
     input.setAttribute('aria-valuetext', `${frame.n} rectángulos`);
     overlay.rectangles = frame.puntos.map(([x,y], i) => [frame.particion[i],frame.particion[i+1],x,y]);
-    plot.redrawPlot();
+    canvas.redrawPlot?.();
+  };
+  input.addEventListener('input', update);
+  update();
+  return view;
+}
+
+export function sectionPlot(model) {
+  const { view, input, summary, overlay, canvas } = framePicker('ws-volume-x', 'Posición de la sección',
+    'Curvas, eje de giro y sección seleccionada', model);
+  const inset = node('canvas', 'plot ws-cross-section');
+  inset.width = 240;
+  inset.height = 200;
+  inset.setAttribute('role', 'img');
+  view.append(inset);
+  const context = inset.getContext('2d');
+  const largest = Math.max(...model.cuadros.map(frame => Number(frame.radios[0]))) || 1;
+  const piText = text => text.replaceAll('pi','π').replaceAll('*','·');
+  inset.redrawPlot = () => {
+    if (!context) return;
+    const { radios } = model.cuadros[Number(input.value)];
+    const [outer, inner] = radios.map(radius => 82 * (Number(radius) / largest));
+    context.clearRect(0, 0, inset.width, inset.height);
+    context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--plot-series-1').trim();
+    context.beginPath();
+    context.arc(120, 100, outer, 0, Math.PI * 2);
+    if (inner) {
+      context.moveTo(120 + inner, 100);
+      context.arc(120, 100, inner, 0, Math.PI * 2);
+    }
+    context.fill('evenodd');
+  };
+  const update = () => {
+    const frame = model.cuadros[Number(input.value)];
+    summary.textContent = `x = ${frame.x} · R = ${frame.exterior} · r = ${frame.interior} · A = ${piText(frame.area)}`;
+    input.setAttribute('aria-valuetext', `x = ${frame.x}`);
+    inset.setAttribute('aria-label', `Sección circular. Radio exterior ${frame.exterior}, radio interior ${frame.interior}.`);
+    overlay.section = frame.segmento;
+    canvas.redrawPlot?.();
+    inset.redrawPlot();
   };
   input.addEventListener('input', update);
   update();

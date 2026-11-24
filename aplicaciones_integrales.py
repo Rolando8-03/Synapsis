@@ -173,3 +173,59 @@ def area(data, ctx):
             result['integral_con_signo'] = str(exact_integral(difference,a,b))
         step(ctx, 'Evaluar las integrales y sumar sus áreas geométricas.',formula+'='+latex(sp.simplify(total)))
     return result
+
+
+def radial_slice(first, second):
+    far = max(abs(first),abs(second))
+    near = sp.S.Zero if first*second <= 0 else min(abs(first),abs(second))
+    return far, near
+
+
+def volume(data, ctx, *, washers=False):
+    a, b, _ = interval(data)
+    axis = exact(data.get('eje','0'))
+    f = polynomial(data['expresion'],(X,))
+    g = polynomial(data['segunda'],(X,)) if washers else axis
+    d, e = f-axis, g-axis
+    evaluate = wants_value(data)
+    step(ctx, 'Medir los radios como distancias verticales al eje horizontal.',
+         rf'y={latex(axis)},\quad d_f=\left|{latex(d)}\right|,\quad d_g=\left|{latex(e)}\right|')
+    if washers:
+        step(ctx,'Usar la frontera más alejada para R. Si la sección toca o cruza el eje, el hueco es cero.',
+             r'A(x)=\pi(R^2-r^2),\quad R=\max(d_f,d_g),\quad r=0\ \text{si el eje atraviesa la región}')
+    else:
+        step(ctx, 'La región llega hasta el eje. Cada sección transversal es un disco.',r'A(x)=\pi R^2')
+    pieces = []
+    total = sp.S.Zero
+    for l,r in partition(a,b,d,e,d-e,d+e) if washers else [(a,b)]:
+        mid = midpoint(l,r)
+        p, q = d.subs(X,mid), e.subs(X,mid)
+        outer, inner = (d,e) if abs(p)>=abs(q) else (e,d)
+        if p*q <= 0:
+            inner = sp.S.Zero
+        area_at_x = sp.pi*sp.expand(outer**2-inner**2)
+        term = integral_tex(area_at_x,l,r)
+        formula = rf'R=\left|{latex(outer)}\right|,\quad r=\left|{latex(inner)}\right|,\quad {term}'
+        step(ctx, 'Identificar las fronteras de la sección en este tramo.',formula, muestra=str(mid))
+        pieces.append(term)
+        if evaluate:
+            total += exact_integral(area_at_x,l,r)
+    formula = 'V=' + '+'.join(pieces)
+    result = {'formula_latex':formula}
+    if evaluate:
+        result['volumen'] = str(sp.simplify(total))
+        step(ctx, 'Integrar las áreas de las secciones en el intervalo.', formula+'='+latex(sp.simplify(total)))
+    frames, curve = [], []
+    for i in range(65):
+        x = a+(b-a)*i/64
+        y, z = f.subs(X,x), g.subs(X,x)
+        outer, inner = radial_slice(y-axis,z-axis)
+        curve.append([plot_number(value) for value in (x,y,z,axis)] if washers else
+                     [plot_number(value) for value in (x,y,axis)])
+        frames.append({'x':str(x), 'exterior':str(outer),'interior':str(inner),
+                       'area':str(sp.pi*(outer**2-inner**2)),
+                       'radios':[plot_number(outer),plot_number(inner)],
+                       'segmento':[plot_number(value) for value in (x,y,z)]})
+    result['visual_integral'] = {'tipo':'seccion', 'curva':curve, 'cuadros':frames, 'inicial':32,
+                                  'etiquetas':['f(x)','g(x)','Eje de giro'] if washers else ['f(x)','Eje de giro']}
+    return result

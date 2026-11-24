@@ -1,7 +1,7 @@
 import { iterationSelection } from './iteration-selection.js';
 import { node } from './matrix-input.js';
 import { addPlot } from './plot.js';
-import { riemannPlot } from './integral-visuals.js';
+import { riemannPlot, sectionPlot } from './integral-visuals.js';
 import { math, matrixFormula, numericTex, vectorFormula } from './math-format.js';
 
 const LABELS = {
@@ -407,6 +407,7 @@ function genericResult(response) {
   if (diagrama_vectores?.length) main.append(addPlot({diagram:diagrama_vectores}));
   if (formula_latex) main.append(math(formula_latex, formula_latex, true));
   if (visual_integral?.tipo === 'riemann') main.append(riemannPlot(visual_integral));
+  if (visual_integral?.tipo === 'seccion') main.append(sectionPlot(visual_integral));
   if (points?.length) {
     main.append(addPlot({points, parametric}), table(parametric ? ['t', 'x(t)', 'y(t)'] : ['x','f(x)'],
       muestras.map(row => parametric ? row : row.slice(1)), 'Puntos de referencia'));

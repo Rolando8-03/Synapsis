@@ -1,4 +1,6 @@
 """Formularios y rutas de Cálculo II."""
+from functools import partial
+
 import tecnicas_integracion as methods
 import aplicaciones_integrales as uses
 
@@ -70,6 +72,15 @@ def catalog_entries(field, spec):
     add(DEFINITE, 'area_bajo_curva', 'Área bajo una curva',
         'Separá el área geométrica de la integral con signo.',
         [expression('x',label='Función f(x)'),*bounds('-1','1'),mode()], uses.area)
+    add(GEOMETRY, 'discos', 'Volumen por discos',
+        'Girás la región entre una curva polinómica y el eje horizontal y = c.', [
+            expression('x',label='Frontera f(x)'), *bounds(), field('eje','Altura c del eje',default='0'),mode(),
+        ], uses.volume)
+    add(GEOMETRY, 'arandelas', 'Volumen por arandelas',
+        'Girás la región entre dos polinomios alrededor del eje horizontal y = c.', [
+            expression('x+2',label='Frontera f(x)'),expression('x+1','segunda','Frontera g(x)'),
+            *bounds(),field('eje','Altura c del eje',default='0'),mode(),
+        ], partial(uses.volume,washers=True))
     return entries, handlers, list(groups.items())
 
 
