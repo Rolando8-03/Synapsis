@@ -1,6 +1,7 @@
 import { iterationSelection } from './iteration-selection.js';
 import { node } from './matrix-input.js';
 import { addPlot } from './plot.js';
+import { riemannPlot } from './integral-visuals.js';
 import { math, matrixFormula, numericTex, vectorFormula } from './math-format.js';
 
 const LABELS = {
@@ -355,7 +356,7 @@ function genericResult(response) {
   const output = response.result;
   const main = node('div', 'ws-result-stack');
   const panels = [['Resultado', main]];
-  const {points, parametric, muestras, tabla, encabezados, formula_latex, series, diagrama_vectores, grafico_raiz, ...general} = output;
+  const {points, parametric, muestras, tabla, encabezados, formula_latex, series, diagrama_vectores, grafico_raiz, visual_integral, ...general} = output;
   if (response.operation_id === 'sistemas.resolver') {
     general.metodo = output.metodo === 'gauss' ? 'Gauss' : 'Gauss-Jordan';
     main.append(matrixView(output.matrix, `[A | b] después de ${general.metodo}`, true, matrixLabels(output.dimension_dominio)));
@@ -405,6 +406,7 @@ function genericResult(response) {
   if (grafico_raiz?.points?.length) panels.push(['Gráfica', () => addPlot({...grafico_raiz, selection})]);
   if (diagrama_vectores?.length) main.append(addPlot({diagram:diagrama_vectores}));
   if (formula_latex) main.append(math(formula_latex, formula_latex, true));
+  if (visual_integral?.tipo === 'riemann') main.append(riemannPlot(visual_integral));
   if (points?.length) {
     main.append(addPlot({points, parametric}), table(parametric ? ['t', 'x(t)', 'y(t)'] : ['x','f(x)'],
       muestras.map(row => parametric ? row : row.slice(1)), 'Puntos de referencia'));

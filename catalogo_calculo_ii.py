@@ -1,5 +1,6 @@
 """Formularios y rutas de Cálculo II."""
 import tecnicas_integracion as methods
+import aplicaciones_integrales as uses
 
 TECHNIQUES = 'Técnicas de integración'
 DEFINITE = 'Integral definida y áreas'
@@ -18,6 +19,9 @@ def catalog_entries(field, spec):
 
     def expression(demo, name='expresion', label='Integrando'):
         return field(name, label, 'expression', demo, visual=True)
+
+    def bounds(a='0', b='1'):
+        return [field('inferior','Desde',default=a),field('superior','Hasta',default=b)]
 
     add(TECHNIQUES, 'por_partes', 'Integral por partes',
         'Usá un polinomio multiplicado por exp, seno o coseno de argumento afín, o por ln(x).',
@@ -42,6 +46,13 @@ def catalog_entries(field, spec):
             field('rama','Intervalo de x','select','positiva',False,choices=['positiva','negativa'],
                   when={'familia':['exterior']},choice_labels={'positiva':'x ≥ a','negativa':'x ≤ −a'}),
         ], methods.trig_substitution)
+    add(DEFINITE, 'riemann', 'Suma de Riemann',
+        'Compará rectángulos y suma con el punto de muestra que elijas.', [
+            expression('x^2',label='Función f(x)'), *bounds(),
+            field('muestra','Punto de muestra','select','medio',choices=['izquierda','medio','derecha'],
+                  choice_labels={'izquierda':'Izquierdo','medio':'Punto medio','derecha':'Derecho'}),
+            field('n','Rectángulos iniciales','integer','4'),
+        ], uses.riemann)
     return entries, handlers, list(groups.items())
 
 

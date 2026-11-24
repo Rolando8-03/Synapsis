@@ -456,7 +456,8 @@ def calculate(operation, data, steps=True):
     elif operation in COURSE_HANDLERS:
         handler = COURSE_HANDLERS[operation]
         output = handler(data, context) if operation in WITH_CONTEXT else handler(data)
-        metadata["exact"] = operation not in {"errores.propagacion", "errores.maquina", "errores.acumulacion", "errores.taylor", "errores.exactitud"}
+        metadata["exact"] = output.get("exactitud") != "aproximada" and operation not in {
+            "errores.propagacion", "errores.maquina", "errores.acumulacion", "errores.taylor", "errores.exactitud"}
     elif operation.startswith("original."):
         output = _serializar(original_program(operation, data))
         metadata = {"source": ORIGINAL}

@@ -128,9 +128,9 @@ def shared_definite(data, out, ctx):
         step(ctx, 'Usar Simpson adaptativo cuando las reglas admitidas no dan una primitiva.',
              tolerancia=out.get('tolerancia_absoluta'), aproximacion=out['valor'])
         return
-    f, _, _ = function(data['expresion'],ctx)
-    primitive, _, _ = function(out['expresion'],ctx)
-    a, b = (symbolic_expression(analizar(data[key]),ctx) for key in ('inferior','superior'))
+    f, primitive = (symbolic_expression(analizar(source,variable=True),ctx)
+                    for source in (data['expresion'],out['expresion']))
+    a, b = (sp.simplify(symbolic_expression(analizar(data[key]),ctx)) for key in ('inferior','superior'))
     Fa, Fb = (sp.simplify(primitive.subs(X,point)) for point in (a,b))
     step(ctx, 'El motor comprobó la continuidad en el intervalo. Escribir una primitiva.',
          rf'F(x)={latex(primitive)}')
