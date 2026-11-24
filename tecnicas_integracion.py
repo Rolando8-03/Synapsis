@@ -58,7 +58,9 @@ def partial_fractions(data, ctx):
     if any(factor.degree()!=1 or power!=1 for factor,power in factors):
         raise DomainError('Este desarrollo admite factores lineales simples.')
     if whole:
-        raise DomainError('Para este desarrollo el grado del numerador debe ser menor que el del denominador.')
+        step(ctx, 'Dividir el numerador por el denominador para separar la parte polinómica.',
+             latex(f) + '=' + latex(whole.as_expr()) + '+' + latex(remainder.as_expr()/denominator),
+             cociente=str(whole.as_expr()), residuo=str(remainder.as_expr()))
     factored = sp.Mul(*(factor.as_expr()**power for factor,power in factors))
     step(ctx, 'Factorizar el denominador y conservar las exclusiones de la función original.',
          latex(denominator) + '=' + latex(factored), dominio=str(domain))
@@ -71,7 +73,7 @@ def partial_fractions(data, ctx):
          latex(remainder.as_expr())+'='+latex(expanded))
     parameters = sorted(identity.free_symbols-{X}, key=str)
     matrix, rhs = sp.linear_eq_to_matrix(coefficients, parameters)
-    values = matrix.inv().multiply(rhs)
+    values = matrix.inv() * rhs
     solved = dict(zip(parameters,values))
     equations = r'\quad '.join(latex(equation)+'=0' for equation in coefficients)
     step(ctx, 'Igualar coeficientes de potencias de x y resolver el sistema.', equations,
