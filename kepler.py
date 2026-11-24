@@ -178,3 +178,44 @@ def orbital_frames(law, shape):
         frames.append(frame)
     return {"duration":1,"minor":minor,"focus":focus,"other":other,"area_percent":round(100*WINDOW/tau),
             "frames":frames}
+
+
+SOLAR_MU = tau**2  # Unidades normalizadas para que a = 1 UA tenga T = 1 año.
+
+
+def orbital_readout(orbit):
+    return {
+        'a':orbit.a, 'b':orbit.b, 'e':orbit.e,
+        'centro':-orbit.a*orbit.e, 'otro_foco':-2*orbit.a*orbit.e,
+        'periodo':orbit.period, 'cociente':(orbit.period/orbit.a)**2/orbit.a,
+    }
+
+
+def position_readout(state):
+    return {'p':[state.x,state.y], 'r':state.radius, 'v':state.speed,
+            'M':state.mean, 'E':state.anomaly, 'vueltas':state.turns}
+
+
+def sector_readout(section):
+    return {'inicio_t':section.start_time, 'fin_t':section.end_time, 'area':section.area,
+            'inicio':[section.start.x,section.start.y], 'fin':[section.end.x,section.end.y],
+            'E_inicial':section.start.anomaly, 'E_final':section.end.anomaly,
+            'delta_E':section.delta_anomaly, 'v':section.end.speed}
+
+
+@lru_cache(maxsize=6)
+def scene_frames(eccentricity, outer_a, outer_e):
+    """Muestras sincronizadas de las dos órbitas y de los sectores de A."""
+    if not .60 <= outer_a <= 3:
+        raise ValueError('El semieje mayor de B debe estar entre 0,60 y 3 UA.')
+    first, second = Orbit(1.0,eccentricity,SOLAR_MU), Orbit(outer_a,outer_e,SOLAR_MU)
+    frames = []
+    for i in range(SAMPLES+1):
+        time = i*MAX_TIME/SAMPLES
+        a, b = planet_positions(first,second,time)
+        live, reference = equal_sectors(first,time,a)
+        frames.append({'t':time, 'A':position_readout(a), 'B':position_readout(b),
+                       'actual':sector_readout(live), 'referencia':sector_readout(reference)})
+    return {'mu':first.mu, 'A':orbital_readout(first), 'B':orbital_readout(second),
+            'cociente_teorico':tau**2/first.mu, 'duracion_sector':first.period*.08,
+            'frames':frames}
