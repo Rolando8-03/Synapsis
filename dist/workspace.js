@@ -158,8 +158,18 @@ export function bindWorkspace(setOpen) {
     (fields.querySelector('math-field:not([hidden]), input[type="text"]:not([hidden]), textarea, select') ?? get('ws-calculate')).focus();
   }
 
-  function displayResult(response, draft, original) {
-    renderResult(results, response, draft.options, original, edit);
+  function displayResult(response, draft, original, updateResult = false) {
+    renderResult(results, response, draft.options, original, edit, async values => {
+      try {
+        for (const [key, value] of Object.entries(values)) {
+          const control = controls.get(key);
+          control.set(control.definition.kind === 'vector' && Array.isArray(value) ? [value] : value);
+        }
+      } catch (error) {
+        return error.message;
+      }
+      return calculate(true, true);
+    });
     if (['factorizacion.lu', 'factorizacion.plu'].includes(state.op) && response.verification?.passed) {
       const {L, U, P} = response.result;
       const method = state.op.split('.')[1];
@@ -174,8 +184,11 @@ export function bindWorkspace(setOpen) {
       results.querySelector('.ws-result-actions').append(button);
     }
     showView('result');
-    get('ws-result-title').focus({preventScroll:true});
-    window.scrollTo({top:0,behavior:'instant'});
+    if (updateResult) results.querySelector('.ws-book-controls :is(input,select)')?.focus({preventScroll:true});
+    else {
+      get('ws-result-title').focus({preventScroll:true});
+      window.scrollTo({top:0,behavior:'instant'});
+    }
   }
 
   function historyScreen() {
@@ -375,10 +388,10 @@ export function bindWorkspace(setOpen) {
     sidebar.replaceChildren(menu);
   }
 
-  async function calculate(reveal = true) {
+  async function calculate(reveal = true, updateResult = false) {
     clearTimeout(automatic);
     const button = get('ws-calculate');
-    if (!state || !controls.size || view !== 'form') return;
+    if (!state || !controls.size || (view !== 'form' && !updateResult)) return;
     request?.abort();
     const controller = new AbortController();
     request = controller;
@@ -388,7 +401,7 @@ export function bindWorkspace(setOpen) {
     const cached = responses.get(operation);
     if (reveal && cached?.key === JSON.stringify(draft)) {
       record(draft);
-      displayResult(cached.response, draft, original);
+      displayResult(cached.response, draft, original, updateResult);
       return;
     }
     setError('');
@@ -431,12 +444,14 @@ export function bindWorkspace(setOpen) {
       responses.set(operation, {key:JSON.stringify(draft), response});
       if (reveal) {
         record(draft);
-        displayResult(response, draft, original);
+        displayResult(response, draft, original, updateResult);
       } else status.textContent = 'Cálculo listo. Presioná Resolver para ver el resultado.';
     } catch (error) {
       if (controller.signal.aborted) return;
       status.textContent = '';
-      setError(error instanceof SyntaxError ? 'El servicio local de Python no respondió correctamente.' : error.message);
+      const message = error instanceof SyntaxError ? 'El servicio local de Python no respondió correctamente.' : error.message;
+      if (updateResult) return message;
+      setError(message);
     } finally {
       if (request === controller) button.disabled = false;
     }

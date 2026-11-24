@@ -1,5 +1,6 @@
 import { iterationSelection } from './iteration-selection.js';
 import { node } from './matrix-input.js';
+import { bookControl, bookScene } from './book-scenes.js';
 import { addPlot } from './plot.js';
 import { riemannPlot, sectionPlot } from './integral-visuals.js';
 import { math, matrixFormula, numericTex, vectorFormula } from './math-format.js';
@@ -352,11 +353,11 @@ function procedureView(entries, selection) {
   return stack;
 }
 
-function genericResult(response) {
+function genericResult(response, recalculate) {
   const output = response.result;
   const main = node('div', 'ws-result-stack');
   const panels = [['Resultado', main]];
-  const {points, parametric, muestras, tabla, encabezados, formula_latex, series, diagrama_vectores, grafico_raiz, visual_integral, ...general} = output;
+  const {points, parametric, muestras, tabla, encabezados, formula_latex, series, diagrama_vectores, grafico_raiz, visual_integral, visual_libro, control_libro, ...general} = output;
   if (response.operation_id === 'sistemas.resolver') {
     general.metodo = output.metodo === 'gauss' ? 'Gauss' : 'Gauss-Jordan';
     main.append(matrixView(output.matrix, `[A | b] después de ${general.metodo}`, true, matrixLabels(output.dimension_dominio)));
@@ -400,6 +401,8 @@ function genericResult(response) {
     }
     main.append(lead);
   }
+  if (control_libro) main.append(bookControl(control_libro,recalculate));
+  if (visual_libro) main.append(bookScene(visual_libro,response,recalculate));
   if (series?.points?.length) main.append(addPlot(series));
   const indices = grafico_raiz?.iteraciones?.map(([index]) => index);
   const selection = indices?.length ? iterationSelection(indices) : null;
@@ -458,7 +461,7 @@ function genericResult(response) {
   return panels;
 }
 
-export function renderResult(target, response, choices, originalSystem, onEdit) {
+export function renderResult(target, response, choices, originalSystem, onEdit, recalculate) {
   const selectedTab = target.dataset.selectedTab;
   target.replaceChildren();
   const header = node('div', 'ws-panel-heading');
@@ -495,7 +498,7 @@ export function renderResult(target, response, choices, originalSystem, onEdit) 
   if (response.error) target.append(node('p', 'result-error', response.error.message));
   for (const warning of response.warnings ?? []) target.append(node('p', 'ws-warning', isScalar(warning) ? scalar(warning) : warning.message ?? JSON.stringify(warning)));
   if (!response.result) return;
-  const panels = originalSystem ? systemResult(response.result, choices, response.steps) : genericResult(response);
+  const panels = originalSystem ? systemResult(response.result, choices, response.steps) : genericResult(response, recalculate);
   const results = node('div', 'ws-result-body');
   const tabs = node('div', 'ws-result-tabs');
   tabs.setAttribute('role', 'tablist');

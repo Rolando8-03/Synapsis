@@ -45,7 +45,7 @@ function applyTheme() {
   theme.setAttribute('aria-label', `Cambiar al tema ${next}`);
   theme.title = theme.getAttribute('aria-label');
   themeColor.content = getComputedStyle(page).getPropertyValue('--browser-color').trim();
-  document.querySelectorAll('canvas.plot').forEach(canvas => canvas.redrawPlot?.());
+  document.querySelectorAll('canvas.plot, canvas.ws-book-canvas').forEach(canvas => canvas.redrawPlot?.());
 }
 function applyView() {
   const paused = stopped === null ? preference.matches : stopped === 'true';

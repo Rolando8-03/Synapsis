@@ -6,6 +6,8 @@ from pathlib import Path
 import re
 import sys
 
+from ampliaciones.catalogo import entries as book_entries
+
 from motor_matematico.application.catalog import CATALOG
 from motor_matematico.application.derivative_view import derivative_lines, expression_tex
 from motor_matematico.application.service import execute
@@ -154,6 +156,8 @@ CALCULUS_I, CALCULUS_HANDLERS, CALCULUS_GROUPS = catalog_entries(field, spec)
 CALCULUS_II, INTEGRAL_HANDLERS, INTEGRAL_GROUPS = integral_entries(field, spec)
 EXTRA.update(CALCULUS_I)
 EXTRA.update(CALCULUS_II)
+BOOKS, BOOK_HANDLERS, BOOK_GROUPS = book_entries(field, spec)
+EXTRA.update(BOOKS)
 
 MODULES = {
     "sistemas": [("Resolución", ["original.sistema", "sistemas.resolver", "sistemas.homogeneo", "sistemas.cramer", "sistemas.parametrico", "sistemas.inversa"]),
@@ -178,6 +182,9 @@ MODULES = {
     "errores": [("Análisis numérico", ["errores.calcular", "errores.redondeo", "errores.propagacion", "errores.acumulacion", "errores.taylor", "errores.exactitud", "errores.maquina", "calculadora.evaluar"])],
     "bases": [("Conversiones", ["bases.enteros", "conversiones.bases", "bases.romanos"]), ("Conjuntos", ["conjuntos.operar"])],
 }
+for module, groups in BOOK_GROUPS.items():
+    MODULES[module].extend(groups.items())
+
 ALL_OPERATIONS = {key for groups in MODULES.values() for _, ids in groups for key in ids}
 
 def catalog():
@@ -347,6 +354,7 @@ def vector_pair(data):
 COURSE_HANDLERS = {
     **CALCULUS_HANDLERS,
     **INTEGRAL_HANDLERS,
+    **BOOK_HANDLERS,
     "calculo.derivada_parcial": operadores_calculo.partial,
     "calculo.sumatoria": operadores_calculo.summation,
     "matrices.notacion": entry, "matrices.comparar": matrix_compare,
@@ -358,7 +366,7 @@ COURSE_HANDLERS = {
     "errores.maquina": machine, "iterativos.dominancia": dominance, "vectores.paralelogramo": vector_diagram,
     "errores.taylor": taylor_exp, "errores.exactitud": accuracy,
 }
-WITH_CONTEXT = {*CALCULUS_HANDLERS, *INTEGRAL_HANDLERS,"calculo.sumatoria", "calculo.limite_lateral", "calculo.derivada_parcial","matrices.notacion", "matrices.comparar", "matrices.teorema_invertible", "espacios.polinomios",
+WITH_CONTEXT = {*CALCULUS_HANDLERS, *INTEGRAL_HANDLERS, *BOOK_HANDLERS,"calculo.sumatoria", "calculo.limite_lateral", "calculo.derivada_parcial","matrices.notacion", "matrices.comparar", "matrices.teorema_invertible", "espacios.polinomios",
                 "sistemas.parametrico","transformaciones.formula","espacios.subespacio","modelos.economia",
                 "modelos.balance","modelos.flujos","iterativos.dominancia"}
 
@@ -369,7 +377,7 @@ def calculate(operation, data, steps=True):
     fields = EXTRA[operation]["fields"] if operation in EXTRA else CATALOG[operation].fields
     for f in fields:
         value = data.get(f["name"])
-        if f.get("required") and f["name"] not in data and operation in CALCULUS_HANDLERS | INTEGRAL_HANDLERS:
+        if f.get("required") and f["name"] not in data and operation in CALCULUS_HANDLERS | INTEGRAL_HANDLERS | BOOK_HANDLERS:
             raise ValueError(f'Completá «{f["label"]}».')
         if f["kind"] == "expression" and isinstance(value, str) and len(value) > 500:
             raise ValueError("La expresión admite hasta 500 caracteres.")
@@ -492,5 +500,8 @@ def calculate(operation, data, steps=True):
             error_trace(operation,data,output,context)
         else:
             original_extra(operation,data,output,context)
-    return {"status":"ok", "result":serializar(output), "metadata":metadata,
+    answer = {"status":"ok", "result":serializar(output), "metadata":metadata,
             "verification":serializar(verification), "steps":(trace or [step.to_dict() for step in context.steps]) if steps else []}
+    if operation in BOOK_HANDLERS:
+        answer.update(operation_id=operation, input=serializar(data))
+    return answer
