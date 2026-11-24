@@ -214,6 +214,15 @@ def trig_substitution(data, ctx):
         inverse = sp.asin(X/a)
         value = (X*sp.sqrt(radicand)+a**2*inverse)/2
         identity = r'1-\sin^2\theta=\cos^2\theta,\quad \cos\theta\ge0'
+    elif family == 'suma':
+        radicand = a**2+X**2
+        domain, angles = R, r'-\pi/2<\theta<\pi/2'
+        transform = a*sp.tan(theta)
+        reduced_root = a*sp.sec(theta)
+        in_theta = a**2*(sp.sec(theta)*sp.tan(theta)+sp.log(sp.sec(theta)+sp.tan(theta)))/2
+        inverse = sp.atan(X/a)
+        value = (X*sp.sqrt(radicand)+a**2*sp.log((X+sp.sqrt(radicand))/a))/2
+        identity = r'1+\tan^2\theta=\sec^2\theta,\quad \sec\theta>0'
     else:
         raise ValueError('Elegí una familia de radicales.')
     root = sp.sqrt(radicand)
