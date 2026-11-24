@@ -187,7 +187,9 @@ def catalog():
         item = definitions[key]
         item.update(title=name, description="Ingresá únicamente la matriz A. Vas a obtener los factores, el procedimiento y la comprobación del producto.")
         item["fields"] = [f for f in item["fields"] if f["name"] == "A"]
-    return {"modules": MODULES, "operations": definitions, "sessions": SESSIONS, "calculus_courses": CALCULUS_COURSES}
+    calculus_i, (calculus_ii, shared_groups) = CALCULUS_COURSES
+    courses = [calculus_i, (calculus_ii, [*shared_groups, *INTEGRAL_GROUPS])]
+    return {"modules": MODULES, "operations": definitions, "sessions": SESSIONS, "calculus_courses": courses}
 
 def solve_original(data):
     rows = data.get("matrix")

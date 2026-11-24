@@ -100,7 +100,9 @@ def catalog_entries(field, spec):
         [expr("2*x*(x^2+1)^3"),secondary("sustitucion","Sustitución u(x)","x^2+1",True),
          *bounds("0","1",False)],substitution)
     add(integrals,"area","Área geométrica entre curvas","Si dos polinomios encierran una sola región, podés dejar los extremos vacíos.",
-        [expr("x"),secondary("segunda","Segunda función · opcional","x^2"),*bounds("","",False),mode("plantear")],area)
+        [expr("x"),secondary("segunda","Segunda función · opcional","x^2"),*bounds("","",False),
+         field("region","Número de región · si hay varias","integer",required=False,
+               when={"inferior":[""],"superior":[""]}),mode("plantear")],area)
     add(integrals,"promedio","Valor promedio en un intervalo","Dividí la integral definida por la longitud del intervalo.",
         [expr("x^2"),*bounds("0","3")],calculus.average)
     return entries, handlers, list(groups.items())

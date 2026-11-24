@@ -55,6 +55,7 @@ def partial_fractions(data, ctx):
     whole, remainder = p.div(q)
     denominator = q.as_expr()
     _, factors = q.factor_list()
+    factors = [(factor.monic(), multiplicity) for factor, multiplicity in factors]
     if any(factor.degree()>2 or (factor.degree()==2 and (power!=1 or sp.discriminant(factor)>=0))
            for factor,power in factors):
         raise DomainError('Usá factores lineales o cuadráticos irreducibles de multiplicidad uno y discriminante negativo.')
@@ -185,9 +186,9 @@ def secant_cosecant(m, fn, ctx):
 
 def trig_powers(data, ctx):
     m = exponent(data['potencia'], 'El primer exponente')
-    n = exponent(data.get('potencia_coseno','0'), 'El exponente del coseno')
     family = data['familia']
     if family == 'seno_coseno':
+        n = exponent(data.get('potencia_coseno','0'), 'El exponente del coseno')
         f = sp.sin(X)**m*sp.cos(X)**n
         return primitive_result(f,sine_cosine(m,n,ctx),R,ctx)
     if family in ('tangente','cotangente'):

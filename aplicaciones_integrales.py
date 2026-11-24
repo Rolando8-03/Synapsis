@@ -126,7 +126,7 @@ def area(data, ctx):
     second = str(data.get('segunda') or '').strip()
     g = polynomial(second,(X,)) if second else sp.S.Zero
     f, domain, _ = function(data['expresion'],ctx)
-    difference = sp.simplify(f-g)
+    difference = sp.expand(f-g) if f.is_polynomial(X) else sp.simplify(f-g)
     left, right = (str(data.get(key,'')).strip() for key in ('inferior','superior'))
     if left and right:
         a, b, region = interval(data)
@@ -138,10 +138,14 @@ def area(data, ctx):
         crossings = sorted(finite_roots(difference))
         if len(crossings) < 2:
             raise DomainError('Se requieren dos cruces para encerrar una región. Indicá los límites.')
-        if len(crossings) > 2:
-            regions = ', '.join(f'[{p}, {q}]' for p,q in zip(crossings,crossings[1:]))
-            raise DomainError(f'Elegí la región con sus dos límites. Tramos entre cruces: {regions}.')
-        a, b = crossings
+        regions = list(zip(crossings,crossings[1:]))
+        if len(regions)>1 and not str(data.get('region','')).strip():
+            options = '; '.join(f'{i}: [{p}, {q}]' for i,(p,q) in enumerate(regions,1))
+            raise DomainError(f'Elegí el número de región o escribí ambos límites. Regiones de izquierda a derecha: {options}.')
+        selected = exact(data.get('region') or '1')
+        if not selected.is_Integer or not 1 <= selected <= len(regions):
+            raise ValueError(f'Escribí un número de región entre 1 y {len(regions)}.')
+        a, b = regions[int(selected)-1]
         region = sp.Interval(a,b)
     require_interval(domain,region)
     spans = partition(a,b,difference)

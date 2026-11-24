@@ -27,7 +27,7 @@ def catalog_entries(field, spec):
         return [field('inferior','Desde',default=a),field('superior','Hasta',default=b)]
 
     def mode():
-        return field('entrega','Resultado solicitado','select','plantear',choices=['plantear','resolver'],
+        return field('entrega','Resultado solicitado','select','plantear',False,choices=['plantear','resolver'],
                      choice_labels={'plantear':'Solo plantear','resolver':'Plantear y resolver'})
 
     add(TECHNIQUES, 'por_partes', 'Integral por partes',
@@ -63,7 +63,7 @@ def catalog_entries(field, spec):
     add(DEFINITE, 'cambio_neto', 'Cambio neto a partir de una tasa',
         'Integrá una tasa elemental. Para calcular el valor final, agregá el valor inicial.', [
             expression('3*x^2',label='Tasa de cambio Q′(x)'), *bounds('0','2'),
-            field('entrega','Resultado solicitado','select','cambio',choices=['cambio','final'],
+            field('entrega','Resultado solicitado','select','cambio',False,choices=['cambio','final'],
                   choice_labels={'cambio':'Cambio neto','final':'Valor final'}),
             field('inicial','Valor inicial Q(a)',default='',required=False,
                   when={'entrega':['final']},required_when={'entrega':['final']}),
@@ -113,7 +113,3 @@ def catalog_entries(field, spec):
             field('peso_especifico','Peso específico del líquido',required=False),mode(),
         ], models.pumping)
     return entries, handlers, list(groups.items())
-
-
-def course_groups():
-    return catalog_entries(lambda *a, **k: None, lambda *a: None)[2]

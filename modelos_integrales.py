@@ -81,7 +81,7 @@ def spring(data, ctx):
     step(ctx,'Medir la elongación desde la longitud natural x = 0. La fuerza aplicada en equilibrio es F(x) = kx.',
          rf'F(x)={latex(force)}')
     step(ctx,'Integrar la fuerza aplicada entre las elongaciones inicial y final, en ese orden.',formula)
-    result = {'formula_latex':formula,'unidades':'fuerza por longitud'}
+    result = {'formula_latex':formula,'unidades':'fuerza × longitud'}
     if wants_value(data):
         work = exact_integral(force,a,b)
         result['trabajo'] = str(work)
@@ -108,7 +108,7 @@ def pumping(data, ctx):
          rf'dV={latex(section)}\,dy,\quad dP={latex(weight*section)}\,dy')
     step(ctx,'Elevar la rebanada desde y hasta el nivel de salida y sumar el trabajo.',
          rf'd(y)={latex(lift)},\quad {formula}', relleno=str(h),salida=str(outlet))
-    result = {'formula_latex':formula,'unidades':'fuerza por longitud','peso_especifico':str(weight)}
+    result = {'formula_latex':formula,'unidades':'fuerza × longitud','peso_especifico':str(weight)}
     if wants_value(data):
         primitive = elementary(sp.expand(density),y)
         value = sp.simplify(primitive.subs(y,h)-primitive.subs(y,0))
