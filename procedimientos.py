@@ -349,7 +349,7 @@ def root_visual(data, out):
             markers.append([real(row["x"]),real(row["fx"])])
         iterations.append([row["iteracion"], *markers[-1]])
     return {"points":points,"tangents":tangents,"markers":[*markers,[middle,0]], "iteraciones": iterations,
-            "caption":"Función, aproximaciones y tangentes de Newton" if tangents else "Función y aproximaciones"}
+            "caption":"Función, aproximaciones y tangentes de Newton-Raphson" if tangents else "Función y aproximaciones"}
 
 
 def compare_bisection(data, output):

@@ -118,7 +118,8 @@
 .ws-theorem { color: var(--ws-muted); font-size: .88rem; }
 .ws-theorem p { margin: 7px 0 0 12px; }
 .ws-theorem summary { cursor: pointer; }
-.ws-actions { margin-top: 14px; }
+.ws-actions { margin-top: 14px; align-items: stretch; }
+.ws-actions > button { min-height: 48px; padding-block: 10px; }
 #workspace .primary { background: var(--ws-accent); color: var(--ws-accent-ink); border-color: transparent; }
 #workspace .primary:hover { background: var(--accent-hover); }
 #workspace .secondary { background: var(--ws-chip); border-color: var(--ws-line); color: var(--ws-text); }

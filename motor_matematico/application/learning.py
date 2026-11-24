@@ -129,7 +129,7 @@ THEOREMS = [
     ),
     theorem(
         "newton",
-        "Recta de Newton",
+        "Recta de Newton-Raphson",
         "El siguiente iterado es la intersección con el eje x de la recta de pendiente f prima evaluada en el punto actual. Una derivada nula impide ese paso.",
         [
             "La derivada usada debe existir y ser no nula.",

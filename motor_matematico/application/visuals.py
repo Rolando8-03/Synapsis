@@ -432,7 +432,7 @@ def roots_plot(response, ctx):
             if "derivada_x" in row and x != old:
                 geometry.append(
                     series(
-                        "Recta usada por Newton",
+                        "Recta usada por Newton-Raphson",
                         [[old, yold], [x, 0]],
                         "line",
                         "tabla.derivada_x; si fue suministrada, no se certifica que sea f prima",

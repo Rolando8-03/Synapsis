@@ -31,6 +31,7 @@ from relaciones_vectoriales import ejecutar_relaciones
 from calculo_basico import ejecutar_calculo
 from formato_latex import lista_soluciones_latex, operacion_latex
 from temario import SESSIONS, CALCULUS_COURSES
+import flujos_entrada as flows
 import operadores_calculo
 from catalogo_calculo_i import catalog_entries
 from catalogo_calculo_ii import catalog_entries as integral_entries
@@ -54,7 +55,7 @@ V = field("v", "Vector v", "vector", "1 2 3")
 U = field("u", "Vector u", "vector", "2 -1 3")
 BOUNDS = [field("from", "Desde", default="-6"), field("to", "Hasta", default="6")]
 EXTRA = {
-    "original.sistema": spec("Resolver y clasificar", "Ingresá la matriz aumentada. La reducción exacta se actualiza al completar las celdas.", [
+    "original.sistema": spec("Resolver y clasificar", "Ingresá la matriz aumentada y pulsá Resolver para ver la reducción exacta.", [
         field("objetivo", "Resultado solicitado", "select", "completo", choices=["completo", "escalonada"])]),
     "original.inversa_adjunta": spec("Inversa por adjugata", "Desarrollo con cofactores y comprobación del producto.", [A]),
     "original.propiedades_det": spec("Propiedades del determinante", "Comprobá propiedades con las matrices y las operaciones elementales elegidas.", [A, B,
@@ -159,8 +160,52 @@ EXTRA.update(CALCULUS_II)
 BOOKS, BOOK_HANDLERS, BOOK_GROUPS = book_entries(field, spec)
 EXTRA.update(BOOKS)
 
+def workbench_catalog():
+    options = [{"objetivo":["comparar"]}, {"objetivo":["resolver"], "metodo":list(flows.ITERATIVE)}]
+    iterations = [{**f, "when_any":options} for f in CATALOG["iterativos.jacobi"].fields if f["name"] not in {"A","b"}]
+    methods = [field("tecnica_"+kind, "Técnica", "select", "auto", False,
+                     choices=["auto", *choices], choice_labels={"auto":"Automática", **choices},
+                     when={"operacion":[kind]}) for kind, choices in flows.CALCULUS_METHODS.items()]
+    return {
+        "sistemas.trabajo": spec("Resolver, clasificar o comparar", "Ingresá el sistema una vez y elegí qué querés obtener.", [
+            field("objetivo", "Qué querés hacer", "select", "resolver", False, choices=["clasificar","resolver","comparar"],
+                  choice_labels={"clasificar":"Clasificar","resolver":"Resolver","comparar":"Comparar Jacobi y Gauss-Seidel"}),
+            field("metodo", "Método", "select", "gauss", False, choices=list(flows.SYSTEM_METHODS),
+                  choice_labels=flows.SYSTEM_METHODS, when={"objetivo":["resolver"]},
+                  choice_groups={"Escolares":list(flows.SCHOOL), "Matriciales":
+                                 ["gauss","gauss_jordan","cramer","inversa","lu","plu"],
+                                 "Iterativos":list(flows.ITERATIVE)}),
+            field("formato", "Formato de entrada", "select", "matriz", False, choices=["matriz","ecuaciones"],
+                  choice_labels={"matriz":"Matriz aumentada [A | b]","ecuaciones":"Ecuaciones"}),
+            field("matrix", "Matriz aumentada [A | b]", "matrix", "4 1 1\n2 3 2", augmented=True,
+                  when={"formato":["matriz"]}),
+            {**VARIABLES, "when":{"formato":["ecuaciones"]}},
+            {**EQUATIONS, "when":{"formato":["ecuaciones"]}},
+            *iterations,
+            field("omega", "Factor de relajación ω", default="1.2",
+                  when={"objetivo":["resolver"],"metodo":["sor"]})]),
+        "calculo.trabajo": spec("Calculadora de cálculo", "Escribí una integral, una derivada o un límite, o elegí la operación.", [
+            field("operacion", "Operación", "select", "integral", False, choices=list(flows.CALCULUS_METHODS),
+                  choice_labels={"integral":"Integral","derivada":"Derivada","limite":"Límite"}),
+            field("expresion", "Expresión matemática", "expression", "2*x*cos(x^2)", visual=True, editor="calculo"),
+            *methods,
+            field("sustitucion", "Sustitución u(x)", "expression", "", False, visual=True,
+                  when={"operacion":["integral"],"tecnica_integral":["sustitucion"]}),
+            field("inferior", "Desde · opcional", default="", required=False, when={"operacion":["integral"]}),
+            field("superior", "Hasta · opcional", default="", required=False, when={"operacion":["integral"]}),
+            field("punto", "Punto de aproximación", default="", required=False,
+                  when={"operacion":["limite"],"tecnica_limite":[m for m in ("auto", *flows.CALCULUS_METHODS["limite"]) if m != "al_infinito"]}),
+            field("lado", "Lado del límite", "select", "ambos", choices=["ambos","-","+"],
+                  choice_labels={"ambos":"Ambos lados","-":"Izquierda (−)","+":"Derecha (+)"},
+                  when={"operacion":["limite"]}),
+        ]),
+    }
+
+
+EXTRA.update(workbench_catalog())
+
 MODULES = {
-    "sistemas": [("Resolución", ["original.sistema", "sistemas.resolver", "sistemas.homogeneo", "sistemas.cramer", "sistemas.parametrico", "sistemas.inversa"]),
+    "sistemas": [("Resolver un sistema", ["sistemas.trabajo"]), ("Resolución", ["original.sistema", "sistemas.resolver", "sistemas.homogeneo", "sistemas.cramer", "sistemas.parametrico", "sistemas.inversa"]),
         ("Factorización", ["factorizacion.lu", "factorizacion.plu", "factorizacion.resolver", "original.triangular"]),
         ("Notación y modelos", ["sistemas.ecuaciones","modelos.economia","modelos.balance","modelos.flujos"])],
     "matrices": [("Operaciones", ["matrices.notacion", "matrices.comparar", "matrices.suma", "matrices.resta", "matrices.producto", "matrices.escalar", "matrices.transpuesta", "matrices.traza", "matrices.potencia"]),
@@ -171,6 +216,7 @@ MODULES = {
         ("Bases y subespacios", ["vectores.analizar", "vectores.generado", "espacios.polinomios", "espacios.subespacio", "espacios.fundamentales", "espacios.base", "espacios.suma", "espacios.interseccion", "espacios.coordenadas", "espacios.cambio_base"]),
         ("Transformaciones", ["transformaciones.formula", "transformaciones.analizar", "transformaciones.desde_imagenes", "transformaciones.componer", "transformaciones.representar", "original.relaciones"])],
     "grafica": [
+        ("Calculadora de cálculo", ["calculo.trabajo"]),
         ("Gráficas", ["grafica.explicita", "grafica.parametrica", "funciones.evaluar"]),
         ("Derivada e integral básica", ["calculo.derivar", "calculo.derivada_parcial", "calculo.primitiva",
             "original.primitiva", "calculo.definida", "calculo.numerica", "calculo.sumatoria"]),
@@ -371,6 +417,12 @@ WITH_CONTEXT = {*CALCULUS_HANDLERS, *INTEGRAL_HANDLERS, *BOOK_HANDLERS,"calculo.
                 "modelos.balance","modelos.flujos","iterativos.dominancia"}
 
 
+def calculate_workbench_method(operation, data, steps):
+    fields = EXTRA[operation]["fields"] if operation in EXTRA else CATALOG[operation].fields
+    names = {field["name"] for field in fields}
+    return calculate(operation, {name:value for name, value in data.items() if name in names}, steps)
+
+
 def calculate(operation, data, steps=True):
     if not isinstance(operation, str) or operation not in ALL_OPERATIONS or not isinstance(data, dict):
         raise ValueError("Operación o datos no válidos.")
@@ -383,6 +435,10 @@ def calculate(operation, data, steps=True):
             raise ValueError("La expresión admite hasta 500 caracteres.")
         if f["name"] in data and f["kind"] in {"matrix","vector","vectors"} and len(str(value)) > 15000:
             raise ValueError("La entrada matricial es demasiado larga.")
+    if operation == "sistemas.trabajo":
+        return flows.systems(data, steps, calculate_workbench_method)
+    if operation == "calculo.trabajo":
+        return flows.calculus(data, steps, calculate_workbench_method)
     if operation not in EXTRA:
         if operation in {"factorizacion.lu", "factorizacion.plu"}:
             data = {k:v for k,v in data.items() if k != "b"}

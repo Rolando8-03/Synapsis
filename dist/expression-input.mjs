@@ -39,3 +39,53 @@ export function explicitProducts(source, visual = false, variables = ['x']) {
   if (previousKind === 'function') throw new Error(`Completá el argumento de ${previous} entre paréntesis.`);
   return output.join('');
 }
+
+export function calculusIntent(source) {
+  if (/^(?:\\int(?![A-Za-z])|∫)/u.test(source.trim())) return 'integral';
+  if (/^(?:\\lim(?![A-Za-z])|lim\s*_)/u.test(source.trim())) return 'limite';
+  if (/^(?:\\frac\s*\{\s*d\s*\}\s*\{\s*d[a-z]\s*\}|d\s*\/\s*d[a-z]\b)/u.test(source.trim())) return 'derivada';
+  return '';
+}
+
+function readScript(source) {
+  if (!source.startsWith('{')) return [source[0] ?? '', source.slice(1)];
+  let open = 1;
+  for (let i = 1; i < source.length; i++) {
+    if (source[i] === '{') open++;
+    if (source[i] === '}' && --open === 0) return [source.slice(1,i), source.slice(i+1)];
+  }
+  throw new Error('Completá el dato dentro de la plantilla.');
+}
+
+export function calculusNotation(source) {
+  source = source.trim().replace(/\\(?:displaystyle|,|!|;|:|quad|qquad)\s*/g,'');
+  const operacion = calculusIntent(source);
+  if (!operacion) return {expresion:source};
+  if (operacion === 'integral') {
+    let body = source.replace(/^(?:\\int(?![A-Za-z])|∫)\s*/u,'');
+    const bounds = {};
+    while (body.startsWith('_') || body.startsWith('^')) {
+      const name = body[0] === '_' ? 'inferior' : 'superior';
+      [bounds[name], body] = readScript(body.slice(1).trimStart());
+      if (!bounds[name]) throw new Error('Completá los límites de integración.');
+      body = body.trimStart();
+    }
+    const differential = /(?:\\mathrm\{d\}|d)\s*([a-z])\s*$/.exec(body);
+    if (!differential) throw new Error('Escribí el diferencial al final, por ejemplo dx.');
+    return {operacion, ...bounds, variable:differential[1], expresion:body.slice(0,differential.index).trim()};
+  }
+  if (operacion === 'limite') {
+    const body = source.replace(/^(?:\\lim|lim)\s*_?\s*/u,'');
+    const [condition, expression] = readScript(body);
+    const approach = /^\s*([a-z])\s*(?:\\(?:to|rightarrow)(?![A-Za-z])|→|->)\s*(.+)$/u.exec(condition);
+    if (!approach) throw new Error('Indicá a qué punto se aproxima x en el límite.');
+    const side = /\^\{?([+-])\}?$/.exec(approach[2]);
+    const point = (side ? approach[2].slice(0,side.index) : approach[2]).trim();
+    const infinity = /^([+-]?)\\infty$/u.exec(point);
+    return {operacion, variable:approach[1], expresion:expression.trim(),
+      ...(infinity ? {tecnica_limite:'al_infinito', lado:infinity[1] === '-' ? '-' : '+'}
+        : {punto:point, lado:side?.[1] ?? 'ambos'})};
+  }
+  const operator = /^(?:\\frac\s*\{\s*d\s*\}\s*\{\s*d([a-z])\s*\}|d\s*\/\s*d([a-z])\b)/u.exec(source);
+  return {operacion, variable:operator[1] ?? operator[2], expresion:source.slice(operator[0].length).trim()};
+}

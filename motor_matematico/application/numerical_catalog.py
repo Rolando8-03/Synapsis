@@ -49,7 +49,7 @@ NUMERICAL_DATA = [
 for method, title in [
     ("biseccion", "Bisección"),
     ("falsa_posicion", "Falsa posición"),
-    ("newton", "Newton"),
+    ("newton", "Newton-Raphson"),
     ("secante", "Secante"),
 ]:
     seeds = (
@@ -74,7 +74,7 @@ for method, title in [
     )
     options = (
         [field("derivada", "Derivada f′(x), vacía usa reglas simbólicas", "expression"),
-         field("multiplicidad","Multiplicidad conocida · 1 para Newton estándar","integer","1")]
+         field("multiplicidad","Multiplicidad conocida · 1 para Newton-Raphson estándar","integer","1")]
         if method == "newton"
         else []
     )

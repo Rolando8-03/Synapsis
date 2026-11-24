@@ -1,6 +1,6 @@
 import { MathfieldElement, convertAsciiMathToLatex, convertLatexToAsciiMath } from './vendor/mathlive/mathlive.min.mjs';
 import { math as formula, numericTex } from './math-format.js';
-import { explicitProducts } from './expression-input.mjs';
+import { calculusNotation, explicitProducts } from './expression-input.mjs';
 import { node } from './matrix-input.js';
 
 MathfieldElement.fontsDirectory = new URL('./vendor/katex/fonts/', import.meta.url).href;
@@ -69,10 +69,19 @@ export function expressionField(definition, initial, onChange, {differential, va
   text.autocomplete = 'off';
   text.spellcheck = false;
 
+  const workbench = definition.editor === 'calculo';
   const keys = node('div', 'ws-power-keys');
   keys.setAttribute('role', 'group');
   keys.setAttribute('aria-label', 'Teclado de expresiones');
   for (const [caption, command, name] of [
+    ...(workbench ? [
+      ['∫', ['insert', '\\int #?\\,dx'], 'Integral'],
+      ['∫ᵇₐ', ['insert', '\\int_{#?}^{#?} #?\\,dx'], 'Integral definida'],
+      ['d/dx', ['insert', '\\frac{d}{dx} #?'], 'Derivada'],
+      ['lim', ['insert', '\\lim_{x\\to #?} #?'], 'Límite'],
+    ] : []),
+    ['cos', ['insert', '\\cos\\left(#0\\right)'], 'Coseno'],
+    ['sin', ['insert', '\\sin\\left(#0\\right)'], 'Seno'],
     ...variables.map(variable => [variable, ['insert', variable]]), ['□ⁿ', 'moveToSuperscript', 'Exponente'],
     ['□⁄□', ['insert', '\\frac{#0}{#?}'], 'Fracción'],
     ['(□)', ['insert', '\\left(#0\\right)'], 'Paréntesis'],
@@ -101,7 +110,7 @@ export function expressionField(definition, initial, onChange, {differential, va
   feedback.setAttribute('role', 'status');
   element.append(label);
   const operator = node('span');
-  if (definition.editor && definition.editor !== 'bivariado') {
+  if (definition.editor && definition.editor !== 'bivariado' && !workbench) {
     const row = node('div', 'ws-integral-template');
     row.append(operator, math, text);
     element.append(row);
@@ -150,7 +159,7 @@ export function expressionField(definition, initial, onChange, {differential, va
       useVisual(true);
       math.focus();
     } else {
-      try { text.value = expression(math.value, variables); }
+      try { text.value = workbench ? math.value : expression(math.value, variables); }
       catch { text.value = math.value; }
       lastVisual = {text: text.value, latex: math.value};
       useVisual(false);
@@ -181,6 +190,17 @@ export function expressionField(definition, initial, onChange, {differential, va
     },
     raw: () => math.hidden ? text.value : {latex:math.value},
     value() {
+      if (workbench) {
+        const notation = calculusNotation(math.hidden ? text.value : math.value);
+        if (!notation.expresion) return '';
+        if (notation.variable && notation.variable !== 'x') throw new Error('Esta herramienta usa x como variable. Revisá el operador escrito.');
+        for (const key of ['expresion','inferior','superior','punto']) {
+          if (!(key in notation)) continue;
+          const raw = notation[key];
+          notation[key] = math.hidden && !raw.includes('\\') ? explicitProducts(raw, false, variables) : expression(raw, variables);
+        }
+        return notation;
+      }
       if (math.hidden) return explicitProducts(text.value, false, variables);
       try {
         return expression(math.value, variables);

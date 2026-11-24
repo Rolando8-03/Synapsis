@@ -527,3 +527,17 @@ label, legend { font-weight: 650; }
 :where(#workspace, .kepler-lab) :is(#ws-calculate,#kepler-play):focus-visible {
   outline-color: var(--highlight);
 }
+
+.engine-startup {
+  position: fixed;
+  z-index: 8;
+  top: calc(var(--bar) + 12px);
+  left: var(--gutter);
+  width: min(calc(100% - 2 * var(--gutter)), 29rem);
+  pointer-events: none;
+}
+.engine-startup .loading-progress {
+  background: var(--surface);
+  box-shadow: 0 8px 24px #0a111f45;
+}
+.engine-startup button { margin-top: 8px; pointer-events: auto; }

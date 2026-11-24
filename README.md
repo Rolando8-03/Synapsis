@@ -26,9 +26,10 @@ Para preparar la web con todas las dependencias en una carpeta independiente, ej
 El menú ofrece **Cálculo**, **Sistemas lineales**, **Matrices**, **Vectores y espacios**, **Transformaciones lineales**, **Métodos numéricos**, **Graficadora** y **Laboratorio 3D**. La tarjeta de laboratorio abre la simulación de Kepler disponible.
 
 - Abrí una tarjeta para trabajar a pantalla completa. La barra lateral permite cambiar de operación y se pliega a iconos con **«**. Su preferencia queda guardada.
-- En **Sistemas lineales**, trabajá con la cuadrícula aumentada y la columna separada de `b`. Podés pegar una matriz, cambiar sus dimensiones y elegir qué partes del desarrollo mostrar.
-- Al completar la cuadrícula se prepara el cálculo. **Resolver** muestra el resultado en el lugar del formulario. **Editar datos** vuelve a las entradas anteriores. **Cargar ejemplo** carga y resuelve un caso de la operación.
+- En **Sistemas lineales**, ingresá ecuaciones o una matriz aumentada. Conservá los datos al elegir Gauss, Jacobi u otro método, al clasificar o al comparar iteraciones.
+- **Cargar ejemplo** llena los campos. **Resolver** ejecuta el cálculo y muestra el resultado en el lugar del formulario. **Editar datos** recupera el borrador.
 - Para obtener exclusivamente los factores, elegí **Matrices → Factorización → Solo factorizar A = LU**. Usá **Solo factorizar PA = LU** para trabajar con pivoteo o **Sistemas lineales → Factorización → Resolver Ax=b mediante LU o PLU** cuando también querás calcular la solución.
+- En **Cálculo**, usá las teclas de integral, derivada o límite. Podés elegir una técnica o dejar la selección en **Automática**.
 - **Temario del curso**, en la barra lateral, enlaza las 22 sesiones con sus operaciones y ejemplos. **Historial** reabre cálculos del módulo.
 
 ## Temario y formatos

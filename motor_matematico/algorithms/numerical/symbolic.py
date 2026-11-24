@@ -57,7 +57,7 @@ def symbolic_expression(tree, ctx, x=None, *, check=None):
         if isinstance(node.op, ast.Div):
             return sp.Mul(a, sp.Pow(b, -1, evaluate=False), evaluate=False)
         if b.is_Rational and abs(b) > 100:
-            raise ResourceLimitError("La potencia supera el rango de evaluación de Newton.")
+            raise ResourceLimitError("La potencia supera el rango de evaluación de Newton-Raphson.")
         return sp.Pow(a, b, evaluate=False)
 
     def visit(node):

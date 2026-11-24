@@ -1,5 +1,7 @@
 import { bindWorkspace } from './workspace.js';
 import { bindHero } from './hero-motion.js';
+import { loadingProgress } from './loading-progress.js';
+import { motor } from './transport.js';
 import { bindKeplerLab } from './kepler-lab.js';
 
 const page = document.documentElement;
@@ -218,3 +220,14 @@ bindWorkspace(open => {
   scenery.setObscured(open);
   orbitalLab.setObscured(open);
 });
+
+const startupProgress = loadingProgress(document.querySelector('#engine-loading'));
+const recovery = document.querySelector('#engine-recovery');
+const startEngine = () => motor.catalog().catch(() => {});
+motor.observeStartup(state => {
+  startupProgress(state?.error ? null : state);
+  recovery.hidden = !state?.error;
+  if (state?.error) document.querySelector('#engine-recovery-message').textContent = state.error;
+});
+document.querySelector('#engine-retry').addEventListener('click', startEngine);
+requestAnimationFrame(() => setTimeout(startEngine, 0));

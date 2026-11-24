@@ -3,6 +3,16 @@ import { renderingProgress } from './loading-progress.js';
 const entry = new URL('./', import.meta.url);
 // Python/Qt sirve dist como raíz. Go Live, Pages y Android conservan la carpeta dist.
 const staticSite = entry.pathname.endsWith('/dist/');
+const startupListeners = new Set();
+let startup = null;
+let catalogPromise;
+let prepared = false;
+
+function publishStartup(value) {
+  startup = value;
+  for (const listener of startupListeners) listener(value);
+}
+
 const aborted = () => new DOMException('Cálculo cancelado.', 'AbortError');
 
 class WebMotor {
@@ -40,7 +50,8 @@ class WebMotor {
             if (data.stage >= this.progress.stage) {
               const stageAt = data.stage === this.progress.stage ? this.progress.stageAt : performance.now();
               this.report({stage:data.stage, startedAt, stageAt,
-                completedItems:data.completedItems, totalItems:data.totalItems});
+                completedItems:data.completedItems, totalItems:data.totalItems,
+                cachedItems:data.cachedItems});
             }
             break;
           case 'ready':
@@ -69,6 +80,7 @@ class WebMotor {
 
   report(progress) {
     this.progress = progress;
+    publishStartup(progress);
     for (const item of this.queue) item.onProgress?.(progress);
   }
 
@@ -108,15 +120,16 @@ class WebMotor {
   }
 
   cancel(item) {
-    if (this.active === item) {
-      // Terminar el trabajador cancela también en Go Live y Pages, sin SharedArrayBuffer.
-      this.reset();
-      if (this.queue.length) this.start();
-    } else this.queue = this.queue.filter(other => other !== item);
+    // Descartar la respuesta cancelada sin volver a iniciar Python. El trabajador
+    // termina su tarea en curso antes de recibir la siguiente.
+    if (this.active !== item) this.queue = this.queue.filter(other => other !== item);
     this.settle(item, null, aborted());
   }
 
   fail(error) {
+    catalogPromise = null;
+    prepared = false;
+    publishStartup({error:error.message});
     const pending = this.active ? [this.active,...this.queue] : this.queue;
     this.reset();
     this.queue = [];
@@ -141,9 +154,44 @@ async function requireSuccess(action, body, options) {
   return data;
 }
 
+function prepare(options) {
+  if (!catalogPromise) {
+    if (!web) {
+      const now = performance.now();
+      publishStartup({stage:3, startedAt:now, stageAt:now, task:'Conectando con el motor local'});
+    }
+    catalogPromise = requireSuccess('catalogo',undefined,options).then(data => {
+      prepared = true;
+      publishStartup(null);
+      return data;
+    }).catch(error => {
+      catalogPromise = null;
+      prepared = false;
+      publishStartup({error:error.message});
+      throw error;
+    });
+  }
+  return catalogPromise;
+}
+
 export const motor = {
-  catalog: options => requireSuccess('catalogo',undefined,options),
-  calculate: async (body, options) => (await request('calcular',body,options)).data,
-  orbit: (body, options) => requireSuccess('kepler',body,options),
-  scene: (body, options) => requireSuccess('kepler/escena',body,options),
+  catalog: prepare,
+  isReady: () => prepared,
+  observeStartup(listener) {
+    startupListeners.add(listener);
+    listener(startup);
+    return () => startupListeners.delete(listener);
+  },
+  calculate: async (body, options) => {
+    await prepare();
+    return (await request('calcular',body,options)).data;
+  },
+  orbit: async (body, options) => {
+    await prepare();
+    return requireSuccess('kepler',body,options);
+  },
+  scene: async (body, options) => {
+    await prepare();
+    return requireSuccess('kepler/escena',body,options);
+  },
 };

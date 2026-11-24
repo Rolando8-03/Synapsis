@@ -54,6 +54,13 @@
       </div>
     </div>
   </header>
+  <div id="engine-startup" class="engine-startup shell">
+    <div id="engine-loading" class="loading-progress" hidden></div>
+    <div id="engine-recovery" class="loading-progress" hidden>
+      <p role="status" id="engine-recovery-message"></p>
+      <button type="button" class="secondary" id="engine-retry">Reintentar carga</button>
+    </div>
+  </div>
   <main>
     <section id="portada" aria-labelledby="hero-title">
       <div class="hero">
@@ -385,7 +392,6 @@
             <h1 id="ws-title" tabindex="-1"></h1>
             <p id="ws-description"></p>
           </header>
-          <div id="ws-loading" class="loading-progress" hidden></div>
           <div id="ws-message" role="status"></div>
           <p id="ws-error" role="alert" class="result-error" hidden></p>
           <div id="ws-operation">

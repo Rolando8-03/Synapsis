@@ -1,9 +1,9 @@
 const stages = [
-  ['Iniciando el motor', .47],
-  ['Preparando las herramientas matemáticas', .24],
-  ['Cargando las operaciones', .15],
-  ['Verificando el motor', .08],
-  ['Abriendo la vista', .06],
+  'Iniciando Python',
+  'Cargando dependencias matemáticas',
+  'Cargando las operaciones',
+  'Inicializando las bibliotecas',
+  'Verificando el catálogo',
 ];
 const renderStage = stages.length - 1;
 const duration = whole => whole < 60 ? `${whole} s` : `${Math.floor(whole / 60)} min ${whole % 60} s`;
@@ -26,33 +26,32 @@ export function loadingProgress(element) {
   header.append(text,percent);
   const track = document.createElement('progress');
   track.max = 100;
-  track.setAttribute('aria-label','Avance estimado de carga');
+  track.setAttribute('aria-label','Avance de carga');
   const timing = document.createElement('p');
   timing.className = 'loading-timing';
   const remaining = document.createElement('p');
   remaining.className = 'loading-remaining';
   element.replaceChildren(header,track,timing,remaining);
-  let state, timer, reveal, shown = 0;
+  let state, timer, reveal;
 
   function tick() {
-    const {stage, startedAt, stageAt, viewOnly, completedItems, totalItems} = state;
+    const {startedAt, stageAt, completedItems, totalItems} = state;
     const now = performance.now();
-    const completed = viewOnly ? 0 : stages.slice(0,stage).reduce((sum,[,weight]) => sum+weight,0);
-    const weight = viewOnly ? 1 : stages[stage][1];
-    const baseline = viewOnly ? 1.2 : completed ? Math.max(2,(stageAt-startedAt)/1000/completed) : 7;
+    const elapsed = Math.max(0, Math.floor((now-startedAt)/1000));
     const spent = Math.max(0,(now-stageAt)/1000);
-    const expected = baseline*weight;
-    const estimated = .98*spent/(spent+expected*.6);
-    const confirmed = totalItems ? Math.min(.98,completedItems/totalItems) : 0;
-    const value = Math.floor(100*(completed+weight*Math.max(confirmed,estimated)));
-    shown = Math.max(shown,Math.min(99,value));
-    track.value = shown;
-    percent.textContent = `${shown} %`;
-    const elapsed = duration(Math.max(0,Math.floor((now-startedAt)/1000)));
-    const left = Math.max(.2,expected*(1-confirmed)-spent)+baseline*Math.max(0,1-completed-weight);
-    const estimate = spent > 2*expected && confirmed < .98
-      ? 'recalculando el tiempo restante' : `≈ ${duration(Math.ceil(left))} restantes`;
-    timing.textContent = `${elapsed} transcurridos · ${estimate}`;
+    let estimate = '';
+    if (totalItems) {
+      track.max = totalItems;
+      track.value = completedItems;
+      percent.textContent = `${completedItems}/${totalItems}`;
+      if (completedItems > 0 && completedItems < totalItems && spent >= 1) {
+        estimate = ` · ≈ ${duration(Math.ceil(spent*(totalItems-completedItems)/completedItems))} para esta etapa`;
+      }
+    } else {
+      track.removeAttribute('value');
+      percent.textContent = '';
+    }
+    timing.textContent = `${duration(elapsed)} transcurridos${estimate}`;
   }
 
   function show() {
@@ -71,14 +70,14 @@ export function loadingProgress(element) {
       element.hidden = true;
       return;
     }
-    if (!state || state.startedAt !== next.startedAt) shown = 0;
     state = next;
-    const {stage, task, viewOnly, totalItems, completedItems} = next;
-    const label = (viewOnly ? '' : `Paso ${stage+1} de ${stages.length} · `)+(task ?? stages[stage][0]);
+    const {stage, task, viewOnly, totalItems, completedItems, cachedItems} = next;
+    const label = (viewOnly ? '' : `Paso ${stage+1} de ${stages.length} · `)+(task ?? stages[stage]);
     if (text.textContent !== label) text.textContent = label;
     const pending = totalItems ? totalItems-completedItems : 0;
     const details = [pending ? `${pending} ${pending === 1 ? 'recurso pendiente' : 'recursos pendientes'}` : '',
-      stage < renderStage ? `Sigue: ${stages[stage+1][0].toLowerCase()}` : ''].filter(Boolean).join(' · ');
+      cachedItems ? `${cachedItems} desde la caché` : '',
+      stage < renderStage ? `Sigue: ${stages[stage+1].toLowerCase()}` : ''].filter(Boolean).join(' · ');
     remaining.textContent = details;
     remaining.hidden = !details;
     if (!element.hidden || !viewOnly) {

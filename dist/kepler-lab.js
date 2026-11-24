@@ -242,12 +242,7 @@ function bindScene(section) {
     const request = new AbortController();
     loading = request;
     try {
-      const result = await motor.scene(parameters, {signal:request.signal,
-        onProgress(update) {
-          if (request.signal.aborted || pendingKey !== key) return;
-          progress(update?.stage === 4 ? renderingProgress('Preparando las órbitas',update) : update);
-        },
-      });
+      const result = await motor.scene(parameters, {signal:request.signal});
       if (!request.signal.aborted && pendingKey === key) applyScene(key,result);
     } catch (error) {
       if (request.signal.aborted || pendingKey !== key) return;
@@ -287,7 +282,7 @@ function bindScene(section) {
       return;
     }
     note.textContent = '';
-    progress(renderingProgress(scene ? 'Actualizando las órbitas' : 'Preparando las órbitas'));
+    if (motor.isReady()) progress(renderingProgress('Actualizando las órbitas'));
     retry.hidden = true;
     measurements.setAttribute('aria-busy','true');
     if (wait) delay = setTimeout(() => load(key,parameters),wait);

@@ -5,6 +5,7 @@
   "catalogo_calculo_i.py",
   "catalogo_calculo_ii.py",
   "curso.py",
+  "flujos_entrada.py",
   "integracion.py",
   "kepler.py",
   "modelos_integrales.py",

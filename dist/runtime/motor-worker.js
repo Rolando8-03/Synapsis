@@ -12,7 +12,23 @@ function sri(hex) {
   return 'sha256-' + btoa(String.fromCharCode(...hex.match(/../g).map(pair => Number.parseInt(pair, 16))));
 }
 
-const progress = (stage, completedItems, totalItems) => postMessage({type:'progress', stage, completedItems, totalItems});
+const progress = (stage, completedItems, totalItems, cachedItems) =>
+  postMessage({type:'progress', stage, completedItems, totalItems, cachedItems});
+
+async function dependency(url, wheel, fallback) {
+  // La huella forma parte de la clave. Una revisión de la dependencia nunca reutiliza bytes de otra.
+  const key = new URL('dependencias/' + wheel.sha256, here);
+  const cache = await self.caches?.open('synapsis-dependencias-v1').catch(() => null);
+  const cached = await cache?.match(key).catch(() => null);
+  if (cached) return {bytes:await cached.arrayBuffer(), cached:true};
+  const options = {integrity:sri(wheel.sha256), cache:'force-cache'};
+  const response = await file(url, options).catch(error => {
+    if (!fallback) throw error;
+    return file(fallback,options);
+  });
+  if (cache) await cache.put(key, response.clone()).catch(() => {});
+  return {bytes:await response.arrayBuffer(), cached:false};
+}
 
 async function start() {
   progress(0);
@@ -37,21 +53,21 @@ async function start() {
   FS.mkdirTree(wheelsDir);
 
   progress(1,0,versions.wheels.length);
+  let cachedItems = 0;
   for (const [i,wheel] of versions.wheels.entries()) {
     const url = new URL(wheel.file, local ? here : versions.publicRuntime);
-    const options = {integrity:sri(wheel.sha256)};
-    const response = await file(url,options).catch(error => {
-      if (local) throw error;
-      return file(wheel.url,options);
-    });
-    python.unpackArchive(await response.arrayBuffer(), 'zip', {extractDir:wheelsDir});
-    progress(1,i+1,versions.wheels.length);
+    const {bytes,cached} = await dependency(url, wheel, local ? null : wheel.url);
+    if (cached) cachedItems++;
+    python.unpackArchive(bytes, 'zip', {extractDir:wheelsDir});
+    progress(1,i+1,versions.wheels.length,cachedItems);
   }
 
   progress(2);
   if (local) {
-    const bytes = await (await file(new URL('python.zip', here))).arrayBuffer();
+    progress(2,0,1);
+    const bytes = await (await file(new URL('python.zip', here), {cache:'no-cache'})).arrayBuffer();
     python.unpackArchive(bytes, 'zip', {extractDir:sourceDir});
+    progress(2,1,1);
   } else {
     const paths = await (await file(new URL('archivos.json', here), {cache:'no-cache'})).json();
     progress(2,0,paths.length);

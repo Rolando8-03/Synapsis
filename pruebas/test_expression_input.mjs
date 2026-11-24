@@ -17,3 +17,17 @@ test('localiza símbolos, cocientes y argumentos ambiguos', () => {
   assert.throws(() => explicitProducts('sin x'), /argumento de sin/);
   assert.throws(() => explicitProducts('2e-3', true), /potencia de 10/);
 });
+
+test('lee operadores de cálculo sin partir el integrando ni los límites', async () => {
+  const {calculusNotation} = await import('../dist/expression-input.mjs');
+  assert.deepEqual(calculusNotation(String.raw`\int_{\frac{1}{2}}^{2} 2x\cos(x^{2})\,\mathrm{d}x`), {
+    operacion:'integral', inferior:String.raw`\frac{1}{2}`, superior:'2', variable:'x',
+    expresion:String.raw`2x\cos(x^{2})`,
+  });
+  assert.deepEqual(calculusNotation(String.raw`\lim_{x\to 1^{+}}x^2`), {
+    operacion:'limite', variable:'x', punto:'1', lado:'+', expresion:'x^2',
+  });
+  assert.equal(calculusNotation(String.raw`\lim_{x\to -\infty}x`).lado, '-');
+  assert.equal(calculusNotation(String.raw`\frac{d}{dx}x^2`).operacion, 'derivada');
+  assert.throws(() => calculusNotation(String.raw`\int x^2`), /diferencial/);
+});

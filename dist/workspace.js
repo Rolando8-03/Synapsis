@@ -1,8 +1,8 @@
-import { loadingProgress, renderingProgress } from './loading-progress.js';
 import { motor } from './transport.js';
 import { gridField, node } from './matrix-input.js';
 import { renderResult } from './workspace-results.js';
 import { math } from './math-format.js';
+import { calculusIntent } from './expression-input.mjs';
 
 const OPTIONS = [
   ['solution','Solución'], ['ranks','Rangos y clasificación'], ['forms','Matrices escalonadas'],
@@ -24,11 +24,12 @@ const GROUP_ICONS = {
   Resolución:'≡', Factorización:'◩', Operaciones:'±', 'Reducción y propiedades':'▥',
   'Determinantes e inversa':'▣', Bloques:'▦', 'Bases y subespacios':'⟡', Transformaciones:'↦',
   'Gráficas':'∿', 'Cálculo':'∫', 'Métodos de intervalo':'〈〉', 'Métodos abiertos':'⋯',
-  'Métodos de aproximación':'↻', 'Análisis numérico':'≈', Conversiones:'⇄',
+  'Resolver un sistema':'Ax', 'Calculadora de cálculo':'∫', Operar:'±', 'Analizar y factorizar':'▥',
+  'Operaciones y geometría':'↗', 'Métodos de aproximación':'↻', 'Análisis numérico':'≈', Conversiones:'⇄',
   Conjuntos:'∪', 'Notación y modelos':'⌘',
 };
 const OP_ICONS = {
-  'sistemas.resolver':'G/J', sistema:'⇥', cramer:'∣A∣', inversa:'⁻¹', lu:'LU', plu:'PL', triangular:'◿',
+  'sistemas.trabajo':'Ax', 'calculo.trabajo':'∫', 'sistemas.resolver':'G/J', sistema:'⇥', cramer:'∣A∣', inversa:'⁻¹', lu:'LU', plu:'PL', triangular:'◿',
   suma:'+', resta:'−', producto:'×', escalar:'α', transpuesta:'ᵀ', traza:'tr',
   potencia:'ⁿ', analizar:'≡', ref:'◩', rref:'▱', elemental:'⇅', propiedades:'≟',
   calcular:'≈', cofactores:'±', inversa_adjunta:'adj', propiedades_det:'∣∣',
@@ -82,14 +83,6 @@ export function bindWorkspace(setOpen) {
   const fields = get('ws-fields');
   const header = get('ws-title');
   const status = get('ws-message');
-  const progress = loadingProgress(get('ws-loading'));
-  let startup = null;
-  const motorProgress = update => {
-    startup = update;
-    if (workspace.hidden) return;
-    if (update) status.textContent = '';
-    progress(update);
-  };
   const results = get('ws-results');
   window.addEventListener('synapsis:pause', () => {
     results.querySelector('#ws-result-content')?.firstElementChild?.pausePlayback?.();
@@ -108,7 +101,7 @@ export function bindWorkspace(setOpen) {
   const menuGroups = new Map();
   const legacyModules = new Set(['raices', 'iterativos', 'errores', 'bases']);
   const menuDefaults = {
-    calculo: ['grafica', 'calculo.derivar'],
+    calculo: ['grafica', 'calculo.trabajo'],
     transformaciones: ['vectores', 'transformaciones.formula'],
     numericos: ['raices', 'raices.biseccion'],
   };
@@ -132,8 +125,11 @@ export function bindWorkspace(setOpen) {
           const destination = menuDestination(module, id);
           if (!menuGroups.has(destination)) menuGroups.set(destination, new Map());
           const sections = menuGroups.get(destination);
-          const group = module === 'grafica' && destination === 'calculo' && label === 'Gráficas'
-            ? 'Funciones' : label;
+          let group = label;
+          if (module === 'grafica' && destination === 'calculo' && label === 'Gráficas') group = 'Funciones';
+          if (destination === 'matrices') group = label === 'Operaciones' || label === 'Bloques'
+            ? 'Operar' : 'Analizar y factorizar';
+          if (destination === 'vectores' && label === 'Operaciones') group = 'Operaciones y geometría';
           if (!sections.has(group)) sections.set(group, new Map());
           sections.get(group).set(id, module);
         }
@@ -147,9 +143,9 @@ export function bindWorkspace(setOpen) {
   let catalog;
   let state;
   let opener;
+  let stalledRevision;
   let generation = 0;
   let request;
-  let automatic;
   let camera;
   let view = 'form';
   const drafts = new Map();
@@ -158,16 +154,12 @@ export function bindWorkspace(setOpen) {
   let choiceControls = new Map();
 
   function getCatalog() {
-    if (!catalogPromise) catalogPromise = motor.catalog({
-      onProgress: motorProgress,
-    }).then(result => {
+    if (!catalogPromise) catalogPromise = motor.catalog().then(result => {
       catalog = result;
       indexMenu(result.modules);
-      if (workspace.hidden) startup = null;
       return result;
     }).catch(error => {
       catalogPromise = null;
-      startup = null;
       throw error;
     });
     return catalogPromise;
@@ -249,7 +241,6 @@ export function bindWorkspace(setOpen) {
   }
 
   function historyScreen() {
-    clearTimeout(automatic);
     request?.abort();
     showView('history');
     const list = get('ws-history-items');
@@ -267,10 +258,10 @@ export function bindWorkspace(setOpen) {
         if (entry.op === state.op) {
           renderForm(catalog.operations[entry.op]);
           showView('form');
-          calculate();
+          get('ws-calculate').focus();
         } else {
           history.replaceState(history.state, '', `#${entry.module}/${entry.op}`);
-          sync({compute:true, restore:entry.draft});
+          sync({restore:entry.draft});
         }
       });
       list.append(button);
@@ -283,22 +274,27 @@ export function bindWorkspace(setOpen) {
     try { localStorage.setItem(HISTORY_KEY,JSON.stringify(entries.slice(0,40))); } catch { /* El cálculo sigue disponible. */ }
   }
 
-  function queueAutomatic() {
-    clearTimeout(automatic);
+  function draftChanged() {
     request?.abort();
     get('ws-calculate').disabled = false;
     status.textContent = '';
     if (!state || view !== 'form') return;
     setError('');
+    setConditions();
     remember();
     responses.delete(state.op);
-    if (state.op === 'original.sistema' && controls.get('matrix')?.ready()) {
-      automatic = setTimeout(() => calculate(false), 360);
-    }
   }
 
   function setConditions() {
     const values = snapshot().values;
+    if (state.op === 'calculo.trabajo') {
+      const raw = values.expresion;
+      const recognized = calculusIntent(raw?.latex ?? raw ?? '');
+      if (recognized) {
+        values.operacion = recognized;
+        controls.get('operacion').set(recognized);
+      }
+    }
     if (state.op === 'original.sistema') {
       const partial = values.objetivo === 'escalonada';
       fields.querySelector('.ws-options').hidden = partial;
@@ -306,16 +302,16 @@ export function bindWorkspace(setOpen) {
     }
     for (const [,control] of controls) {
       control.updateNotation?.(values);
-      const condition = control.definition?.when;
-      const enabled = !condition || Object.entries(condition).every(([name, allowed]) => allowed.includes(values[name]));
-      control.element.hidden = !enabled;
+      const {when, when_any} = control.definition ?? {};
+      const matches = condition => Object.entries(condition).every(([name, allowed]) => allowed.includes(values[name]));
+      control.element.hidden = (when && !matches(when)) || (when_any && !when_any.some(matches)) || false;
     }
   }
 
   function elementField(definition, value) {
     const {name, label, kind, choices} = definition;
     if (definition.visual || visualFields[state.op]?.includes(name)) {
-      return expressionField(definition, value, queueAutomatic, {
+      return expressionField(definition, value, draftChanged, {
         differential: state.op === 'calculo.primitiva' ? 'x' : null,
         variables: state.op === 'grafica.parametrica' ? ['t']
           : state.op === 'calculo.derivada_implicita' ? ['x', 'y'] : undefined,
@@ -330,15 +326,24 @@ export function bindWorkspace(setOpen) {
       return {definition, element:input, set, raw:() => input.value, value:() => input.value};
     }
     if (['matrix','vector','vectors'].includes(kind)) {
-      const control = gridField(label,value,{vector:kind === 'vector',required:definition.required,onChange:queueAutomatic});
+      const control = gridField(label,value,{vector:kind === 'vector',augmented:definition.augmented,required:definition.required,onChange:draftChanged});
       return {...control,definition};
     }
     const wrap = node('label', 'ws-field', label);
     const select = kind === 'select';
     const multiline = kind === 'set' || kind === 'multiline';
     const input = node(select ? 'select' : multiline ? 'textarea' : 'input');
+    input.name = name;
     if (select) {
-      for (const choice of choices) input.add(new Option(definition.choice_labels?.[choice] ?? optionLabel(String(choice)), choice));
+      const option = choice => new Option(definition.choice_labels?.[choice] ?? optionLabel(String(choice)), choice);
+      if (definition.choice_groups) {
+        for (const [label, ids] of Object.entries(definition.choice_groups)) {
+          const group = document.createElement('optgroup');
+          group.label = label;
+          group.append(...ids.map(option));
+          input.append(group);
+        }
+      } else input.append(...choices.map(option));
     } else if (kind === 'boolean') {
       input.type = 'checkbox';
       wrap.classList.add('ws-field-checkbox');
@@ -362,7 +367,7 @@ export function bindWorkspace(setOpen) {
     function raw() { return kind === 'boolean' ? input.checked : input.value.trim(); }
     set(value);
     if (!select && kind !== 'boolean' && definition.default !== '') input.placeholder = definition.default;
-    input.addEventListener('input', () => { setConditions(); queueAutomatic(); });
+    input.addEventListener('input', draftChanged);
     wrap.append(input);
     return {definition,element:wrap,raw,set,value:raw,name};
   }
@@ -377,7 +382,7 @@ export function bindWorkspace(setOpen) {
     get('ws-engine').textContent = state.op.startsWith('original.') ? 'Motor original · Python' : 'Motor Python';
     if (original) {
       const editor = gridField('Matriz aumentada [A | b]',saved?.values.matrix ?? '',{
-        augmented:true,required:true,onChange:queueAutomatic,
+        augmented:true,required:true,onChange:draftChanged,
       });
       controls.set('matrix',editor);
       fields.append(editor.element);
@@ -400,7 +405,7 @@ export function bindWorkspace(setOpen) {
         choiceControls.set(key,element);
         const row = node('label');
         row.append(element,document.createTextNode(label));
-        element.addEventListener('change', queueAutomatic);
+        element.addEventListener('change', draftChanged);
         checks.append(row);
       }
       const theorem = node('details','ws-theorem');
@@ -412,7 +417,7 @@ export function bindWorkspace(setOpen) {
       checkbox.type = 'checkbox';
       checkbox.checked = saved?.options.steps ?? true;
       choiceControls.set('steps',checkbox);
-      checkbox.addEventListener('change',queueAutomatic);
+      checkbox.addEventListener('change',draftChanged);
       const label = node('label');
       label.append(checkbox,document.createTextNode('Mostrar procedimiento'));
       checks.append(label);
@@ -446,7 +451,6 @@ export function bindWorkspace(setOpen) {
   }
 
   async function calculate(reveal = true, updateResult = false) {
-    clearTimeout(automatic);
     const button = get('ws-calculate');
     if (!state || !controls.size || (view !== 'form' && !updateResult)) return;
     request?.abort();
@@ -458,7 +462,6 @@ export function bindWorkspace(setOpen) {
     const cached = responses.get(operation);
     if (reveal && cached?.key === JSON.stringify(draft)) {
       request = null;
-      motorProgress(null);
       button.disabled = false;
       record(draft);
       displayResult(cached.response, draft, original, updateResult);
@@ -467,6 +470,7 @@ export function bindWorkspace(setOpen) {
     setError('');
     try {
       const input = {};
+      let notation;
       for (const [name,control] of controls) {
         if (control.element.hidden) continue;
         if (operation === 'factorizacion.resolver' && name === 'b' && !control.ready()) {
@@ -476,7 +480,7 @@ export function bindWorkspace(setOpen) {
           action.type = 'button';
           action.addEventListener('click', () => {
             history.pushState(history.state, '', `#${state.module}/factorizacion.${method}`);
-            sync({compute:true, restore:{values:{A:draft.values.A}, options:draft.options}});
+            sync({restore:{values:{A:draft.values.A}, options:draft.options}});
           });
           get('ws-error').append(' ', action);
           control.element.querySelector('.ws-matrix input:placeholder-shown')?.focus();
@@ -484,22 +488,24 @@ export function bindWorkspace(setOpen) {
         }
         const value = control.value();
         const def = control.definition ?? {};
-        const augmented = original && name === 'matrix';
+        const augmented = (original && name === 'matrix') || def.augmented;
         const isRequired = augmented || def.required || (def.required_when && Object.entries(def.required_when)
           .every(([k,v]) => v.includes(draft.values[k])));
         if ((value === '' || (augmented && !control.ready())) && isRequired) {
           throw new Error(augmented ? 'Completá todas las celdas de la matriz aumentada, incluido b. Ingresá 0 cuando corresponda.' : `Completá «${def.label}».`);
         }
-        if (value !== '') input[name] = value;
+        if (value !== '') {
+          if (operation === 'calculo.trabajo' && name === 'expresion') notation = value;
+          else input[name] = value;
+        }
       }
+      Object.assign(input, notation);
       if (draft.savedFactors) input.factores = draft.savedFactors.factors;
       button.disabled = reveal;
-      motorProgress(renderingProgress('Calculando el resultado'));
+      status.textContent = 'Calculando el resultado…';
       const response = await motor.calculate({
         operation, input, steps:input.objetivo === 'escalonada' || draft.options.steps,
-      }, {signal:controller.signal,
-        onProgress(update) { if (!controller.signal.aborted) motorProgress(update); },
-      });
+      }, {signal:controller.signal});
       if (controller.signal.aborted || state?.op !== operation) return;
       status.textContent = '';
       if (!response.result) throw new Error(response.error?.message ?? 'El motor no devolvió un resultado.');
@@ -516,8 +522,8 @@ export function bindWorkspace(setOpen) {
       setError(message);
     } finally {
       if (request === controller) {
+        status.textContent = '';
         request = null;
-        motorProgress(null);
         button.disabled = false;
       }
     }
@@ -526,17 +532,26 @@ export function bindWorkspace(setOpen) {
   function example(override = {}) {
     if (!state) return;
     if (state.op === 'original.sistema') controls.get('matrix').set(override.matrix ?? exampleMatrix);
+    const current = snapshot().values;
+    const calculusExamples = {
+      integral: {latex:'\\int 2x\\cos(x^{2})\\,dx'},
+      derivada: {latex:'\\frac{d}{dx}x^{2}'},
+      limite: {latex:'\\lim_{x\\to 1}(x+1)'},
+    };
     for (const f of catalog.operations[state.op].fields) {
-      if (state.op === 'original.sistema' && f.name === 'objetivo' && override.objetivo === undefined) continue;
-      controls.get(f.name).set(override[f.name] ?? f.default);
+      let value = f.default;
+      if (state.op === 'original.sistema' && f.name === 'objetivo') value = current.objetivo;
+      if (state.op === 'sistemas.trabajo' && ['objetivo','metodo','formato'].includes(f.name)) value = current[f.name];
+      if (state.op === 'calculo.trabajo') {
+        if (f.name === 'operacion') value = current.operacion;
+        if (f.name === 'expresion') value = calculusExamples[current.operacion];
+      }
+      controls.get(f.name).set(override[f.name] ?? value);
     }
-    setConditions();
-    remember();
-    calculate();
+    draftChanged();
   }
 
   function courseScreen() {
-    clearTimeout(automatic);
     request?.abort();
     showView('course');
     const list = get('ws-course-items');
@@ -594,7 +609,6 @@ export function bindWorkspace(setOpen) {
   }
 
   function openingError(message, retry) {
-    motorProgress(null);
     status.textContent = message;
     const action = node('button','secondary','Reintentar');
     action.type = 'button';
@@ -602,17 +616,14 @@ export function bindWorkspace(setOpen) {
     status.append(' ',action);
   }
 
-  async function sync({focus = true, compute = false, restore = null} = {}) {
+  async function sync({focus = true, restore = null} = {}) {
     const [route, requested] = location.hash.slice(1).split('/');
     const revision = ++generation;
-    clearTimeout(automatic);
     if (request) {
       request.abort();
       request = null;
-      motorProgress(null);
     }
     if (!cards.has(route) && !legacyModules.has(route)) {
-      progress(null);
       const wasOpen = !workspace.hidden;
       remember();
       state = null;
@@ -642,11 +653,14 @@ export function bindWorkspace(setOpen) {
     status.textContent = '';
     setError('');
     operations.hidden = historyView.hidden = get('ws-course').hidden = true;
-    motorProgress(startup ?? renderingProgress('Abriendo la calculadora'));
+    if (!catalog && motor.isReady()) status.textContent = 'Abriendo la calculadora…';
     try {
       await getCatalog();
     } catch {
-      if (revision === generation) openingError('No se pudo abrir la calculadora.', () => sync());
+      if (revision === generation) {
+        status.textContent = 'La calculadora se abrirá cuando el motor esté listo.';
+        stalledRevision = revision;
+      }
       return;
     }
     if (revision !== generation) return;
@@ -656,7 +670,7 @@ export function bindWorkspace(setOpen) {
     const destination = menuDestination(module, op);
     const newDestination = state?.destination !== destination;
     if ((visualFields[op] || catalog.operations[op].fields.some(field => field.visual)) && !expressionField) {
-      motorProgress(renderingProgress('Abriendo el editor matemático',startup));
+      if (motor.isReady()) status.textContent = 'Abriendo el editor matemático…';
       try {
         ({expressionField} = await import('./derivative-field.js'));
       } catch {
@@ -688,12 +702,10 @@ export function bindWorkspace(setOpen) {
     status.textContent = '';
     get('ws-calculate').disabled = false;
     renderForm(definition);
-    motorProgress(null);
     get('ws-history-link').disabled = false;
     get('ws-course-link').disabled = false;
     scrollTo({top:0,behavior:'instant'});
     if (focus) header.focus({preventScroll:true});
-    if (compute) calculate();
   }
 
   sections.addEventListener('change', () => {location.hash = sections.value;});
@@ -722,18 +734,21 @@ export function bindWorkspace(setOpen) {
       else if (def) control.set(def.kind === 'select' || def.kind === 'boolean' ? def.default : '');
     }
     setConditions();
-    queueAutomatic();
+    draftChanged();
   });
   form.addEventListener('submit', event => {event.preventDefault(); calculate();});
   document.querySelectorAll('[data-module]').forEach(link => link.addEventListener('click', async event => {
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     opener = link;
-    const hash = `#${link.dataset.module}`;
+    const hash = link.hasAttribute('data-example') ? '#sistemas/original.sistema' : `#${link.dataset.module}`;
     history.pushState(history.state,'',hash);
     await sync();
     if (location.hash === hash && link.hasAttribute('data-example') && state) example();
   }));
+  motor.observeStartup(update => {
+    if (!update && motor.isReady() && stalledRevision === generation) sync();
+  });
   addEventListener('hashchange', () => sync());
   workspace.addEventListener('keydown', event => {
     if (event.key !== 'Escape' || event.defaultPrevented) return;

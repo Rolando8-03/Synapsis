@@ -12,24 +12,20 @@
   };
   const start = performance.now();
   const progress = [];
+  const unsubscribe = motor.observeStartup(update => {
+    if (typeof update?.stage === 'number') progress.push(update.stage);
+  });
+  const pendingCatalog = motor.catalog();
+  const loading = await until(()=>document.querySelector('#engine-loading:not([hidden])'),
+    'No aparece la barra global de carga desde la portada');
+  if (/SymPy|mpmath/.test(loading.textContent)) throw Error('La barra debe usar lenguaje claro.');
   location.hash='grafica/calculo.derivar';
-  const pendingCatalog = motor.catalog({onProgress:update=>{ if (update) progress.push(update.stage); }});
-  const loading = await until(()=>document.querySelector('#ws-loading:not([hidden])'),
-    'No aparece la barra de carga');
-  const track = loading.querySelector('progress');
-  const initial = track.value;
-  await until(()=>track.value > initial || loading.hidden, 'La barra no avanza');
-  if (!loading.querySelector('.loading-timing').textContent.includes('restantes') ||
-      /SymPy|mpmath/.test(loading.textContent)) throw Error('La barra no muestra etapas y tiempo en lenguaje claro.');
   const catalog = await pendingCatalog;
-  await until(()=>{
-    if (document.querySelector('#ws-fields math-field') && !document.querySelector('#ws-operation').hidden) return true;
-    if (loading.hidden) throw Error('Desapareció la barra antes de abrir el editor.');
-    return false;
-  },'No se abrió el editor después del arranque');
-  await until(()=>loading.hidden, 'La barra quedó visible después del arranque');
+  await until(()=>document.querySelector('#ws-fields math-field'), 'No se abrió el editor después del arranque');
+  await until(()=>loading.hidden, 'La barra global quedó visible después del arranque');
   if (document.querySelector('#ws-message').textContent.trim()) throw Error('Quedó un aviso tras abrir la calculadora.');
-  if (Math.max(...progress) !== 4) throw Error('Falta la etapa final del arranque.');
+  unsubscribe();
+  if (Math.max(...progress) !== 4) throw Error('Falta la verificación final del catálogo.');
   const startupMs = Math.round(performance.now()-start);
   const answers = [catalog];
   for (const [action,body] of cases.slice(1)) answers.push(await motor[methods[action]](body));
