@@ -42,7 +42,6 @@ function diagram(find) {
         focus.toggleAttribute('hidden', orbit.e === 0);
         attributes(radius,{x1:origin[0],y1:origin[1]});
       });
-      model.hidden = false;
       model.removeAttribute('hidden');
     },
     draw(frame) {
@@ -72,7 +71,73 @@ function bindScene(section) {
   const note = find('status');
   const retry = find('retry');
   const measurements = find('measurements');
+  const clock = find('clock');
+  const time = find('time');
+  const timeValue = find('time-value');
+  const play = find('play');
+  const back = find('back');
+  const forward = find('forward');
+  const clockStatus = find('clock-status');
   let loading;
+  let scene;
+  let index = 0;
+  let animation = 0;
+  let started = null;
+  let startTime = 0;
+  let playing = false;
+  let enabled = false;
+  let obscured = false;
+  let inView = false;
+
+  function sync() {
+    play.textContent = enabled && playing ? 'Pausar' : 'Reproducir';
+    play.disabled = !enabled;
+    const moving = scene && playing && enabled && inView && !obscured && !document.hidden;
+    if (moving && !animation) {
+      started = null;
+      startTime = scene.frames[index].t;
+      animation = requestAnimationFrame(tick);
+    } else if (!moving && animation) {
+      cancelAnimationFrame(animation);
+      animation = 0;
+    }
+  }
+
+  function show(indexToShow) {
+    index = Math.max(0,Math.min(scene.frames.length-1,indexToShow));
+    const frame = scene.frames[index];
+    const label = `${format(frame.t)} ${frame.t === 1 ? 'año' : 'años'}`;
+    time.value = frame.t;
+    timeValue.textContent = label;
+    time.setAttribute('aria-valuetext',label);
+    back.disabled = index === 0;
+    forward.disabled = index === scene.frames.length-1;
+    draw(frame);
+  }
+
+  function tick(now) {
+    started ??= now;
+    const targetTime = startTime + (now-started)*.00025;
+    const nextIndex = Math.floor(targetTime / Number(time.step) + 1e-8);
+    if (nextIndex !== index) show(nextIndex);
+    if (index === scene.frames.length-1) {
+      animation = 0;
+      playing = false;
+      sync();
+      clockStatus.textContent = `Fin de la simulación. ${timeValue.textContent}.`;
+    } else {
+      animation = requestAnimationFrame(tick);
+    }
+  }
+
+  function seek(nextIndex, announce = true) {
+    if (!scene) return;
+    playing = false;
+    sync();
+    if (nextIndex !== index) show(nextIndex);
+    if (announce) clockStatus.textContent = `Tiempo simulado: ${timeValue.textContent}.`;
+  }
+
 
   function draw(frame) {
     plot.draw(frame);
@@ -86,6 +151,10 @@ function bindScene(section) {
 
   async function load() {
     loading?.abort();
+    playing = false;
+    scene = null;
+    clock.disabled = true;
+    sync();
     const request = new AbortController();
     loading = request;
     eValue.textContent = format(e.valueAsNumber);
@@ -100,8 +169,12 @@ function bindScene(section) {
         body: JSON.stringify({excentricidad:e.valueAsNumber, semieje_b:a.valueAsNumber}),
       });
       if (!response.ok) throw new Error('Órbitas no disponibles');
-      const scene = await response.json();
+      const result = await response.json();
       if (request.signal.aborted) return;
+      scene = result;
+      time.max = scene.frames.at(-1).t;
+      time.step = scene.frames[1].t;
+      clock.disabled = false;
       plot.show(scene);
       for (const id of ids) {
         const key = id.toLowerCase();
@@ -112,7 +185,8 @@ function bindScene(section) {
       }
       find('mu').textContent = `μ = ${format(scene.mu)} UA³/año² · 4π²/μ = ${format(scene.cociente_teorico)} años²/UA³`;
       find('sector-duration').textContent = `Duración de cada sector: ${format(scene.duracion_sector)} años.`;
-      draw(scene.frames[0]);
+      show(index);
+      sync();
       measurements.hidden = false;
       note.textContent = '';
     } catch (error) {
@@ -125,8 +199,27 @@ function bindScene(section) {
   e.addEventListener('input',load);
   a.addEventListener('input',load);
   retry.addEventListener('click',load);
+  time.addEventListener('input',() => seek(Math.round(time.valueAsNumber/Number(time.step)),false));
+  back.addEventListener('click',() => seek(index-1));
+  forward.addEventListener('click',() => seek(index+1));
+  find('reset').addEventListener('click',() => seek(0));
+  play.addEventListener('click',() => {
+    if (!scene || !enabled) return;
+    playing = !playing;
+    if (playing && index === scene.frames.length-1) show(0);
+    if (!playing) clockStatus.textContent = `Pausa en ${timeValue.textContent}.`;
+    sync();
+  });
+  new IntersectionObserver(([entry]) => {
+    inView = entry.isIntersecting;
+    sync();
+  }).observe(section.querySelector('.kepler-figure'));
+  document.addEventListener('visibilitychange',sync);
   load();
-  return {setEnabled() {},setObscured() {}};
+  return {
+    setEnabled(value) { enabled = value; sync(); },
+    setObscured(value) { obscured = value; sync(); },
+  };
 }
 
 export function bindKeplerLab(section) {

@@ -193,6 +193,20 @@
                 <label for="kepler-a">Semieje mayor de B <output id="kepler-a-value" for="kepler-a">2,25 UA</output></label>
                 <input id="kepler-a" type="range" min=".60" max="3" step=".01" value="2.25">
               </div>
+              <fieldset class="kepler-clock" id="kepler-clock" disabled>
+                <legend>Reloj común</legend>
+                <div class="orbit-sliders">
+                  <label for="kepler-time">Tiempo simulado <output id="kepler-time-value" for="kepler-time">0 años</output></label>
+                  <input id="kepler-time" type="range" min="0" max="12" step=".01" value="0" aria-valuetext="0 años">
+                </div>
+                <div class="orbit-actions">
+                  <button id="kepler-play" class="primary" type="button">Reproducir</button>
+                  <button id="kepler-back" class="secondary" type="button">Retroceder</button>
+                  <button id="kepler-forward" class="secondary" type="button">Avanzar</button>
+                  <button id="kepler-reset" class="secondary" type="button">Ir al perihelio</button>
+                </div>
+              </fieldset>
+              <span id="kepler-clock-status" class="visually-hidden" role="status"></span>
               <p class="kepler-note">A tiene un semieje de 1 UA. B tiene una excentricidad de 0,25. El Sol se mantiene fijo en el origen.</p>
               <p id="kepler-status" role="status"></p>
               <button id="kepler-retry" type="button" class="secondary" hidden>Volver a intentar</button>

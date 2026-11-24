@@ -42,3 +42,8 @@
   .kepler-table { font-size: .78rem; }
   .kepler-table :is(th,td) { padding-inline: 4px; }
 }
+.kepler-clock { min-inline-size: 0; margin: 16px 0 12px; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line); }
+.kepler-clock legend { color: #d0e4ff; padding: 0 8px 0 0; font-weight: 650; }
+.kepler-clock .orbit-actions { gap: 6px; }
+.kepler-clock .orbit-actions button { padding: 7px 10px; min-height: 38px; }
+.kepler-clock button:disabled { opacity: .52; cursor: default; }
