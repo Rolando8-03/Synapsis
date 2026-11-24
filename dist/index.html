@@ -199,6 +199,13 @@
                   <label for="kepler-time">Tiempo simulado <output id="kepler-time-value" for="kepler-time">0 años</output></label>
                   <input id="kepler-time" type="range" min="0" max="12" step=".01" value="0" aria-valuetext="0 años">
                 </div>
+                <label class="kepler-rate" for="kepler-rate">Velocidad
+                  <select id="kepler-rate">
+                    <option value=".5">0,5×</option>
+                    <option value="1" selected>1×</option>
+                    <option value="2">2×</option>
+                  </select>
+                </label>
                 <div class="orbit-actions">
                   <button id="kepler-play" class="primary" type="button">Reproducir</button>
                   <button id="kepler-back" class="secondary" type="button">Retroceder</button>
@@ -208,6 +215,7 @@
               </fieldset>
               <span id="kepler-clock-status" class="visually-hidden" role="status"></span>
               <p class="kepler-note">A tiene un semieje de 1 UA. B tiene una excentricidad de 0,30. El Sol se mantiene fijo en el origen.</p>
+              <div id="kepler-loading" class="loading-progress" hidden></div>
               <p id="kepler-status" role="status"></p>
               <button id="kepler-retry" type="button" class="secondary" hidden>Volver a intentar</button>
             </div>
@@ -389,6 +397,7 @@
             <h1 id="ws-title" tabindex="-1"></h1>
             <p id="ws-description"></p>
           </header>
+          <div id="ws-loading" class="loading-progress" hidden></div>
           <div id="ws-message" role="status"></div>
           <p id="ws-error" role="alert" class="result-error" hidden></p>
           <div id="ws-operation">

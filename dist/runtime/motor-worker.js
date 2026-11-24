@@ -12,10 +12,10 @@ function sri(hex) {
   return 'sha256-' + btoa(String.fromCharCode(...hex.match(/../g).map(pair => Number.parseInt(pair, 16))));
 }
 
-const progress = message => postMessage({type:'progress', message});
+const progress = stage => postMessage({type:'progress', stage});
 
 async function start() {
-  progress('Preparando Python…');
+  progress(0);
   const versions = await (await file(new URL('version.json', here))).json();
   // Un paquete instalado en Android o Pages usa solo recursos internos.
   const packed = await fetch(new URL('empaquetado.json', here), {cache:'no-cache'});
@@ -36,14 +36,14 @@ async function start() {
   FS.mkdirTree(sourceDir);
   FS.mkdirTree(wheelsDir);
 
-  progress('Cargando SymPy y mpmath…');
+  progress(1);
   for (const wheel of versions.wheels) {
     const url = new URL(wheel.file, local ? here : versions.publicRuntime);
     const bytes = await (await file(url, {integrity:sri(wheel.sha256)})).arrayBuffer();
     python.unpackArchive(bytes, 'zip', {extractDir:wheelsDir});
   }
 
-  progress('Cargando el motor de Synapsis…');
+  progress(2);
   if (local) {
     const bytes = await (await file(new URL('python.zip', here))).arrayBuffer();
     python.unpackArchive(bytes, 'zip', {extractDir:sourceDir});
@@ -59,6 +59,7 @@ async function start() {
       }));
     }
   }
+  progress(3);
   python.runPython(`import sys
 sys.path[:0] = ["/synapsis", "/synapsis-dependencias"]
 from motor_api import invoke_json

@@ -4,7 +4,7 @@ from math import cos, pi, sin
 import sympy as sp
 
 from .algebra import least_squares, real_display, show, small, step
-from motor_matematico.algorithms.linear.context import integer, matrix, vector
+from motor_matematico.algorithms.linear.context import integer, matrix, tex, vector
 from motor_matematico.algorithms.linear.reduction import solve
 
 
@@ -30,10 +30,17 @@ def intersections(data,ctx):
                 lines.append([[point[0]+t*dx,point[1]+t*dy] for t in (-extent,extent)])
             else:
                 lines.append([])
-        result["visual_libro"] = {"tipo":"rectas","lineas":lines,
-                                  "punto":list(map(real_display,result["particular"])) if result["clasificacion"]=="unica" else None,
-                                  "control":{"campo":"b","indice":1,"eje":"intercepto","normal":list(map(real_display,A[1])),
-                                             "valor":str(b[1]),"etiqueta":"Término independiente de la segunda recta"}}
+        formulas = [rf"\left({tex(row[0])}\right)x+\left({tex(row[1])}\right)y={tex(value)}"
+                    for row,value in zip(A,b)]
+        result["visual_libro"] = {"tipo":"rectas","lineas":lines,"ecuaciones":formulas,
+                                  "punto":list(map(real_display,result["particular"])) if result["clasificacion"]=="unica" else None}
+        norm = sum(value**2 for value in A[1])
+        if norm:
+            result["visual_libro"]["control"] = {
+                "campo":"b", "indice":1, "eje":"intercepto", "normal":list(map(real_display,A[1])),
+                "punto":list(map(real_display,(b[1]*value/norm for value in A[1]))),
+                "valor":str(b[1]),"etiqueta":"Término independiente de la segunda recta",
+            }
     if n==3:
         planes = []
         for row,value in zip(A,b):

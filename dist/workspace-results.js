@@ -2,7 +2,7 @@ import { iterationSelection } from './iteration-selection.js';
 import { node } from './matrix-input.js';
 import { bookControl, bookScene } from './book-scenes.js';
 import { addPlot } from './plot.js';
-import { riemannPlot, sectionPlot } from './integral-visuals.js';
+import { curveFrames, riemannPlot, sectionPlot } from './integral-visuals.js';
 import { math, matrixFormula, numericTex, vectorFormula } from './math-format.js';
 
 const LABELS = {
@@ -353,7 +353,7 @@ function procedureView(entries, selection) {
   return stack;
 }
 
-function genericResult(response, recalculate) {
+function genericResult(response, recalculate, camera) {
   const output = response.result;
   const main = node('div', 'ws-result-stack');
   const panels = [['Resultado', main]];
@@ -402,7 +402,7 @@ function genericResult(response, recalculate) {
     main.append(lead);
   }
   if (control_libro) main.append(bookControl(control_libro,recalculate));
-  if (visual_libro) main.append(bookScene(visual_libro,response,recalculate));
+  if (visual_libro) main.append(bookScene(visual_libro,response,recalculate,camera));
   if (series?.points?.length) main.append(addPlot(series));
   const indices = grafico_raiz?.iteraciones?.map(([index]) => index);
   const selection = indices?.length ? iterationSelection(indices) : null;
@@ -411,6 +411,7 @@ function genericResult(response, recalculate) {
   if (formula_latex) main.append(math(formula_latex, formula_latex, true));
   if (visual_integral?.tipo === 'riemann') main.append(riemannPlot(visual_integral));
   if (visual_integral?.tipo === 'seccion') main.append(sectionPlot(visual_integral));
+  if (['area','tangente'].includes(visual_integral?.tipo)) main.append(curveFrames(visual_integral));
   if (points?.length) {
     main.append(addPlot({points, parametric}), table(parametric ? ['t', 'x(t)', 'y(t)'] : ['x','f(x)'],
       muestras.map(row => parametric ? row : row.slice(1)), 'Puntos de referencia'));
@@ -461,7 +462,7 @@ function genericResult(response, recalculate) {
   return panels;
 }
 
-export function renderResult(target, response, choices, originalSystem, onEdit, recalculate) {
+export function renderResult(target, response, choices, originalSystem, onEdit, recalculate, camera) {
   const selectedTab = target.dataset.selectedTab;
   target.replaceChildren();
   const header = node('div', 'ws-panel-heading');
@@ -498,7 +499,7 @@ export function renderResult(target, response, choices, originalSystem, onEdit, 
   if (response.error) target.append(node('p', 'result-error', response.error.message));
   for (const warning of response.warnings ?? []) target.append(node('p', 'ws-warning', isScalar(warning) ? scalar(warning) : warning.message ?? JSON.stringify(warning)));
   if (!response.result) return;
-  const panels = originalSystem ? systemResult(response.result, choices, response.steps) : genericResult(response, recalculate);
+  const panels = originalSystem ? systemResult(response.result, choices, response.steps) : genericResult(response, recalculate, camera);
   const results = node('div', 'ws-result-body');
   const tabs = node('div', 'ws-result-tabs');
   tabs.setAttribute('role', 'tablist');

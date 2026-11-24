@@ -135,7 +135,7 @@
   font: inherit; font-size: .86rem; padding: 6px 8px; background: transparent;
   border: 0; border-bottom: 2px solid transparent; color: var(--ws-muted); cursor: pointer;
 }
-.ws-result-tabs button[aria-selected="true"] { color: var(--ws-accent); border-bottom-color: var(--ws-accent); }
+.ws-result-tabs button[aria-selected="true"] { color: var(--highlight); border-bottom-color: var(--highlight); }
 .ws-result-stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 11px; min-width: 0; }
 .ws-feature { color: var(--ws-accent); font: 660 1.21rem/1.27 var(--display); }
 .ws-result-table {
@@ -308,3 +308,6 @@
 .ws-book-images label { grid-column: 1/-1; }
 
 .ws-vector-formula { display: block; max-width: 100%; overflow-x: auto; position: relative; }
+
+.ws-book-view { display: flex; gap: .35rem; flex-wrap: wrap; width: 100%; }
+.ws-book-equations { display: flex; gap: .6rem 1rem; flex-wrap: wrap; align-items: center; }

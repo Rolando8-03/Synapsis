@@ -1,3 +1,4 @@
+import { loadingProgress } from './loading-progress.js';
 import { motor } from './transport.js';
 import { bindOrbit } from './orbit.js';
 
@@ -110,12 +111,14 @@ function bindScene(section) {
   const eValue = find('e-value');
   const aValue = find('a-value');
   const note = find('status');
+  const progress = loadingProgress(find('loading'));
   const retry = find('retry');
   const measurements = find('measurements');
   const clock = find('clock');
   const time = find('time');
   const timeValue = find('time-value');
   const play = find('play');
+  const rate = find('rate');
   const back = find('back');
   const forward = find('forward');
   const clockStatus = find('clock-status');
@@ -169,7 +172,7 @@ function bindScene(section) {
 
   function tick(now) {
     started ??= now;
-    const targetTime = startTime + (now-started)*.00025;
+    const targetTime = startTime + (now-started)*.00025*Number(rate.value);
     const nextIndex = Math.floor(targetTime / Number(time.step) + 1e-8);
     if (nextIndex !== index) show(nextIndex);
     if (index === scene.frames.length-1) {
@@ -239,7 +242,11 @@ function bindScene(section) {
     loading = request;
     try {
       const result = await motor.scene(parameters, {signal:request.signal,
-        onProgress(message) { if (!request.signal.aborted && pendingKey === key) updateText(note,message); },
+        onProgress(update) {
+          if (request.signal.aborted || pendingKey !== key) return;
+          if (update) updateText(note,'');
+          progress(update);
+        },
       });
       if (!request.signal.aborted && pendingKey === key) applyScene(key,result);
     } catch (error) {
@@ -258,6 +265,7 @@ function bindScene(section) {
     initialized = true;
     clearTimeout(delay);
     loading?.abort();
+    progress(null);
     const parameters = {excentricidad:e.valueAsNumber, semieje_b:a.valueAsNumber};
     const key = `${parameters.excentricidad}:${parameters.semieje_b}`;
     updateText(eValue,format(parameters.excentricidad));
@@ -294,6 +302,12 @@ function bindScene(section) {
   back.addEventListener('click',() => seek(index-1));
   forward.addEventListener('click',() => seek(index+1));
   find('reset').addEventListener('click',() => seek(0));
+  rate.addEventListener('change',() => {
+    if (animation) {
+      started = null;
+      startTime = scene.frames[index].t;
+    }
+  });
   play.addEventListener('click',() => {
     if (!scene || clock.disabled || !enabled) return;
     playing = !playing;

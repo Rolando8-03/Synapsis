@@ -53,3 +53,6 @@
 .kepler-work ol { padding-inline-start: 1.3rem; margin: 8px 0 12px; }
 .kepler-work li { padding: 4px 0; font-size: .85rem; line-height: 1.5; color: #d0e4ff; }
 @media (max-width: 800px) { .kepler-calculations { grid-template-columns: 1fr; gap: 4px; } }
+
+.kepler-rate { display: flex; align-items: center; gap: .5rem; margin-block: .55rem; }
+.kepler-rate select { background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: .4rem; padding: .28rem .4rem; }

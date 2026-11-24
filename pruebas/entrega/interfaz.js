@@ -1,4 +1,4 @@
-(async ({cases,algebra,measure}) => {
+(async ({cases,algebra,measure,quality}) => {
   const $ = query => document.querySelector(query);
   const all = query => [...document.querySelectorAll(query)];
   const sleep = delay => new Promise(resolve => setTimeout(resolve, delay));
@@ -114,7 +114,96 @@
     return {calculation, firstPaintMs,firstPaints,hiddenPaints,initialSteps,totalSteps:reply.steps.length};
   }
 
-  if (measure) {
+  if (quality) {
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    const key = (element,key) => element.dispatchEvent(new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));
+    const action = label => all('.ws-book-view button').find(item=>item.textContent===label);
+    const route = 'sistemas/libros.intersecciones';
+    const reply = await restore(route,{A:'1 1\n1 -1',b:'3 1'});
+    tab('Resultado');
+    const line = $('.ws-book-canvas');
+    const before = line.toDataURL();
+    action('Acercar').click();
+    await frame();
+    check(line.toDataURL()!==before,'El zoom no cambió la vista');
+    const zoomed = line.toDataURL();
+    key(line,'ArrowRight');
+    await frame();
+    check(line.toDataURL()!==zoomed,'No se movió la cámara con teclado');
+    action('Restablecer vista').click();
+    await frame();
+    check(line.toDataURL()===before,'Restablecer cambió la geometría original');
+    check(reply.result.particular.join()==='2,1','Cruce inicial');
+    const field = $('.ws-book-controls input');
+    change(field,'1/2');
+    key(field,'Enter');
+    await observe(()=>$('.ws-book-controls input')!==field);
+    check(last.reply.result.particular.join()==='7/4,5/4' && $('.ws-book-equations').textContent.includes('Un cruce'),
+      'El cruce exacto y las ecuaciones no se actualizaron a la vez');
+    for (const [op,data,id] of [
+      ['derivada_cadena',{expresion:'(x^2+1)^3'},'#ws-tangent-x'],
+      ['area',{expresion:'x^3-x',segunda:'0',inferior:'-1',superior:'1',entrega:'plantear'},'#ws-area-piece'],
+      ['arandelas',{expresion:'x+2',segunda:'1',inferior:'0',superior:'1',entrega:'plantear'},'#ws-volume-x'],
+    ]) {
+      await restore('grafica/calculo.'+op,data);
+      tab('Resultado');
+      const control=$(id), plot=$('#ws-result-content canvas'), formula=$('.ws-frame-formula');
+      check(control && plot && formula,'Faltan controles de la escena');
+      const previous=plot.toDataURL();
+      const beforeFormula=formula.textContent;
+      change(control,+control.value===+control.max ? '0' : control.max);
+      check(plot.toDataURL()!==previous && formula.textContent!==beforeFormula && control.getAttribute('aria-valuetext'),
+        'El control no sincronizó fórmula y dibujo');
+      check(document.documentElement.scrollWidth<=innerWidth,'La escena desborda la pantalla');
+    }
+
+    await restore(route,{A:'1 1\n1 -1',b:'3 1'});
+    tab('Resultado');
+    const canvas=$('.ws-book-canvas');
+    canvas.scrollIntoView({block:'center'});
+    const box=canvas.getBoundingClientRect();
+    const pointer=(type,x,y)=>canvas.dispatchEvent(new PointerEvent(type,{pointerId:1,
+      button:0,clientX:box.left+box.width*x,clientY:box.top+box.height*y,bubbles:true}));
+    // La captura real requiere un puntero físico. La prueba mide el mismo flujo de eventos y pinturas.
+    canvas.setPointerCapture=()=>{};
+    const startPixels=canvas.toDataURL();
+    pointer('pointerdown',.518,.531);
+    pointer('pointermove',.65,.66);
+    await frame();
+    check(canvas.toDataURL()!==startPixels,'El punto no se movió en la previsualización');
+    pointer('pointerup',.65,.66);
+    await observe(()=>$('.ws-book-canvas')!==canvas);
+    check(last.reply.result.particular.join()!=='2,1','Soltar el punto no actualizó el cruce');
+
+    const pan=$('.ws-book-canvas');
+    pan.scrollIntoView({block:'center'});
+    const rect=pan.getBoundingClientRect();
+    pan.setPointerCapture=()=>{};
+    const panEvent=(type,x)=>pan.dispatchEvent(new PointerEvent(type,{pointerId:2,button:0,
+      clientX:rect.left+x,clientY:rect.top+10,bubbles:true}));
+    const latencies=[], frameTimes=[];
+    let inputAt=null;
+    const context=pan.getContext('2d');
+    const clearRect=context.clearRect.bind(context);
+    context.clearRect=(...bounds)=>{
+      if (inputAt!==null) { latencies.push(performance.now()-inputAt); inputAt=null; }
+      clearRect(...bounds);
+    };
+    panEvent('pointerdown',10);
+    let prior=await frame();
+    for (let i=0;i<30;i++) {
+      inputAt=performance.now();
+      for (let sample=0;sample<4;sample++) panEvent('pointermove',11+i*2+sample*.4);
+      const now=await frame();
+      frameTimes.push(now-prior);
+      prior=now;
+    }
+    panEvent('lostpointercapture',72);
+    const p95 = values => [...values].sort((a,b)=>a-b)[Math.ceil(values.length*.95)-1];
+    check(latencies.length===30 && frameTimes.length===30,'Cada grupo de eventos debe pintar una sola vez');
+    hardware.quality={arrastres:120,pinturas:latencies.length,latenciaP95:p95(latencies),fotogramaP95:p95(frameTimes),
+      muestrasTangente:65,muestrasArea:66,muestrasArandelas:65};
+  } else if (measure) {
     hardware.measurements=[];
     for (let i=0;i<5;i++) {
       delete $('#ws-results').dataset.selectedTab;
