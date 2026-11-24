@@ -50,14 +50,22 @@ EXERCISE = r"""
   await filled(()=>answer && !document.querySelector('#ws-results').hidden, 'No se mostró el resultado');
   if (answer.result?.expresion !== '3*x^2' || !answer.steps?.length) throw Error('Derivada o pasos incorrectos');
   if (!document.querySelector('#ws-result-content math')) throw Error('No cargó KaTeX local');
+  document.title='ARRANQUE OK';
+})().catch(error=>document.title='ARRANQUE ERROR '+error.message+' · '+(document.querySelector('#ws-message')?.textContent || location.hash))
+"""
+
+PDF_EXERCISE = r"""
+(async () => {
   location.hash='orbita';
   document.querySelector('#kepler-chart').scrollIntoView();
-  await filled(()=>!document.querySelector('#kepler-clock')?.disabled, 'No arrancó el reloj de Kepler');
+  const clock=document.querySelector('#kepler-clock');
+  for (let i=0; clock.disabled && i<200; i+=1) await new Promise(resolve=>setTimeout(resolve,40));
+  if (clock.disabled) throw Error('No arrancó el reloj de Kepler');
   const time=document.querySelector('#kepler-time');
   time.value=6.43;
   time.dispatchEvent(new Event('input',{bubbles:true}));
   document.querySelector('#kepler-export').click();
-})().catch(error=>document.title='ARRANQUE ERROR '+error.message+' · '+(document.querySelector('#ws-message')?.textContent || location.hash))
+})().catch(error=>document.title='ARRANQUE ERROR '+error.message)
 """
 
 
@@ -84,7 +92,8 @@ def main():
             self.local_only = LocalOnly(self)
             self.page().profile().setUrlRequestInterceptor(self.local_only)
             self.loadFinished.connect(self.loaded)
-            self.titleChanged.connect(self.completed)
+            self.pdf_requested = False
+            self.titleChanged.connect(self.on_title_change)
             self.pdfPrintingFinished.connect(self.check_pdf)
             QTimer.singleShot(35000, lambda: QApplication.instance().exit(3))
             return super().load(url)
@@ -94,6 +103,14 @@ def main():
                 self.page().runJavaScript(EXERCISE)
             else:
                 QApplication.instance().exit(2)
+
+        def on_title_change(self, title):
+            if title == "ARRANQUE OK":
+                if not self.pdf_requested:
+                    self.pdf_requested = True
+                    self.page().runJavaScript(PDF_EXERCISE)
+            elif title.startswith("ARRANQUE ERROR "):
+                self.completed(title)
 
         def completed(self, title):
             if not title.startswith("ARRANQUE "):
