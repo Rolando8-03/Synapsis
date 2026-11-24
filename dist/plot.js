@@ -56,6 +56,8 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
   const legends = [];
   let selectedPoint;
   canvas.redrawPlot = () => {
+    // La pestaña vuelve a dibujar al montar el lienzo. Evitar trabajo fuera del documento.
+    if (!canvas.isConnected) return;
     context.clearRect(0, 0, width, height);
     context.lineWidth = 1;
     const palette = getComputedStyle(page);

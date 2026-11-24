@@ -50,7 +50,7 @@ export function sectionPlot(model) {
   const largest = Math.max(...model.cuadros.map(frame => Number(frame.radios[0]))) || 1;
   const piText = text => text.replaceAll('pi','π').replaceAll('*','·');
   inset.redrawPlot = () => {
-    if (!context) return;
+    if (!context || !inset.isConnected) return;
     const { radios } = model.cuadros[Number(input.value)];
     const [outer, inner] = radios.map(radius => 82 * (Number(radius) / largest));
     context.clearRect(0, 0, inset.width, inset.height);
