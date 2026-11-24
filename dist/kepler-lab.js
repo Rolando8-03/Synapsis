@@ -1,3 +1,4 @@
+import { motor } from './transport.js';
 import { bindOrbit } from './orbit.js';
 
 const number = new Intl.NumberFormat('es-NI', { maximumFractionDigits: 4, useGrouping: false });
@@ -237,18 +238,15 @@ function bindScene(section) {
     const request = new AbortController();
     loading = request;
     try {
-      const response = await fetch('/api/kepler/escena', {
-        method:'POST', signal:request.signal, headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(parameters),
+      const result = await motor.scene(parameters, {signal:request.signal,
+        onProgress(message) { if (!request.signal.aborted && pendingKey === key) updateText(note,message); },
       });
-      if (!response.ok) throw new Error('Órbitas no disponibles');
-      const result = await response.json();
       if (!request.signal.aborted && pendingKey === key) applyScene(key,result);
     } catch (error) {
       if (request.signal.aborted || pendingKey !== key) return;
       note.textContent = scene
         ? 'El motor orbital no respondió. Se muestran los parámetros anteriores.'
-        : 'El motor orbital no respondió. Revisá que Synapsis esté abierto desde su lanzador.';
+        : 'El motor orbital no respondió. Podés reintentar la carga.';
       measurements.removeAttribute('aria-busy');
       retry.hidden = false;
     } finally {
