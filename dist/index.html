@@ -175,89 +175,107 @@
       <div class="shell">
         <div class="orbit-lab kepler-lab" id="kepler-scene">
           <a class="lab-menu-link" href="#modulos">‹ Volver al menú</a>
-          <h2 id="orbit-title" tabindex="-1">Las leyes de Kepler</h2>
-          <ol class="kepler-laws">
-            <li><h3>1. Órbitas elípticas</h3><p>Cada planeta recorre una elipse con el Sol en uno de sus focos.</p></li>
-            <li><h3>2. Áreas iguales</h3><p>El radio Sol–planeta barre áreas iguales en intervalos de igual duración.</p></li>
-            <li><h3>3. Períodos orbitales</h3><p>Para un mismo cuerpo central dominante, el cuadrado del período es proporcional al cubo del semieje mayor.</p></li>
-          </ol>
-          <div class="kepler-layout">
-            <div class="kepler-controls">
-              <div class="orbit-sliders">
-                <label for="kepler-e">Excentricidad de A <output id="kepler-e-value" for="kepler-e">0,55</output></label>
-                <input id="kepler-e" type="range" min="0" max=".98" step=".01" value=".55">
-                <label for="kepler-a">Semieje mayor de B <output id="kepler-a-value" for="kepler-a">2,25 UA</output></label>
-                <input id="kepler-a" type="range" min=".60" max="3" step=".01" value="2.25">
-              </div>
-              <fieldset class="kepler-clock" id="kepler-clock" disabled>
-                <legend>Reloj común</legend>
-                <div class="orbit-sliders">
-                  <label for="kepler-time">Tiempo simulado <output id="kepler-time-value" for="kepler-time">0 años</output></label>
-                  <input id="kepler-time" type="range" min="0" max="12" step=".01" value="0" aria-valuetext="0 años">
-                </div>
-                <label class="kepler-rate" for="kepler-rate">Velocidad
-                  <select id="kepler-rate">
-                    <option value=".5">0,5×</option>
-                    <option value="1" selected>1×</option>
-                    <option value="2">2×</option>
-                  </select>
-                </label>
-                <div class="orbit-actions">
-                  <button id="kepler-play" class="primary" type="button">Reproducir</button>
-                  <button id="kepler-export" class="secondary" type="button">Exportar PDF</button>
-                  <button id="kepler-back" class="secondary" type="button">Retroceder</button>
-                  <button id="kepler-forward" class="secondary" type="button">Avanzar</button>
-                  <button id="kepler-reset" class="secondary" type="button">Ir al perihelio</button>
-                </div>
-              </fieldset>
-              <span id="kepler-clock-status" class="visually-hidden" role="status"></span>
-              <p class="kepler-note">A tiene un semieje de 1 UA. B tiene una excentricidad de 0,30. El Sol se mantiene fijo en el origen.</p>
-              <div id="kepler-loading" class="loading-progress" hidden></div>
-              <p id="kepler-status" role="status"></p>
-              <button id="kepler-retry" type="button" class="secondary" hidden>Volver a intentar</button>
-            </div>
-            <figure class="orbit-visual kepler-figure">
-              <svg id="kepler-chart" class="orbit-chart kepler-chart" viewBox="0 0 640 374" role="img"
-                   aria-label="Dos elipses con el Sol en el foco común, los otros focos y dos sectores de la órbita A">
+          <h2 id="orbit-title" tabindex="-1">Laboratorio 3D</h2>
+          <details class="kepler-laws-panel">
+            <summary>Ver leyes</summary>
+            <ol class="kepler-laws">
+              <li><h3>1. Órbitas elípticas</h3><p>Cada planeta recorre una elipse con el Sol en uno de sus focos.</p></li>
+              <li><h3>2. Áreas iguales</h3><p>El radio Sol–planeta barre áreas iguales en intervalos de igual duración.</p></li>
+              <li><h3>3. Períodos orbitales</h3><p>Con el mismo Sol, el cuadrado del período es proporcional al cubo del semieje mayor.</p></li>
+            </ol>
+          </details>
+          <figure class="kepler-figure" id="kepler-figure">
+            <div class="kepler-stage">
+              <svg id="kepler-chart" class="kepler-chart" viewBox="0 0 720 420" role="img"
+                   aria-label="Elipses tridimensionales proyectadas con el Sol en el foco común, la Tierra, la órbita de prueba y dos sectores terrestres">
                 <defs>
-                  <pattern id="kepler-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0v32" fill="none" stroke="#54769f" stroke-opacity=".22"/></pattern>
+                  <radialGradient id="kepler-sun-light" cx="33%" cy="27%" r="70%"><stop stop-color="#fff6c5"/><stop offset=".55" stop-color="#ffd66d"/><stop offset="1" stop-color="#e08b35"/></radialGradient>
+                  <radialGradient id="kepler-earth-light" cx="32%" cy="28%" r="75%"><stop stop-color="#e2faff"/><stop offset=".45" stop-color="#7ecbff"/><stop offset="1" stop-color="#224e9f"/></radialGradient>
+                  <radialGradient id="kepler-test-light" cx="32%" cy="28%" r="75%"><stop stop-color="#ffe4ce"/><stop offset=".5" stop-color="#ffac85"/><stop offset="1" stop-color="#994a4b"/></radialGradient>
                 </defs>
-                <rect x="8" y="8" width="624" height="358" rx="12" fill="url(#kepler-grid)"/>
+                <rect class="kepler-sky" width="720" height="420"/>
                 <g id="kepler-model" hidden>
-                  <ellipse id="kepler-track-a" class="kepler-track-a"/>
-                  <ellipse id="kepler-track-b" class="kepler-track-b"/>
+                  <path id="kepler-grid"/>
+                  <path id="kepler-axis-z"/><text id="kepler-axis-label" class="kepler-z-label">z</text>
+                  <path id="kepler-track-a" class="kepler-track-a"/>
+                  <path id="kepler-track-b" class="kepler-track-b"/>
                   <path id="kepler-sector-reference" class="kepler-sector-reference"/>
                   <path id="kepler-sector-current" class="kepler-sector-current"/>
                   <line id="kepler-radius-a" class="kepler-track-a"/>
                   <line id="kepler-radius-b" class="kepler-track-b"/>
-                  <g id="kepler-foci">
-                    <g id="kepler-focus-a" class="kepler-color-a"><circle r="4"/><text x="-6" y="18" text-anchor="end">Fₐ</text></g>
-                    <g id="kepler-focus-b" class="kepler-color-b"><circle r="4"/><text x="-6" y="-9" text-anchor="end">Fᵦ</text></g>
+                  <g id="kepler-focus-a" class="kepler-focus kepler-color-a"><circle r="3"/><text x="-9" y="20" text-anchor="end">F₂ Tierra</text></g>
+                  <g id="kepler-focus-b" class="kepler-focus kepler-color-b"><circle r="4"/><text x="-8" y="-12" text-anchor="end">F₂ prueba</text></g>
+                  <g id="kepler-bodies">
+                    <g id="kepler-sun" class="kepler-sun"><circle class="kepler-halo" r="19"/><circle r="12" fill="url(#kepler-sun-light)"/><text x="14" y="-11">Sol · F₁</text></g>
+                    <g id="kepler-planet-a" class="kepler-color-a"><circle r="8" fill="url(#kepler-earth-light)"/><text x="11" y="19">Tierra</text></g>
+                    <g id="kepler-planet-b" class="kepler-color-b"><circle r="7" fill="url(#kepler-test-light)"/><text x="10" y="-10">Prueba</text></g>
                   </g>
-                  <g id="kepler-sun" class="kepler-sun"><circle r="7"/><text x="7" y="20">Sol</text></g>
-                  <g id="kepler-planet-a" class="kepler-color-a"><circle r="5.5"/><text x="8" y="-9">A</text></g>
-                  <g id="kepler-planet-b" class="kepler-color-b"><circle r="6"/><text x="8" y="-9">B</text></g>
                 </g>
               </svg>
-              <figcaption class="kepler-legend"><span class="kepler-legend-a">Órbita A</span><span class="kepler-legend-b">Órbita B</span><span class="kepler-legend-current">Sector actual</span><span class="kepler-legend-reference">Sector de referencia</span></figcaption>
-            </figure>
-          </div>
+            </div>
+            <fieldset class="kepler-clock" id="kepler-clock" aria-label="Reloj común" disabled>
+              <div class="kepler-timeline">
+                <label for="kepler-time">Tiempo <output id="kepler-time-value" for="kepler-time">0 años</output></label>
+                <input id="kepler-time" type="range" min="0" max="12" step=".01" value="0" aria-valuetext="0 años">
+              </div>
+              <div class="kepler-toolbar">
+                <button id="kepler-play" class="primary" type="button">Reproducir</button>
+                <button id="kepler-back" type="button" aria-label="Retroceder un paso" title="Retroceder un paso">−</button>
+                <button id="kepler-forward" type="button" aria-label="Avanzar un paso" title="Avanzar un paso">+</button>
+                <label class="kepler-rate" for="kepler-rate">Velocidad
+                  <select id="kepler-rate">
+                    <option value=".5" selected>0,5×</option><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option>
+                  </select>
+                </label>
+                <button id="kepler-reset" type="button">Restablecer</button>
+              </div>
+            </fieldset>
+            <details class="kepler-settings">
+              <summary>Ajustes</summary>
+              <div class="kepler-settings-panel">
+                <div class="kepler-parameters">
+                  <label for="kepler-e">Excentricidad de prueba <output id="kepler-e-value" for="kepler-e">0,30</output></label>
+                  <input id="kepler-e" type="range" min="0" max=".88" step=".01" value=".30">
+                  <label for="kepler-a">Semieje de prueba <output id="kepler-a-value" for="kepler-a">2,25 UA</output></label>
+                  <input id="kepler-a" type="range" min=".60" max="3" step=".01" value="2.25">
+                </div>
+                <label class="kepler-date" for="kepler-date">Fecha simulada
+                  <input id="kepler-date" type="date" min="2000-01-03" disabled aria-describedby="kepler-calendar">
+                </label>
+                <small id="kepler-calendar">El calendario toma el perihelio inicial como origen y aproxima la fecha al paso de la simulación.</small>
+                <div class="kepler-toolbar">
+                  <button id="kepler-export" type="button" disabled>Exportar PDF</button>
+                  <button id="kepler-fullscreen" type="button">Pantalla completa</button>
+                </div>
+              </div>
+            </details>
+            <figcaption class="kepler-legend">
+              <span class="kepler-legend-a">Tierra</span><span class="kepler-legend-b">Órbita de prueba</span>
+              <span class="kepler-legend-current">Sector actual</span><span class="kepler-legend-reference">Sector de referencia</span>
+              <span class="kepler-camera-help">Arrastrá para girar. Rueda o pinza para acercar.</span>
+            </figcaption>
+          </figure>
+          <span id="kepler-clock-status" class="visually-hidden" role="status"></span>
+          <div id="kepler-loading" class="loading-progress" hidden></div>
+          <p id="kepler-status" role="status"></p>
+          <button id="kepler-retry" type="button" class="secondary" hidden>Volver a intentar</button>
           <div id="kepler-measurements" class="kepler-measurements" hidden>
             <div>
               <h3>Dos órbitas, un mismo Sol</h3>
               <p class="kepler-note" id="kepler-mu"></p>
               <table class="kepler-table">
-                <thead><tr><th scope="col">Medida</th><th scope="col">A</th><th scope="col">B</th></tr></thead>
+                <thead><tr><th scope="col">Medida</th><th scope="col">Tierra</th><th scope="col">Prueba</th></tr></thead>
                 <tbody>
                   <tr><th scope="row">Semieje a (UA)</th><td id="kepler-axis-a"></td><td id="kepler-axis-b"></td></tr>
                   <tr><th scope="row">Período T (años)</th><td id="kepler-period-a"></td><td id="kepler-period-b"></td></tr>
                   <tr><th scope="row">T²/a³ (años²/UA³)</th><td id="kepler-ratio-a"></td><td id="kepler-ratio-b"></td></tr>
                   <tr><th scope="row">Distancia al Sol (UA)</th><td id="kepler-distance-a"></td><td id="kepler-distance-b"></td></tr>
+                  <tr><th scope="row">Suma de distancias a los focos (UA)</th><td id="kepler-focal-a"></td><td id="kepler-focal-b"></td></tr>
                 </tbody>
               </table>
             </div>
             <div>
-              <h3>Dos sectores de la órbita A</h3>
+              <h3>Dos sectores de la Tierra</h3>
               <p class="kepler-note" id="kepler-sector-duration"></p>
               <table class="kepler-table">
                 <thead><tr><th scope="col">Medida</th><th scope="col">Actual</th><th scope="col">Medio período antes</th></tr></thead>
@@ -267,102 +285,19 @@
                   <tr><th scope="row">Rapidez final (UA/año)</th><td id="kepler-speed-current"></td><td id="kepler-speed-reference"></td></tr>
                 </tbody>
               </table>
-              <p class="kepler-note">En t = 0 los sectores terminan en perihelio y afelio, respectivamente.</p>
             </div>
           </div>
           <details class="kepler-work" id="kepler-work" hidden>
             <summary>Procedimiento del instante</summary>
             <p class="kepler-note" id="kepler-work-time"></p>
             <div class="kepler-calculations">
-              <div><h3>Planeta A</h3><ol id="kepler-work-a"></ol></div>
-              <div><h3>Planeta B</h3><ol id="kepler-work-b"></ol></div>
+              <div><h3>Tierra</h3><ol id="kepler-work-a"></ol></div>
+              <div><h3>Órbita de prueba</h3><ol id="kepler-work-b"></ol></div>
             </div>
-            <h3>Área barrida por A</h3>
+            <h3>Área barrida por la Tierra</h3>
             <ol id="kepler-work-area"></ol>
           </details>
         </div>
-        <details class="kepler-legacy">
-          <summary>Experimentos por ley</summary>
-        <div class="orbit-lab">
-          <div class="orbit-tabs" role="tablist" aria-label="Leyes de Kepler">
-            <button id="kepler-tab-1" type="button" role="tab" aria-controls="kepler-panel" aria-selected="true" data-law="1"><span>1.</span> Órbitas elípticas</button>
-            <button id="kepler-tab-2" type="button" role="tab" aria-controls="kepler-panel" aria-selected="false" tabindex="-1" data-law="2"><span>2.</span> Áreas iguales</button>
-            <button id="kepler-tab-3" type="button" role="tab" aria-controls="kepler-panel" aria-selected="false" tabindex="-1" data-law="3"><span>3.</span> Período orbital</button>
-          </div>
-          <div id="kepler-panel" class="orbit-panel" role="tabpanel" aria-labelledby="kepler-tab-1">
-            <div class="orbit-content">
-              <p class="kicker"><span></span>Laboratorio orbital</p>
-              <h2 id="orbit-legacy-title">Las leyes<br> de Kepler</h2>
-              <p id="orbit-intro" class="orbit-intro">La órbita es una elipse y la estrella ocupa uno de sus focos. Cambiá la excentricidad para ver cómo se separan los focos.</p>
-              <div class="orbit-sliders">
-                <label for="orbit-shape"><span id="orbit-shape-label">Excentricidad</span><output id="orbit-shape-value" for="orbit-shape" aria-live="off">0.55</output></label>
-                <input id="orbit-shape" type="range" min="0" max=".88" step=".01" value=".55">
-                <label for="orbit-phase"><span id="orbit-phase-label">Tiempo orbital</span><output id="orbit-phase-value" for="orbit-phase" aria-live="off">14 %</output></label>
-                <input id="orbit-phase" type="range" min="0" max="1" step=".001" value=".14">
-              </div>
-              <div class="orbit-actions">
-                <button id="orbit-play" class="secondary" type="button">Pausar órbita</button>
-                <button id="orbit-reset" class="secondary" type="button">Ir al inicio</button>
-                  <button id="orbit-export" class="secondary" type="button">Exportar PDF</button>
-              </div>
-            </div>
-            <div class="orbit-visual">
-              <div class="orbit-visual-head"><span id="orbit-law-title">Primera ley de Kepler</span><span id="orbit-formula">d₁ + d₂ = 2a</span></div>
-              <svg id="orbit-chart" class="orbit-chart" viewBox="0 0 600 348" role="img" aria-label="Órbita elíptica con la estrella en uno de sus dos focos.">
-                <defs>
-                  <pattern id="orbit-grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0v28" fill="none" stroke="#89a1c2" stroke-opacity=".13"/></pattern>
-                  <radialGradient id="orbit-sun-glow"><stop stop-color="#5a9bf5" stop-opacity=".48"/><stop offset="1" stop-color="#5a9bf5" stop-opacity="0"/></radialGradient>
-                  <radialGradient id="orbit-body" cx="34%" cy="30%"><stop stop-color="#d3e4fc"/><stop offset=".5" stop-color="#77acf7"/><stop offset="1" stop-color="#4074be"/></radialGradient>
-                </defs>
-                <rect x="9" y="9" width="582" height="330" rx="13" fill="url(#orbit-grid)"/>
-                <path class="orbit-axes" d="M30 174H572M300 25v298"/>
-                <g id="orbit-ellipse-model">
-                  <ellipse id="orbit-ellipse" class="orbit-ellipse" cx="300" cy="174" rx="154" ry="129"/>
-                  <g id="orbit-area-markers" hidden>
-                    <path id="orbit-sector-reference" class="orbit-sector-reference"/>
-                    <path id="orbit-sector-live" class="orbit-sector-live"/>
-                  </g>
-                  <g id="orbit-foci">
-                    <line id="orbit-second-vector" class="orbit-vector orbit-vector-secondary"/>
-                    <g id="orbit-second-focus">
-                      <circle r="5" fill="#202e41" stroke="#afcefa" stroke-width="1.5"/>
-                      <text x="-9" y="22" text-anchor="end" class="orbit-secondary-label">F₂</text>
-                    </g>
-                  </g>
-                  <line id="orbit-vector" class="orbit-vector"/>
-                  <g id="orbit-focus" transform="translate(385 174)">
-                    <circle r="39" fill="url(#orbit-sun-glow)"/><circle r="10" fill="url(#orbit-body)"/>
-                    <text id="orbit-focus-label" x="13" y="-12">F₁ · estrella</text>
-                  </g>
-                  <g id="orbit-planet" transform="translate(323 47)">
-                    <circle r="13" fill="#77acf7" fill-opacity=".17"/><circle r="6" fill="#bed7fb" stroke="#68a3f6" stroke-width="1.4"/>
-                  </g>
-                </g>
-                <g id="orbit-period-model" hidden>
-                  <circle id="orbit-track-a" class="orbit-track-a" cx="300" cy="174" r="48"/>
-                  <circle id="orbit-track-b" class="orbit-track-b" cx="300" cy="174" r="108"/>
-                  <circle cx="300" cy="174" r="39" fill="url(#orbit-sun-glow)"/><circle cx="300" cy="174" r="10" fill="url(#orbit-body)"/>
-                  <g id="orbit-planet-a">
-                    <circle r="11" fill="#77acf7" fill-opacity=".18"/>
-                    <circle r="5.5" fill="#bed7fb" stroke="#68a3f6" stroke-width="1.4"/>
-                    <text x="10" y="-8">A</text>
-                  </g>
-                  <g id="orbit-planet-b">
-                    <circle r="11" fill="#97bcf0" fill-opacity=".25"/>
-                    <circle r="5.5" fill="#d6e6fd" stroke="#8ab3ed" stroke-width="1.4"/>
-                    <text x="10" y="-8" class="orbit-secondary-label">B</text>
-                  </g>
-                </g>
-              </svg>
-              <dl class="orbit-readouts">
-                <div><dt>Distancia d₁ / a</dt><dd>0.92</dd></div>
-                <div><dt>Distancia d₂ / a</dt><dd>1.08</dd></div>
-                <div><dt>Suma de distancias / a</dt><dd>2.00</dd></div>
-              </dl>
-            </div>
-          </div>
-        </div>
-        </details>
       </div>
     </section>
     <section id="workspace" hidden aria-labelledby="ws-title">

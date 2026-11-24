@@ -1,6 +1,6 @@
 # Un laboratorio para las tres leyes de Kepler
 
-Reutilizá `eccentric_anomaly`, `point`, `sector` y la caché de `kepler.py` donde correspondan. `dist/orbit.js` controla hoy tres experimentos independientes. Conservá la ruta vigente durante la transición. Cada fase se integra en main. Exponer la escena nueva cuando las tres leyes funcionen juntas.
+La escena combinada usa `motor_matematico/algorithms/kepler.py`, con un reloj para la Tierra y la órbita de prueba. `dist/kepler-camera.js` proyecta las coordenadas físicas para girar y ampliar la vista. El contrato histórico del motor sigue disponible para los casos de paridad.
 
 | Fase | Tarea de una sesión | Prueba de cierre |
 | --- | --- | --- |
@@ -15,7 +15,7 @@ Reutilizá `eccentric_anomaly`, `point`, `sector` y la caché de `kepler.py` don
 
 ## Evidencia de cierre
 
-En **Órbita** se abre la escena combinada. **Experimentos por ley** conserva los ejercicios individuales. El modelo usa UA, años y un Sol fijo con $\mu=4\pi^2$ UA³/año². El reloj ofrece 12 años simulados con pasos de 0,01 años. La excentricidad de A y el semieje de B se ajustan en la escena. A tiene $a=1$ UA y B comienza con $a=2,25$ UA y $e=0,30$.
+En **Laboratorio 3D** se abre una sola escena con la Tierra como referencia ($a=1$ UA, $e=0,0167$). La órbita de prueba comienza con $a=2,25$ UA y $e=0,30$. El reloj común abarca 12 años, con pasos de 0,01 y reproducción inicial lenta. **Ver leyes** abre los tres enunciados y **Ajustes** reúne los parámetros, la fecha simulada, el PDF y la pantalla completa. Los ejemplos numéricos de K01–K04 siguen usando los parámetros pedagógicos de las pruebas.
 
 | ID | Caso comprobado |
 | --- | --- |
@@ -23,7 +23,7 @@ En **Órbita** se abre la escena combinada. **Experimentos por ley** conserva lo
 | K02 | Una órbita de $a=2$ UA con $e=0$ mantiene su distancia al Sol. En la elipse se verifica la suma de distancias a los dos focos. Para $e=1-2^{-40}$ se comprueba el residuo de la ecuación de Kepler cerca del perihelio. |
 | K03 | Con $e_A=0,55$, los sectores de 0,08 años que terminan en perihelio y afelio barren 0,2099 UA². Sus rapideces finales son 11,6611 y 3,3855 UA/año. Se comprueba también el intervalo $[0,96;1,04]$ al cruzar una vuelta. |
 | K04 | Pasar de $a=1$ a $a=2$ UA da un período $2^{3/2}$ veces mayor y mantiene $T^2/a^3=1$ año²/UA³. Cambiar $e$ con $a$ fijo mantiene el período. |
-| K05 | Los tres enunciados, las dos trayectorias, los focos, los dos sectores y las mediciones aparecen juntos. La ruta de los experimentos individuales sigue disponible. |
+| K05 | Los tres enunciados, las dos trayectorias, los focos, los dos sectores y las mediciones aparecen juntos. La interfaz abre directamente la escena conjunta. |
 | K06 | Reproducir, pausar, avanzar, retroceder, volver al perihelio y seleccionar 6,43 años actualizan las dos órbitas y las mediciones con la misma muestra. Con movimiento reducido, los pasos y el deslizador siguen accesibles. |
 | K07 | La lectura de 6,43 años usa la misma muestra que el gráfico para desarrollar $b$, $M$, $E$, la posición, la rapidez, el área con $\Delta E$ continuo y el período. |
 | K08 | El arrastre realiza una sola solicitud. Volver a parámetros ya cargados reutiliza las muestras. Una respuesta demorada a propósito se descarta después de otro ajuste. En 1,2 s de reproducción se observaron 30 actualizaciones del planeta A. Durante 0,5 s fuera de vista se observaron cero. |
@@ -40,3 +40,7 @@ Comparación local en el mismo equipo con Chromium 153 y una ventana de 1360 × 
 | Tiempo mediano para aplicar un ajuste ya consultado | 77,8 ms | 0,2 ms |
 
 Las pruebas de modelo están en [test_kepler.py](../../pruebas/test_kepler.py). Se verificaron además los controles en Chromium y la vista móvil de 390 px. Referencia de los enunciados de las tres leyes en [NASA, Gravity & Mechanics](https://science.nasa.gov/learn/basics-of-space-flight/chapter3-3/).
+
+## Pruebas de la escena 3D
+
+En Chromium a 1440 y 390 píxeles se pausó en 6,43 años y se comprobó que las áreas de los dos sectores eran iguales, el valor de $T^2/a^3$ era 1 en ambas órbitas y las sumas focales eran 2 y 4,5 UA. El giro con arrastre, la rueda y la pinza cambiaron el dibujo sin afectar esas medidas. Cambiar el semieje de prueba a 2 UA dio 2,8284 años y conservó la posición de la Tierra. Se probó la selección por fecha, el avance manual, la pantalla completa y la exportación del instante con el encuadre elegido.

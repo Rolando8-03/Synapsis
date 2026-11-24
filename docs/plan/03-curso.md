@@ -1,6 +1,6 @@
 # Álgebra y métodos de los Programas 1–9
 
-Reutilizá `curso.py`, `procedimientos.py`, `motor_grupo4/` y `motor_matematico/algorithms/`. Los casos de `pruebas/test_procedimientos.py` ya cubren parte del desarrollo. Usá la ruta existente y verificá la salida frente a la guía correspondiente.
+Reutilizá `motor_matematico/application/curso.py`, `motor_matematico/application/procedimientos.py`, `motor_grupo4/` y `motor_matematico/algorithms/`. Los casos de `pruebas/test_procedimientos.py` ya cubren parte del desarrollo. Usá la ruta existente y verificá la salida frente a la guía correspondiente.
 
 | Fase | Tarea de una sesión | Prueba de cierre |
 | --- | --- | --- |

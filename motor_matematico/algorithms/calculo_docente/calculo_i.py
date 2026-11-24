@@ -5,7 +5,7 @@ from math import isfinite
 
 import sympy as sp
 
-from curso import polynomial
+from motor_matematico.parsing.polynomials import polynomial
 from motor_matematico.algorithms.calculo import analizar, ejecutar_calculo
 from motor_matematico.algorithms.numerical.symbolic import symbolic_expression
 from motor_matematico.domain.models import DomainError

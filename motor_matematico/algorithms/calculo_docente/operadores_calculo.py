@@ -3,7 +3,7 @@ import ast
 
 import sympy as sp
 
-from curso import polynomial
+from motor_matematico.parsing.polynomials import polynomial
 from motor_matematico.algorithms.linear.context import integer
 from motor_matematico.parsing.numbers import parse_number
 

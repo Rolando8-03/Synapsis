@@ -1,9 +1,9 @@
 """Catálogo y agrupación de las operaciones de Cálculo I."""
 from functools import partial
 
-import calculo_i as calculus
-from aplicaciones_integrales import area
-from integracion import substitution
+from motor_matematico.algorithms.calculo_docente import calculo_i as calculus
+from motor_matematico.algorithms.calculo_docente.aplicaciones_integrales import area
+from motor_matematico.algorithms.calculo_docente.integracion import substitution
 
 def catalog_entries(field, spec):
     def expr(default, label="Función f(x)", **options):

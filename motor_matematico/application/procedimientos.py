@@ -6,7 +6,7 @@ from motor_matematico.algorithms.linear.context import Context, matrix, tex, vec
 from motor_matematico.parsing.numbers import parse_number
 from motor_matematico.algorithms.linear.worked import dot_formula, parenthesize, product_steps, row_replacement
 from motor_matematico.algorithms.calculo import analizar, evaluar
-from integracion import shared_definite
+from motor_matematico.algorithms.calculo_docente.integracion import shared_definite
 
 
 def original_rows(ctx, steps):
@@ -254,7 +254,7 @@ def compare_iterations(data, ctx):
     from motor_matematico.algorithms.linear.reduction import solve
     from motor_matematico.algorithms.numerical.iterative import iterative
     from motor_matematico.algorithms.numerical.functions import decimal
-    from curso import dominance
+    from motor_matematico.application.curso import dominance
 
     settings = {k:v for k,v in data.items() if k not in {"reordenar"}}
     diagnosis=dominance(settings,ctx)

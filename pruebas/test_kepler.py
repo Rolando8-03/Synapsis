@@ -2,7 +2,7 @@
 import math
 import unittest
 
-from kepler import (Orbit, SOLAR_MU, eccentric_anomaly, equal_sectors, measure_sector,
+from motor_matematico.algorithms.kepler import (Orbit, SOLAR_MU, eccentric_anomaly, equal_sectors, measure_sector,
                     orbital_frames, planet_positions, position, scene_frames)
 
 
@@ -71,6 +71,21 @@ class KeplerTest(unittest.TestCase):
         self.assertAlmostEqual(frame['actual']['fin_t'],frame['t'])
         self.assertAlmostEqual(frame['actual']['area'],frame['referencia']['area'],places=13)
         self.assertIs(scene_frames(.55,2,.25),scene)
+
+    def test_escena_tierra_y_orbita_de_prueba_comparten_reloj(self):
+        earth_e = .0167
+        scene = scene_frames(earth_e, 2.25, .30)
+        comparison = scene_frames(earth_e, 2, .75)
+        self.assertEqual(scene['A'], comparison['A'])
+        self.assertAlmostEqual(comparison['B']['periodo'], 2**1.5)
+        for i in (0, 50, 101, 643, 1200):
+            frame = comparison['frames'][i]
+            self.assertEqual(frame['A'], scene['frames'][i]['A'])
+            self.assertNotEqual(frame['B']['p'], scene['frames'][i]['B']['p'])
+            for name in ('A', 'B'):
+                self.assertAlmostEqual(frame[name]['suma_focal'], 2*comparison[name]['a'])
+            self.assertAlmostEqual(frame['actual']['area'], frame['referencia']['area'])
+            self.assertAlmostEqual(comparison['A']['cociente'], comparison['B']['cociente'])
 
     def test_ruta_de_experimentos_individuales_conserva_formato(self):
         for law,shape,width in [(1,.55,5),(2,.55,6),(3,2.25,4)]:

@@ -1,7 +1,7 @@
 """Reglas elementales, sustitución y comprobación de primitivas reales."""
 import sympy as sp
 
-from calculo_i import R, X, function, interval, require_interval
+from motor_matematico.algorithms.calculo_docente.calculo_i import R, X, function, interval, require_interval
 from motor_matematico.domain.models import DomainError
 
 

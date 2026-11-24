@@ -1,7 +1,7 @@
 """Comprueba las referencias independientes registradas en COBERTURA."""
 import unittest
 
-from backend import calculate
+from motor_matematico.application.backend import calculate
 from motor_matematico.domain.models import DomainError, InputError, ResourceLimitError
 from pruebas.entrega.casos import ALGEBRA, CALCULUS, CASES
 

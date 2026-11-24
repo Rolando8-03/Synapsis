@@ -1,8 +1,8 @@
 """Métodos con desarrollo algebraico para Cálculo II."""
 import sympy as sp
 
-from calculo_i import R, X, condition_set, exact, function
-from integracion import elementary, latex, primitive_result, step
+from motor_matematico.algorithms.calculo_docente.calculo_i import R, X, condition_set, exact, function
+from motor_matematico.algorithms.calculo_docente.integracion import elementary, latex, primitive_result, step
 from motor_matematico.domain.models import DomainError
 
 

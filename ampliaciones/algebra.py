@@ -200,7 +200,7 @@ def eigenvalues(data, ctx):
 
 def eigenspace(data, ctx):
     A = small(data, square=True, limit=3)
-    from calculo_i import X, function
+    from motor_matematico.algorithms.calculo_docente.calculo_i import X, function
     def component(key):
         raw = data.get(key) or "0"
         expr, domain = function(raw,ctx)[:2]

@@ -2,7 +2,7 @@
 from fractions import Fraction
 import unittest
 
-from backend import calculate
+from motor_matematico.application.backend import calculate
 
 
 class AnimatedGraphsTest(unittest.TestCase):

@@ -1,6 +1,6 @@
 # Operaciones, modo serio y entrada matemática
 
-Partí de `backend.py` y `dist/workspace*`. Aplicá [las reglas de integración](01-ejecucion.md) a cada fila. La portada pública conserva su diseño. El menú serio muestra solo barra y tarjetas estáticas, con la paleta azul marino actual en ambos temas.
+Partí de `motor_matematico/application/backend.py` y `dist/workspace*`. Aplicá [las reglas de integración](01-ejecucion.md) a cada fila. La portada pública conserva su diseño. El menú serio muestra solo barra y tarjetas estáticas, con la paleta azul marino actual en ambos temas.
 
 | Fase | Tarea de una sesión | Prueba de cierre |
 | --- | --- | --- |

@@ -1,6 +1,6 @@
 # Cobertura de los procedimientos
 
-[Auditoría de variantes de las 22 sesiones y los teoremas aplicados](docs/cobertura-sesiones.md).
+[Auditoría de variantes de las 22 sesiones y los teoremas aplicados](cobertura-sesiones.md).
 
 | Material del curso | Dónde revisar el desarrollo |
 | --- | --- |
@@ -209,4 +209,4 @@ Se contrastó la correspondencia de cada ejercicio con el índice de la carpeta 
 | [Cálculo II · semana 15](https://drive.google.com/drive/folders/15nrUsjLA4hibra_j36qFRZi072ETixWF) | `"grafica/calculo.trabajo_bombeo"` | `"altura"` = `"4"`, `"radio"` = `"2"`, `"entrega"` = `"resolver"` | r=h/2. Integrar γ·πh²/4·(4−h) de 0 a 4 da 16πγ/3. | `"trabajo"` = `"16*pi*gamma/3"` |
 | [Cálculo II · semana 16](https://drive.google.com/drive/folders/12o3bU1MhOML5GTIEJub2mWlp9gvbVYln) | `"grafica/calculo.trabajo_resorte"` | `"constante"` = `"12"`, `"inferior"` = `"0"`, `"superior"` = `"1/2"`, `"entrega"` = `"resolver"` | La integral de 12x de 0 a 1/2 da 3/2. | `"trabajo"` = `"3/2"` |
 
-Los 53 ejercicios y los 22 casos límite se ejecutaron en la interfaz Qt WebEngine a 390 y 1366 píxeles. La prueba automática del motor usa los mismos ejercicios y sus referencias independientes. Los comandos, plataforma y revisiones se indican en la [evidencia de entrega](docs/plan/08-entrega.md).
+Los 53 ejercicios y los 22 casos límite se ejecutaron en la interfaz Qt WebEngine a 390 y 1366 píxeles. La prueba automática del motor usa los mismos ejercicios y sus referencias independientes. Los comandos, plataforma y revisiones se indican en la [evidencia de entrega](plan/08-entrega.md).

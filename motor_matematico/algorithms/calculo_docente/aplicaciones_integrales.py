@@ -4,9 +4,9 @@ from math import isfinite
 
 import sympy as sp
 
-from calculo_i import X, exact, finite_roots, function, interval, midpoint, require_interval
-from curso import polynomial
-from integracion import elementary, integral_tex, latex, step
+from motor_matematico.algorithms.calculo_docente.calculo_i import X, exact, finite_roots, function, interval, midpoint, require_interval
+from motor_matematico.parsing.polynomials import polynomial
+from motor_matematico.algorithms.calculo_docente.integracion import elementary, integral_tex, latex, step
 from motor_matematico.algorithms.calculo import analizar, evaluar, integral_numerica
 from motor_matematico.algorithms.numerical.symbolic import FunctionNotation
 from motor_matematico.domain.models import DomainError

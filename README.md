@@ -1,5 +1,12 @@
 # Synapsis
 
+[![Descargar para Windows (.exe)](https://img.shields.io/badge/Descargar%20para%20Windows-.exe-162c4b?style=for-the-badge)](https://github.com/Rolando8-03/Synapsis/releases/latest/download/Synapsis-Setup.exe)
+[![Descargar para Android (.apk)](https://img.shields.io/badge/Descargar%20para%20Android-.apk-162c4b?style=for-the-badge)](https://github.com/Rolando8-03/Synapsis/releases/latest/download/Synapsis-Android.apk)
+
+[Notas y SHA-256](https://github.com/Rolando8-03/Synapsis/releases) · [Paquete versionado en GitHub Packages](https://github.com/Rolando8-03/Synapsis/pkgs/container/synapsis)
+
+Las descargas directas se habilitan con la primera entrega firmada y verificada.
+
 [Plan de refactorización en cinco fases](docs/plan/refactorizacion.md)
 
 Calculadora para escritorio, navegador y Android para estudiar álgebra lineal y métodos numéricos. Esta edición parte de **Synapsis-Proyecto-Completo** e integra el solucionador de la **Calculadora de Álgebra Lineal del Grupo 4**. Incluye la portada animada, ocho tarjetas por tarea y el modo serio claro u oscuro.
@@ -10,12 +17,12 @@ Calculadora para escritorio, navegador y Android para estudiar álgebra lineal y
 | --- | --- |
 | Escritorio desde Python | Instalá `requirements.txt` y ejecutá `python abrir.py` desde el IDE o el intérprete. Se abre la ventana nativa de Synapsis. |
 | Windows sin consola | Ejecutá `plataformas/windows/acceso-directo.ps1` una vez. El acceso directo de escritorio abre `abrir.py` con `pythonw.exe`. |
-| Windows instalado | Descargá `Synapsis-Setup.exe` desde los [artefactos de compilación](https://github.com/Rolando8-03/Synapsis/actions/workflows/distribuciones.yml). Instala para tu usuario y crea el acceso en el menú Inicio. Para usar la edición portátil, extraé todo `Synapsis-Windows-x64.zip`. |
+| Windows instalado | Descargá `Synapsis-Setup.exe` con el botón de arriba. Instala para tu usuario y crea el acceso en el menú Inicio. |
 | VS Code y Go Live | Abrí la carpeta de Synapsis, seleccioná el `index.html` raíz y usá **Open with Live Server**. La primera carga descarga el runtime fijado y abre el motor en un trabajador. |
 | Navegador | Abrí [Synapsis en GitHub Pages](https://rolando8-03.github.io/Synapsis/). Las fórmulas, los pasos y las órbitas se calculan con Python en el navegador. |
-| Android | En los [artefactos de compilación](https://github.com/Rolando8-03/Synapsis/actions/workflows/distribuciones.yml), descargá y extraé `Synapsis-Android-debug` para obtener el `.apk` de prueba. El APK empaqueta los recursos y el motor Python para usarlos sin conexión. |
+| Android | Descargá `Synapsis-Android.apk` con el botón de arriba. El APK empaqueta los recursos y el motor Python para usarlos sin conexión. |
 
-Para descargar los binarios, iniciá sesión en GitHub y abrí la última ejecución exitosa de **Distribuciones de Synapsis** para `main`. En **Artifacts**, elegí **Synapsis-Windows-x64** o **Synapsis-Android-debug**. Las dos descargas vienen en ZIP. La edición Android de distribución usa la firma del propietario.
+Para pruebas de desarrollo están disponibles el ZIP portátil de Windows y el APK de depuración en [Actions](https://github.com/Rolando8-03/Synapsis/actions/workflows/distribuciones.yml).
 
 Usá Python 3.12 para reproducir los builds automatizados. La instalación inicial de dependencias requiere conexión. El escritorio sirve su interfaz en `127.0.0.1`. También podés ejecutar `python abrir.py --web` para usar ese servidor local con tu navegador. El archivo índice requiere HTTP o HTTPS, como el que proporciona Live Server.
 
@@ -23,7 +30,7 @@ Para preparar la web con todas las dependencias en una carpeta independiente, ej
 
 ## Cómo usar la calculadora
 
-El menú ofrece **Cálculo**, **Sistemas lineales**, **Matrices**, **Vectores y espacios**, **Transformaciones lineales**, **Métodos numéricos**, **Graficadora** y **Laboratorio 3D**. La tarjeta de laboratorio abre la simulación de Kepler disponible.
+El menú ofrece **Cálculo**, **Sistemas lineales**, **Matrices**, **Vectores y espacios**, **Transformaciones lineales**, **Métodos numéricos**, **Graficadora** y **Laboratorio 3D**. La tarjeta de laboratorio abre la escena Sol–Tierra. Las dos órbitas comparten un reloj. Arrastrá para girar y usá la rueda o la pinza para acercar.
 
 - Abrí una tarjeta para trabajar a pantalla completa. La barra lateral permite cambiar de operación y se pliega a iconos con **«**. Su preferencia queda guardada.
 - En **Sistemas lineales**, ingresá ecuaciones o una matriz aumentada. Conservá los datos al elegir Gauss, Jacobi u otro método, al clasificar o al comparar iteraciones.
@@ -53,17 +60,18 @@ Las operaciones aceptan datos editables. Los enunciados de modelación se traduc
 
 | Archivo o carpeta | Contenido |
 | --- | --- |
-| `abrir.py`, `backend.py`, `curso.py`, `kepler.py`, `temario.py` | Inicio, cálculo local y catálogo del curso. |
+| `abrir.py` | Entrada de escritorio. |
 | `index.html`, `dist/` | Entrada estática, única interfaz, animaciones, trabajador web y dependencias de presentación. |
-| `motor_api.py`, `plataformas/` | Contrato JSON compartido, compilación para web, Windows y Android y verificación de paridad. |
+| `plataformas/` | Lanzadores auxiliares, ventana de escritorio, compilación para web, Windows y Android y pruebas de paridad. |
 | `motor_grupo4/` | Rutinas de cálculo y teoremas del Grupo 4 que usa Synapsis. |
-| `motor_matematico/` | Algoritmos Python de álgebra lineal y métodos numéricos. |
+| `motor_matematico/` | Algoritmos por dominio, catálogos, trazas y contrato JSON compartido. |
+| `docs/` | Cobertura docente, plan y guías de verificación. |
 | `recursos-originales/` | PNG originales de la nave y el paisaje. |
 
 ## Procedimientos de esta edición
 
 La pestaña **Procedimiento** muestra las sustituciones y estados intermedios de la misma ejecución. Los productos separan cada fila y columna. Gauss-Jordan identifica el bloque aumentado y los pivotes en la matriz reducida. Newton-Raphson presenta la derivada, las aproximaciones, el error y el residuo, con sus tangentes en la gráfica. El comparador ejecuta Jacobi y Gauss-Seidel con una misma configuración.
 
-Consultá la [cobertura de los procedimientos](COBERTURA.md). Para ejecutar las pruebas, desde la raíz del repositorio corré `python -m unittest discover -s pruebas -v`.
+Consultá la [cobertura de los procedimientos](docs/COBERTURA.md). Para ejecutar las pruebas, desde la raíz del repositorio corré `python -m unittest discover -s pruebas -v`.
 
 [Plan de implementación de Synapsis por fases pequeñas](docs/plan/README.md)

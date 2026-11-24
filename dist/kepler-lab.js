@@ -2,71 +2,18 @@ import { printReport, reportSection } from './result-print.js';
 import { math } from './math-format.js';
 import { loadingProgress, renderingProgress } from './loading-progress.js';
 import { motor } from './transport.js';
-import { bindOrbit } from './orbit.js';
+import { orbitalDiagram } from './kepler-camera.js';
 
 const number = new Intl.NumberFormat('es-NI', { maximumFractionDigits: 4, useGrouping: false });
 const format = value => number.format(value);
 const interval = sector => `${format(sector.inicio_t)} a ${format(sector.fin_t)}`;
 const ids = ['A', 'B'];
+const EPOCH = Date.UTC(2000, 0, 3);
+const YEAR_MS = 365.25 * 86400000;
+const dateAt = time => new Date(EPOCH + time * YEAR_MS).toISOString().slice(0,10);
 const updateText = (element, value) => {
   if (element.textContent !== value) element.textContent = value;
 };
-
-function attributes(element, values) {
-  for (const [name, value] of Object.entries(values)) element.setAttribute(name, value);
-}
-
-function diagram(find) {
-  const shape = ['a', 'b'].map(id => ({
-    track: find(`track-${id}`), focus: find(`focus-${id}`),
-    radius: find(`radius-${id}`), planet: find(`planet-${id}`),
-  }));
-  const model = find('model');
-  const sun = find('sun');
-  const sectors = [find('sector-current'), find('sector-reference')];
-  let project;
-  let scales;
-  let origin;
-  const move = (node, [x,y]) => node.setAttribute('transform', `translate(${x} ${y})`);
-  return {
-    show(scene) {
-      const orbits = ids.map(id => scene[id]);
-      const left = Math.min(...orbits.map(orbit => orbit.centro-orbit.a));
-      const right = Math.max(...orbits.map(orbit => orbit.centro+orbit.a));
-      const height = Math.max(...orbits.map(orbit => orbit.b));
-      const scale = Math.min(552/(right-left), 150/height);
-      const center = (right+left)/2;
-      project = ([x,y]) => [+(320+(x-center)*scale).toFixed(2), +(187-y*scale).toFixed(2)];
-      origin = project([0,0]);
-      move(sun,origin);
-      scales = orbits.map(({a,b}) => [a*scale,b*scale]);
-      shape.forEach(({track,focus,radius},i) => {
-        const orbit = orbits[i];
-        const [cx,cy] = project([orbit.centro, 0]);
-        const [rx,ry] = scales[i];
-        attributes(track, {cx,cy,rx,ry});
-        move(focus,project([orbit.otro_foco,0]));
-        focus.toggleAttribute('hidden', orbit.e === 0);
-        attributes(radius,{x1:origin[0],y1:origin[1]});
-      });
-      model.removeAttribute('hidden');
-    },
-    draw(frame) {
-      shape.forEach(({radius,planet},i) => {
-        const [x,y] = project(frame[ids[i]].p);
-        move(planet,[x,y]);
-        attributes(radius,{x2:x,y2:y});
-      });
-      const [rx,ry] = scales[0];
-      [frame.actual, frame.referencia].forEach((sector,i) => {
-        const start = project(sector.inicio).join(' ');
-        const stop = project(sector.fin).join(' ');
-        const large = sector.delta_E > Math.PI ? 1 : 0;
-        sectors[i].setAttribute('d', `M${origin.join(' ')}L${start}A${rx} ${ry} 0 ${large} 0 ${stop}Z`);
-      });
-    },
-  };
-}
 
 function orbitalProcedure(find) {
   const element = find('work');
@@ -106,7 +53,7 @@ function orbitalProcedure(find) {
 
 function bindScene(section) {
   const find = id => section.querySelector(`#kepler-${id}`);
-  const plot = diagram(find);
+  const plot = orbitalDiagram(find);
   const procedure = orbitalProcedure(find);
   const e = find('e');
   const a = find('a');
@@ -120,11 +67,17 @@ function bindScene(section) {
   const time = find('time');
   const timeValue = find('time-value');
   const play = find('play');
+  const date = find('date');
+  const exportButton = find('export');
+  const figure = find('figure');
+  const settings = exportButton.closest('details');
+  const fullscreen = find('fullscreen');
   const rate = find('rate');
   const back = find('back');
   const forward = find('forward');
   const clockStatus = find('clock-status');
   const distances = ['a','b'].map(id => find(`distance-${id}`));
+  const foci = ['a','b'].map(id => find(`focal-${id}`));
   const sectorCells = ['current','reference'].map(id => ({
     interval:find(`interval-${id}`), area:find(`area-${id}`), speed:find(`speed-${id}`),
   }));
@@ -165,6 +118,7 @@ function bindScene(section) {
     const label = `${format(frame.t)} ${frame.t === 1 ? 'año' : 'años'}`;
     time.value = frame.t;
     timeValue.textContent = label;
+    date.value = dateAt(frame.t);
     time.setAttribute('aria-valuetext',label);
     back.disabled = index === 0;
     forward.disabled = index === scene.frames.length-1;
@@ -197,7 +151,10 @@ function bindScene(section) {
 
   function draw(frame) {
     plot.draw(frame);
-    ids.forEach((id,i) => updateText(distances[i],format(frame[id].r)));
+    ids.forEach((id,i) => {
+      updateText(distances[i],format(frame[id].r));
+      updateText(foci[i],format(frame[id].suma_focal));
+    });
     [frame.actual,frame.referencia].forEach((sector,i) => {
       const cells = sectorCells[i];
       updateText(cells.interval,interval(sector));
@@ -212,6 +169,8 @@ function bindScene(section) {
     progress(null);
     retry.hidden = true;
     clock.disabled = false;
+    date.disabled = false;
+    exportButton.disabled = false;
     measurements.removeAttribute('aria-busy');
     sync();
   }
@@ -224,6 +183,7 @@ function bindScene(section) {
     scene = result;
     time.max = scene.frames.at(-1).t;
     time.step = scene.frames[1].t;
+    date.max = dateAt(Number(time.max));
     plot.show(scene);
     for (const id of ids) {
       const field = id.toLowerCase();
@@ -264,9 +224,9 @@ function bindScene(section) {
     clearTimeout(delay);
     loading?.abort();
     progress(null);
-    const parameters = {excentricidad:e.valueAsNumber, semieje_b:a.valueAsNumber};
-    const key = `${parameters.excentricidad}:${parameters.semieje_b}`;
-    updateText(eValue,format(parameters.excentricidad));
+    const parameters = {excentricidad:.0167, semieje_b:a.valueAsNumber, excentricidad_b:e.valueAsNumber};
+    const key = `${parameters.excentricidad_b}:${parameters.semieje_b}`;
+    updateText(eValue,format(parameters.excentricidad_b));
     updateText(aValue,`${format(parameters.semieje_b)} UA`);
     e.setAttribute('aria-valuetext',eValue.textContent);
     a.setAttribute('aria-valuetext',aValue.textContent);
@@ -274,8 +234,10 @@ function bindScene(section) {
       ready();
       return;
     }
-    playing = false;
+    playing = !scene && !matchMedia('(prefers-reduced-motion: reduce)').matches;
     clock.disabled = true;
+    date.disabled = true;
+    exportButton.disabled = true;
     sync();
     pendingKey = key;
     const cached = cache.get(key);
@@ -300,7 +262,38 @@ function bindScene(section) {
   time.addEventListener('input',() => seek(Math.round(time.valueAsNumber/Number(time.step)),false));
   back.addEventListener('click',() => seek(index-1));
   forward.addEventListener('click',() => seek(index+1));
-  find('reset').addEventListener('click',() => seek(0));
+  find('reset').addEventListener('click',() => { plot.reset(); seek(0); });
+  date.addEventListener('change',() => {
+    if (date.value && date.validity.valid) seek(Math.round((date.valueAsNumber-EPOCH)/YEAR_MS/Number(time.step)));
+    if (scene) date.value = dateAt(scene.frames[index].t);
+  });
+  function syncFullscreen() {
+    const expanded = document.fullscreenElement === figure || figure.classList.contains('kepler-expanded');
+    fullscreen.textContent = expanded ? 'Salir de pantalla completa' : 'Pantalla completa';
+    fullscreen.setAttribute('aria-pressed',String(expanded));
+  }
+  function setExpanded(expanded) {
+    figure.classList.toggle('kepler-expanded',expanded);
+    document.documentElement.classList.toggle('kepler-immersive',expanded);
+    syncFullscreen();
+  }
+  fullscreen.addEventListener('click',async () => {
+    if (document.fullscreenElement === figure) await document.exitFullscreen();
+    else if (figure.classList.contains('kepler-expanded')) setExpanded(false);
+    else {
+      try {
+        if (!document.fullscreenEnabled) throw Error();
+        await figure.requestFullscreen();
+      } catch { setExpanded(true); }
+    }
+    settings.open = false;
+    find('chart').focus();
+  });
+  document.addEventListener('fullscreenchange',syncFullscreen);
+  figure.addEventListener('keydown',event => {
+    if (event.key === 'Escape' && figure.classList.contains('kepler-expanded')) setExpanded(false);
+  });
+  window.addEventListener('hashchange',() => setExpanded(false));
   rate.addEventListener('change',() => {
     if (animation) {
       started = null;
@@ -314,7 +307,7 @@ function bindScene(section) {
     if (!playing) clockStatus.textContent = `Pausa en ${timeValue.textContent}.`;
     sync();
   });
-  find('export').addEventListener('click', () => {
+  exportButton.addEventListener('click', async () => {
     if (!scene || clock.disabled) return;
     playing = false;
     sync();
@@ -324,8 +317,16 @@ function bindScene(section) {
     const steps = procedure.element.cloneNode(true);
     procedure.element.open = wasOpen;
     steps.querySelector('summary').remove();
+    if (document.fullscreenElement === figure) await document.exitFullscreen();
+    if (figure.classList.contains('kepler-expanded')) setExpanded(false);
+    settings.open = false;
     const graph = find('chart').cloneNode(true);
+    graph.removeAttribute('tabindex');
     graph.classList.add('pdf-graph');
+    const capture = document.createElement('div');
+    const instant = document.createElement('p');
+    instant.textContent = `Tiempo simulado: ${timeValue.textContent} · Fecha del modelo: ${date.value}`;
+    capture.append(instant,graph);
     const formulas = document.createElement('div');
     formulas.append(
       math('d_1+d_2=2a', 'Suma de distancias a los focos', true),
@@ -334,7 +335,7 @@ function bindScene(section) {
     );
     printReport('Laboratorio de Kepler', [
       reportSection('Tres leyes de Kepler', formulas),
-      reportSection('Gráfica orbital', graph),
+      reportSection('Gráfica orbital', capture),
       reportSection('Mediciones y comprobación', measurements.cloneNode(true)),
       reportSection('Procedimiento del instante', steps),
     ]);
@@ -343,7 +344,7 @@ function bindScene(section) {
     inView = entry.isIntersecting;
     if (inView && !initialized) selectOrbits();
     sync();
-  }).observe(section.querySelector('.kepler-layout'));
+  }).observe(find('chart'));
   document.addEventListener('visibilitychange',sync);
   window.addEventListener('synapsis:pause', () => { playing = false; sync(); });
   return {
@@ -353,23 +354,5 @@ function bindScene(section) {
 }
 
 export function bindKeplerLab(section) {
-  const scene = bindScene(section.querySelector('#kepler-scene'));
-  const legacy = section.querySelector('.kepler-legacy');
-  let experiments;
-  let enabled = false;
-  let obscured = false;
-  const sync = () => {
-    scene.setEnabled(enabled);
-    scene.setObscured(obscured || legacy.open);
-    experiments?.setEnabled(enabled && legacy.open);
-    experiments?.setObscured(obscured);
-  };
-  legacy.addEventListener('toggle', () => {
-    if (legacy.open && !experiments) experiments = bindOrbit(legacy);
-    sync();
-  });
-  return {
-    setEnabled(value) { enabled = value; sync(); },
-    setObscured(value) { obscured = value; sync(); },
-  };
+  return bindScene(section.querySelector('#kepler-scene'));
 }

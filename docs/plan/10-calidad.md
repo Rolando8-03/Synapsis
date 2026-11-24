@@ -18,7 +18,7 @@ La animación corresponde a las gráficas del área de trabajo y al laboratorio.
 
 | Fase | Alcance de esta entrega |
 | --- | --- |
-| Q01–Q03 | Se reutilizaron los casos de las 22 sesiones y de Cálculo I y II de [COBERTURA](../../COBERTURA.md). Las nuevas comprobaciones independientes cubren la regla de la cadena, la restricción de `ln(x²−1)`, el planteamiento de una región y una arandela, el cruce racional de dos rectas y el último punto de Newton con su motivo y residuo. |
+| Q01–Q03 | Se reutilizaron los casos de las 22 sesiones y de Cálculo I y II de [COBERTURA](../COBERTURA.md). Las nuevas comprobaciones independientes cubren la regla de la cadena, la restricción de `ln(x²−1)`, el planteamiento de una región y una arandela, el cruce racional de dos rectas y el último punto de Newton con su motivo y residuo. |
 | Q04 | El punto de la segunda recta permite cambiar su término independiente. Al soltarlo o pulsar Enter en el campo, Python actualiza ecuaciones, cruce exacto y clasificación. La cámara ofrece desplazamiento, zoom y restablecimiento. Los planos permiten girar y ampliar la vista. |
 | Q05 | Las escenas de tangente, área y arandelas enlazan el control con el dibujo, los valores y la fórmula KaTeX del mismo estado. Para la tangente se muestran las muestras válidas entre −4 y 4, con cortes en las discontinuidades. Si el dominio no se puede representar con intervalos comprobados, se conserva la respuesta simbólica. |
 | Q06 | El reloj común de Kepler incorpora 0,5×, 1× y 2×. Al cambiar velocidad durante la reproducción se conserva el instante actual. También se conserva el control de pausa y paso a paso existente. |

@@ -191,9 +191,10 @@ def orbital_readout(orbit):
     }
 
 
-def position_readout(state):
+def position_readout(state, orbit):
     return {'p':[state.x,state.y], 'r':state.radius, 'v':state.speed,
-            'M':state.mean, 'E':state.anomaly, 'vueltas':state.turns}
+            'M':state.mean, 'E':state.anomaly, 'vueltas':state.turns,
+            'suma_focal':state.radius+hypot(state.x+2*orbit.a*orbit.e,state.y)}
 
 
 def sector_readout(section):
@@ -214,7 +215,7 @@ def scene_frames(eccentricity, outer_a, outer_e):
         time = i*MAX_TIME/SAMPLES
         a, b = planet_positions(first,second,time)
         live, reference = equal_sectors(first,time,a)
-        frames.append({'t':time, 'A':position_readout(a), 'B':position_readout(b),
+        frames.append({'t':time, 'A':position_readout(a,first), 'B':position_readout(b,second),
                        'actual':sector_readout(live), 'referencia':sector_readout(reference)})
     return {'mu':first.mu, 'A':orbital_readout(first), 'B':orbital_readout(second),
             'cociente_teorico':tau**2/first.mu, 'duracion_sector':first.period*.08,

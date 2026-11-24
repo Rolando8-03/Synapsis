@@ -11,7 +11,7 @@ from PySide6.QtWebEngineCore import QWebEngineUrlRequestInterceptor
 from PySide6 import QtWebEngineCore, QtWebEngineWidgets
 from PySide6.QtWidgets import QApplication
 
-import abrir
+from importlib import import_module
 
 
 EXERCISE = r"""
@@ -97,7 +97,7 @@ def main():
     with (patch.object(QtWebEngineWidgets, "QWebEngineView", Probe),
           patch.object(QtWebEngineCore, "QWebEnginePage", Page),
           patch.object(sys, "argv", ["abrir.py", "--puerto", "0"])):
-        exit_code = abrir.main()
+        exit_code = import_module("abrir").launch()
     if exit_code or messages != ["ARRANQUE OK"]:
         raise SystemExit(str(messages or exit_code))
     with socket.socket() as probe:

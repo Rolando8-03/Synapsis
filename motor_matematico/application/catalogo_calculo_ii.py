@@ -1,9 +1,9 @@
 """Formularios y rutas de Cálculo II."""
 from functools import partial
 
-import tecnicas_integracion as methods
-import aplicaciones_integrales as uses
-import modelos_integrales as models
+from motor_matematico.algorithms.calculo_docente import tecnicas_integracion as methods
+from motor_matematico.algorithms.calculo_docente import aplicaciones_integrales as uses
+from motor_matematico.algorithms.calculo_docente import modelos_integrales as models
 
 TECHNIQUES = 'Técnicas de integración'
 DEFINITE = 'Integral definida y áreas'

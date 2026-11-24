@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import patch
 
-from backend import calculate, catalog
+from motor_matematico.application.backend import calculate, catalog
 
 
 def input_example(record):
