@@ -1,4 +1,4 @@
-"""Índice de trabajo basado en las sesiones 01–20 de Álgebra Lineal."""
+"""Índice de trabajo basado en las sesiones 01–22 de Álgebra Lineal."""
 
 
 def tool(module, operation, **example):
@@ -47,7 +47,7 @@ SESSIONS = [
      [sys("modelos.economia", A="0 20 20\n5 0 30\n30 70 0", precio="100"),
       sys("modelos.balance", A="3 0 -1 0\n8 0 0 -2\n0 2 -2 -1"),
       sys("modelos.flujos", A="1 1 0 0 0\n0 1 -1 1 0\n0 0 0 1 1\n1 0 0 0 1\n0 0 1 0 0", b="800 300 500 600 400"),
-      sys("sistemas.ecuaciones", variables="x1 x2 x3", ecuaciones="36x1+51x2+13x3=33\n52x1+34x2+74x3=45\n7x2+1.1x3=3")]),
+      sys("modelos.dieta")]),
     (9, "Operaciones con matrices", "Trabajá con órdenes compatibles, suma, producto, escala y transposición. Compará AB con BA.",
      r"(AB)_{ij}=\sum_k a_{ik}b_{kj}",
      [mat("matrices.suma"), mat("matrices.producto"), mat("matrices.comparar"), mat("matrices.transpuesta"), mat("matrices.propiedades")]),
@@ -102,7 +102,12 @@ SESSIONS = [
     (22, "Newton-Raphson", "Seguí cada tangente, la derivada, el error porcentual y el residuo. Indicá la multiplicidad si se conoce.",
      r"x_{k+1}=x_k-m\frac{f(x_k)}{f'(x_k)}",
      [numerical("raices","newton", expresion="exp(-x)-x", inicial="0", tolerancia_x="1e-4"),
-      numerical("raices","newton", expresion="(x-1)^3", inicial="1.75", multiplicidad="3")]),
+      numerical("raices","newton", expresion="(x-1)^3", inicial="1.75", multiplicidad="3"),
+      numerical("raices","newton", expresion="x^3-2*x-5", inicial="2", modo_derivada="central", paso_h="0.01"),
+      numerical("raices","secante", expresion="exp(-x)-x", anterior="0", inicial="1"),
+      numerical("raices","diferencias"),
+      numerical("raices","horner", punto="-1.25", accion="evaluar"),
+      numerical("raices","horner", punto="-1", accion="deflactar")]),
 ]
 
 # Los dos temarios usan las mismas rutas para las integrales que comparten.

@@ -72,6 +72,7 @@
   "motor_matematico/algorithms/numerical/functions.py",
   "motor_matematico/algorithms/numerical/integration.py",
   "motor_matematico/algorithms/numerical/iterative.py",
+  "motor_matematico/algorithms/numerical/polynomials.py",
   "motor_matematico/algorithms/numerical/roots.py",
   "motor_matematico/algorithms/numerical/symbolic.py",
   "motor_matematico/algorithms/numerical/tools.py",

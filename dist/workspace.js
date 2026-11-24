@@ -64,6 +64,8 @@ function optionLabel(value) {
     gauss_jordan:'Gauss-Jordan', gauss:'Gauss', falsa_posicion:'Falsa posición',
     gauss_seidel:'Gauss-Seidel', residual_y_paso:'Residual y paso', rref:'RREF',
     infinito:'Norma ∞', uno:'Norma 1', dos:'Norma 2 (euclidiana)', lu:'LU', plu:'PLU', sarrus:'Sarrus',
+    simbolica:'Simbólica o indicada', adelante:'Diferencia hacia adelante', atras:'Diferencia hacia atrás',
+    central:'Diferencia central', horner:'Horner',
     reduccion:'Reducción por filas', cofactores:'Expansión por cofactores', cota:'Cota del intervalo',
     relativo:'Cambio relativo entre iterados', residual:'Residual', ambos:'Cota y residual',
     paso_y_residual:'Paso y residual', paso_absoluto:'Cambio absoluto',
@@ -206,8 +208,13 @@ export function bindWorkspace(setOpen) {
     (fields.querySelector('math-field:not([hidden]), input[type="text"]:not([hidden]), textarea, select') ?? get('ws-calculate')).focus();
   }
 
-  function displayResult(response, draft, original, updateResult = false) {
+  function displayResult(response, draft, original, updateResult, submitted) {
     if (!updateResult) camera = {zoom:1,x:0,y:0};
+    const definition = catalog.operations[state.op];
+    const labels = new Map(definition.fields.map(field => [field.name, field.label]));
+    const input = Object.fromEntries(Object.entries(submitted).map(([key,value]) => [
+      key === 'matrix' ? 'matriz_aumentada' : labels.get(key) ?? key, value,
+    ]));
     renderResult(results, response, draft.options, original, edit, async values => {
       try {
         for (const [key, value] of Object.entries(values)) {
@@ -218,7 +225,7 @@ export function bindWorkspace(setOpen) {
         return error.message;
       }
       return calculate(true, true);
-    },camera);
+    },camera,{title:definition.title,input});
     if (['factorizacion.lu', 'factorizacion.plu'].includes(state.op) && response.verification?.passed) {
       const {L, U, P} = response.result;
       const method = state.op.split('.')[1];
@@ -464,7 +471,7 @@ export function bindWorkspace(setOpen) {
       request = null;
       button.disabled = false;
       record(draft);
-      displayResult(cached.response, draft, original, updateResult);
+      displayResult(cached.response, draft, original, updateResult, cached.input);
       return;
     }
     setError('');
@@ -504,15 +511,15 @@ export function bindWorkspace(setOpen) {
       button.disabled = reveal;
       status.textContent = 'Calculando el resultado…';
       const response = await motor.calculate({
-        operation, input, steps:input.objetivo === 'escalonada' || draft.options.steps,
+        operation, input, steps:true,
       }, {signal:controller.signal});
       if (controller.signal.aborted || state?.op !== operation) return;
       status.textContent = '';
       if (!response.result) throw new Error(response.error?.message ?? 'El motor no devolvió un resultado.');
-      responses.set(operation, {key:JSON.stringify(draft), response});
+      responses.set(operation, {key:JSON.stringify(draft), response, input});
       if (reveal) {
         record(draft);
-        displayResult(response, draft, original, updateResult);
+        displayResult(response, draft, original, updateResult, input);
       }
     } catch (error) {
       if (controller.signal.aborted) return;

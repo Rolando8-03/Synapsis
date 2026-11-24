@@ -5,7 +5,10 @@ import android.content.pm.ApplicationInfo;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.net.Uri;
+import android.print.PrintManager;
+import android.print.PrintAttributes;
 import android.view.WindowInsets;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -70,7 +73,25 @@ public final class MainActivity extends Activity {
                 return true;
             }
         });
+        web.addJavascriptInterface(new ReportPrinter(), "SynapsisPrint");
         if (state == null || web.restoreState(state) == null) web.loadUrl("https://" + HOST + PREFIX + "index.html");
+    }
+
+    private final class ReportPrinter {
+        @JavascriptInterface public void printReport() {
+            runOnUiThread(() -> {
+                String address = web.getUrl();
+                if (address == null || !local(Uri.parse(address))) return;
+                PrintManager manager = getSystemService(PrintManager.class);
+                if (manager == null) return;
+                String name = "Informe de Synapsis";
+                PrintAttributes attributes = new PrintAttributes.Builder()
+                        .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                        .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
+                        .build();
+                manager.print(name, web.createPrintDocumentAdapter(name), attributes);
+            });
+        }
     }
 
     private static boolean local(Uri url) {

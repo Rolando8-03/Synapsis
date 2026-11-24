@@ -117,6 +117,16 @@ def solve(A, b, ctx=None, method="gauss_jordan", trace=True):
     R, pivots = reduction["matrix"], reduction["pivots"]
     free = [j for j in range(n) if j not in pivots]
     contradiction = next((i for i, r in enumerate(R) if not any(r[:n]) and r[n]), None)
+    if trace:
+        rank_a, rank_augmented = len(pivots), len(pivots) + (contradiction is not None)
+        conclusion = ("Sistema incompatible." if contradiction is not None else
+                      "Solución única." if rank_a == n else "Infinitas soluciones sobre los reales.")
+        ctx.emit("teorema","Aplicar el teorema de Rouché–Frobenius.", {"teorema":{
+            "enunciado":r"Ax=b\text{ es compatible}\iff\operatorname{rang}(A)=\operatorname{rang}([A\mid b])",
+            "hipotesis":"Las filas de A y b representan las mismas ecuaciones sobre los reales.",
+            "evidencia":{"rango_A":rank_a,"rango_aumentada":rank_augmented,"incognitas":n},
+            "conclusion":conclusion,
+        }}, rf"\operatorname{{rang}}(A)={rank_a},\quad\operatorname{{rang}}([A\mid b])={rank_augmented},\quad n={n}")
     base = {
         "matrix": R,
         "rango_A": len(pivots),

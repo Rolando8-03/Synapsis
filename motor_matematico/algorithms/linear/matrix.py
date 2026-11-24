@@ -149,15 +149,24 @@ def cofactor_matrix(A, ctx):
     return result
 
 
-def invert(A, ctx, method="gauss_jordan"):
+def invertibility_evidence(A, determinant_value, ctx):
+    ctx.emit("teorema", "Aplicar el teorema de la matriz invertible.", {"teorema":{
+        "enunciado":r"\det(A)\ne0\iff\operatorname{rang}(A)=n\iff A\text{ es invertible}",
+        "hipotesis":f"A es cuadrada de orden {len(A)}.",
+        "evidencia":{"orden":len(A),"determinante":determinant_value},
+        "conclusion":"La matriz es invertible." if determinant_value else "La matriz es singular.",
+    }}, rf"\det(A)={tex(determinant_value)}")
+
+
+def invert(A, ctx, method="gauss_jordan", established_det=None):
     square(A)
     if method == "gauss_jordan":
-        determinant_value = determinant(A, ctx)
-        ctx.emit("diagnostico", "Usar el determinante como criterio de invertibilidad.",
-                 {"determinante":determinant_value}, r"A\text{ invertible}\iff\det(A)\ne0")
+        if established_det is None:
+            invertibility_evidence(A, determinant(A, ctx), ctx)
         result = inverse(A, ctx)
     elif method == "adjugata":
         value = determinant(A, ctx, "cofactores")
+        invertibility_evidence(A, value, ctx)
         if not value:
             raise LinearFailure(
                 "singular",

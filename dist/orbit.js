@@ -1,3 +1,4 @@
+import { printReport, reportSection } from './result-print.js';
 import { motor } from './transport.js';
 const CENTER_Y = 174;
 const TIME_LIMIT = 12;
@@ -162,6 +163,22 @@ export function bindOrbit(section) {
       if (!controller.signal.aborted) note.textContent = `${previousMessage} El motor de órbitas no respondió.`;
     }
   }
+
+  select('export').addEventListener('click', () => {
+    if (!buffer) return;
+    running = false;
+    sync();
+    const chart = graph.cloneNode(true);
+    chart.classList.add('pdf-graph');
+    const details = document.createElement('p');
+    details.textContent = `${note.textContent} ${shapeLabel.textContent}: ${shapeValue.textContent}. `
+      + `${phaseLabel.textContent}: ${phaseValue.textContent}.`;
+    printReport(heading.textContent, [
+      reportSection('Condiciones de la simulación', details),
+      reportSection(formula.textContent, chart),
+      reportSection('Mediciones del instante', section.querySelector('.orbit-readouts').cloneNode(true)),
+    ]);
+  });
 
   function tick(now) {
     if (lastTime) {

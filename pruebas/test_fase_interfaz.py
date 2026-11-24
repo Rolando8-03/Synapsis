@@ -37,6 +37,6 @@ class FaseInterfazTest(unittest.TestCase):
     def test_ficha_de_invertibilidad_usa_la_evidencia_del_resultado(self):
         for matrix, expected in (("1 2\n2 4", False), ("1 2\n0 1", True)):
             response = calculate("matrices.teorema_invertible", {"A": matrix})
-            card, = (step["data"]["teorema"] for step in response["steps"] if step["kind"] == "teorema")
+            card, = (step["data"]["teorema"] for step in response["steps"] if step["kind"] == "teorema" and "invertible" in step["data"]["teorema"]["enunciado"])
             self.assertEqual(card["evidencia"]["determinante"], response["result"]["determinante"])
             self.assertEqual(response["result"]["invertible"], expected)

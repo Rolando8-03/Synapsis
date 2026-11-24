@@ -2,6 +2,7 @@ import { iterationSelection } from './iteration-selection.js';
 import { node } from './matrix-input.js';
 import { bookControl, bookScene } from './book-scenes.js';
 import { addPlot } from './plot.js';
+import { printReport, reportSection } from './result-print.js';
 import { curveFrames, riemannPlot, sectionPlot } from './integral-visuals.js';
 import { math, matrixFormula, numericTex, vectorFormula } from './math-format.js';
 
@@ -18,7 +19,7 @@ const LABELS = {
   clasificacion:'Clasificación', nulidad:'Nulidad', nucleo:'Base del núcleo',
   base_imagen:'Base de la imagen', es_subespacio:'Es subespacio', metodo:'Método',
   residual: 'Residuo', ultimo_punto: 'Último punto', origen_derivada: 'Origen de la derivada',
-  motivo_parada: 'Motivo de parada',
+  motivo_parada: 'Motivo de parada', tecnica_elegida:'Técnica', metodo_elegido:'Método elegido',
   error_truncamiento:'Error de truncamiento', error_redondeo:'Error de redondeo', valor_decimal: 'Valor decimal', A: 'A', B: 'B', U: 'U', L: 'L', P: 'P',
 };
 
@@ -137,11 +138,11 @@ function matrixLabels(columns) {
   return [...Array.from({length: columns}, (_, i) => `x${i + 1}`), 'b'];
 }
 
-function systemResult(out, choices, steps) {
+function systemResult(out, choices, steps, printing = false) {
   const headings = matrixLabels(out.numero_variables);
   if (out.objetivo === 'escalonada') {
     const panels = [['Forma escalonada', matrixView(out.matriz_escalonada, 'Forma escalonada · Gauss', true, headings)]];
-    if (steps?.length) panels.push(['Procedimiento', () => procedureView(steps)]);
+    if (steps?.length) panels.push(['Procedimiento', () => procedureView(steps, null, printing)]);
     return panels;
   }
   const summary = node('div', 'ws-result-stack');
@@ -193,7 +194,7 @@ function systemResult(out, choices, steps) {
     panels.push(['Matrices', forms]);
   }
 
-  if (choices.steps && steps?.length) panels.push(['Procedimiento', () => procedureView(steps)]);
+  if (choices.steps && steps?.length) panels.push(['Procedimiento', () => procedureView(steps, null, printing)]);
 
   if (choices.verify && out.comprobaciones) {
     const proofs = node('div', 'ws-result-stack');
@@ -207,7 +208,7 @@ function systemResult(out, choices, steps) {
   return panels;
 }
 
-function procedureView(entries, selection) {
+function procedureView(entries, selection, printing = false) {
   const stack = node('div','ws-result-stack');
   const list = node('ol','ws-step-list ws-detailed-steps');
   const more = node('button','secondary','Ver los siguientes pasos');
@@ -219,7 +220,7 @@ function procedureView(entries, selection) {
   function appendSteps(focus = false) {
     const added = document.createDocumentFragment();
     const start = shown;
-    for (const step of entries.slice(shown,shown+18)) {
+    for (const step of entries.slice(shown,printing ? entries.length : shown+18)) {
       const item = node('li');
       const body = node('div','ws-step-card');
       body.append(node('h3','',step.description));
@@ -240,12 +241,13 @@ function procedureView(entries, selection) {
           math(teorema.enunciado, teorema.enunciado, true), node('h4', '', 'Hipótesis'),
           node('p', '', teorema.hipotesis), node('h4', '', 'Evidencia'),
           valueView(teorema.evidencia), node('h4', '', 'Conclusión'), node('p', '', teorema.conclusion));
+        card.open = printing;
         body.append(card);
       }
       if (Object.keys(remainder).length) {
         const data = node('details','ws-step-data');
         data.append(node('summary','','Ver cálculos y datos de este paso'));
-        data.open = !matriz && !step.formula;
+        data.open = printing || (!matriz && !step.formula);
         if (data.open) data.append(valueView(remainder));
         data.addEventListener('toggle', () => {
           if (data.open && data.childElementCount === 1) data.append(valueView(remainder));
@@ -265,8 +267,10 @@ function procedureView(entries, selection) {
     }
   }
   more.addEventListener('click', () => appendSteps(true));
-  stack.append(list,more);
+  stack.append(list);
   appendSteps();
+  if (printing) return stack;
+  stack.append(more);
   if (selection) selection.subscribe(index => {
     if (!entries.some(step => step.data?.iteracion === index)) return;
     while (!byIteration.has(index) && shown < entries.length) appendSteps();
@@ -353,7 +357,7 @@ function procedureView(entries, selection) {
   return stack;
 }
 
-function genericResult(response, recalculate, camera) {
+function genericResult(response, recalculate, camera, {printing = false, showSteps = true} = {}) {
   const output = response.result;
   const main = node('div', 'ws-result-stack');
   const panels = [['Resultado', main]];
@@ -369,6 +373,7 @@ function genericResult(response, recalculate, camera) {
       general.variables_libres = output.variables_libres.map(i => `x${i + 1}`);
     }
   }
+  if (general.metodo === 'newton') general.metodo = 'Newton-Raphson';
   if (output.convencion && output.L && output.U) {
     main.append(math(output.convencion, output.convencion, true));
     const factors = node('div','ws-factors');
@@ -401,14 +406,17 @@ function genericResult(response, recalculate, camera) {
     }
     main.append(lead);
   }
-  if (control_libro) main.append(bookControl(control_libro,recalculate));
+  if (control_libro && !printing) main.append(bookControl(control_libro,recalculate));
   if (visual_libro) main.append(bookScene(visual_libro,response,recalculate,camera));
   if (series?.points?.length) main.append(addPlot(series));
   const indices = grafico_raiz?.iteraciones?.map(([index]) => index);
   const selection = indices?.length ? iterationSelection(indices) : null;
   if (grafico_raiz?.points?.length) panels.push(['Gráfica', () => addPlot({...grafico_raiz, selection})]);
   if (diagrama_vectores?.length) main.append(addPlot({diagram:diagrama_vectores}));
-  if (formula_latex) main.append(math(formula_latex, formula_latex, true));
+  if (formula_latex) {
+    main.append(math(formula_latex, formula_latex, true));
+    if (output.primitiva) delete general.primitiva;
+  }
   if (visual_integral?.tipo === 'riemann') main.append(riemannPlot(visual_integral));
   if (visual_integral?.tipo === 'seccion') main.append(sectionPlot(visual_integral));
   if (['area','tangente'].includes(visual_integral?.tipo)) main.append(curveFrames(visual_integral));
@@ -427,7 +435,14 @@ function genericResult(response, recalculate, camera) {
     const body = node('div','ws-result-stack');
     if (first.x_decimal !== undefined) {
       const bracket = first.a !== undefined;
-      const formatDecimal = value => value == null ? null : String(value);
+      const formatDecimal = value => {
+        if (value == null) return null;
+        const number = Number(value);
+        if (!printing || !Number.isFinite(number)) return String(value);
+        const magnitude = Math.abs(number);
+        return magnitude !== 0 && (magnitude < .01 || magnitude >= 1e5)
+          ? number.toExponential(4) : String(Number(number.toPrecision(7)));
+      };
       const cols = bracket
         ? ['k','a','b','xᵣ','f(a)','f(b)','f(xᵣ)','Signo f(a)f(xᵣ)','εₐ (%)','Cota']
         : ['k','xₖ','f(xₖ)',first.derivada_x !== undefined ? 'f′(xₖ)' : 'f(xₖ₋₁)','xₖ₊₁','εₐ (%)','Error absoluto','|f(xₖ₊₁)|'];
@@ -451,10 +466,16 @@ function genericResult(response, recalculate, camera) {
     exact.addEventListener('toggle', () => {
       if (exact.open && exact.childElementCount === 1) exact.append(valueView(tabla));
     });
-    body.append(exact);
+    if (printing) {
+      if (!showSteps || !response.steps?.length) {
+        exact.open = true;
+        exact.append(valueView(tabla));
+        body.append(exact);
+      }
+    } else body.append(exact);
     return body;
   }]);
-  if (response.steps?.length) panels.push(['Procedimiento', () => procedureView(response.steps, selection)]);
+  if (showSteps && response.steps?.length) panels.push(['Procedimiento', () => procedureView(response.steps, selection, printing)]);
   if (selection) panels.selection = selection;
   if (response.verification && Object.keys(response.verification).length) {
     panels.push(['Comprobación', valueView(response.verification)]);
@@ -462,7 +483,67 @@ function genericResult(response, recalculate, camera) {
   return panels;
 }
 
-export function renderResult(target, response, choices, originalSystem, onEdit, recalculate, camera) {
+function summaryCards(response) {
+  const out = response.result;
+  const cards = node('div','ws-summary-cards');
+  const items = [
+    ['Clasificación', out.clasificacion], ['Método', out.metodo_elegido ?? out.tecnica_elegida],
+    ['Aproximación', out.aproximacion_decimal], ['Iteraciones', out.iteraciones],
+    ['Residuo', out.residual == null ? null : Number(out.residual).toPrecision(5)],
+    ['Rango de A', out.rango_A], ['Rango de [A | b]', out.rango_aumentada],
+    ['Incógnitas', out.incognitas ?? out.numero_variables],
+    ['Dimensión del dominio', out.dimension_dominio], ['Nulidad', out.nulidad],
+    ['Valor', out.valor], ['Primitiva', out.primitiva], ['En el dominio', typeof out.dominio === 'string' ? out.dominio : null],
+    ['Comprobación', typeof response.verification?.passed === 'boolean'
+      ? (response.verification.passed ? 'Verificada' : 'Revisar') : null],
+  ].filter(([,value]) => value != null && value !== 'NaN').slice(0,4);
+  if (!items.length) return null;
+  for (const [label,value] of items) {
+    const card = node('article','ws-summary-card');
+    card.append(node('h3','',label),label === 'Primitiva' && out.formula_latex
+      ? math(out.formula_latex,value) : valueView(value));
+    cards.append(card);
+  }
+  return cards;
+}
+
+function exportResult(target, response, original, camera, report) {
+  const content = [];
+  const cards = summaryCards(response);
+  if (cards) content.push(cards);
+  const messages = [...target.querySelectorAll(':scope > :is(.ws-warning,.result-error)')];
+  content.push(...messages.map(message => message.cloneNode(true)));
+  if (Object.keys(report.input).length) content.push(reportSection('Datos del ejercicio',valueView(report.input)));
+  const panels = original
+    ? systemResult(response.result,{ranks:true,solution:true,forms:true,steps:true,verify:true},response.steps,true)
+    : genericResult(response, () => {}, {...camera}, {printing:true});
+  for (const [name, build] of panels) {
+    const view = typeof build === 'function' ? build() : build;
+    const current = name === 'Gráfica' && target.querySelector('#ws-result-content canvas');
+    if (current) {
+      const image = node('img','pdf-graph');
+      image.alt = 'Gráfica en el momento de exportar';
+      try {
+        const snapshot = node('canvas');
+        snapshot.width = current.width;
+        snapshot.height = current.height;
+        const ctx = snapshot.getContext('2d');
+        ctx.fillStyle = getComputedStyle(current).backgroundColor;
+        ctx.fillRect(0,0,snapshot.width,snapshot.height);
+        ctx.drawImage(current,0,0);
+        image.src = snapshot.toDataURL('image/png');
+      }
+      catch { /* El gráfico reconstruido queda disponible. */ }
+      content.push(reportSection(name, image.src ? image : view));
+    } else content.push(reportSection(name,view));
+  }
+  if (original && response.verification && Object.keys(response.verification).length) {
+    content.push(reportSection('Verificación del cálculo', valueView(response.verification)));
+  }
+  return printReport(report.title,content);
+}
+
+export function renderResult(target, response, choices, originalSystem, onEdit, recalculate, camera, report) {
   const selectedTab = target.dataset.selectedTab;
   target.replaceChildren();
   const header = node('div', 'ws-panel-heading');
@@ -499,7 +580,15 @@ export function renderResult(target, response, choices, originalSystem, onEdit, 
   if (response.error) target.append(node('p', 'result-error', response.error.message));
   for (const warning of response.warnings ?? []) target.append(node('p', 'ws-warning', isScalar(warning) ? scalar(warning) : warning.message ?? JSON.stringify(warning)));
   if (!response.result) return;
-  const panels = originalSystem ? systemResult(response.result, choices, response.steps) : genericResult(response, recalculate, camera);
+  const cards = summaryCards(response);
+  if (cards) target.append(cards);
+  if (report) {
+    const button = node('button','secondary','Exportar PDF');
+    button.type = 'button';
+    button.addEventListener('click', () => exportResult(target,response,originalSystem,camera,report));
+    actions.append(button);
+  }
+  const panels = originalSystem ? systemResult(response.result, choices, response.steps) : genericResult(response, recalculate, camera, {showSteps:choices.steps});
   const results = node('div', 'ws-result-body');
   const tabs = node('div', 'ws-result-tabs');
   tabs.setAttribute('role', 'tablist');

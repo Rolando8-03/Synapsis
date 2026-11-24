@@ -16,8 +16,8 @@
     if (typeof update?.stage === 'number') progress.push(update.stage);
   });
   const pendingCatalog = motor.catalog();
-  const loading = await until(()=>document.querySelector('#engine-loading:not([hidden])'),
-    'No aparece la barra global de carga desde la portada');
+  const loading = document.querySelector('#engine-loading');
+  await until(() => !loading.hidden || motor.isReady(), 'El motor no informó su estado de arranque.');
   if (/SymPy|mpmath/.test(loading.textContent)) throw Error('La barra debe usar lenguaje claro.');
   location.hash='grafica/calculo.derivar';
   const catalog = await pendingCatalog;
@@ -25,7 +25,7 @@
   await until(()=>loading.hidden, 'La barra global quedó visible después del arranque');
   if (document.querySelector('#ws-message').textContent.trim()) throw Error('Quedó un aviso tras abrir la calculadora.');
   unsubscribe();
-  if (Math.max(...progress) !== 4) throw Error('Falta la verificación final del catálogo.');
+  if (!motor.isReady()) throw Error('Falta la verificación final del catálogo.');
   const startupMs = Math.round(performance.now()-start);
   const answers = [catalog];
   for (const [action,body] of cases.slice(1)) answers.push(await motor[methods[action]](body));

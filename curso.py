@@ -412,7 +412,7 @@ def invertible_theorem(data, context):
         "conclusion": "A es invertible." if value else "A es singular.",
     }})
     if value:
-        out['inversa'], _ = invert(A, context)
+        out['inversa'], _ = invert(A, context, established_det=determinant_value)
     return out
 
 
@@ -713,3 +713,54 @@ def vector_diagram(data):
     ]
     return {'vector_u_escalado':scaled_u, 'vector_v_escalado':scaled_v,
             'vector_resultante':w, 'diagrama_vectores':diagram, 'formula_latex':r'w=\alpha u+\beta v'}
+
+
+def diet(data, ctx):
+    """Modelar concentraciones por porción y cantidades objetivo en gramos."""
+    from motor_matematico.algorithms.linear.reduction import solve
+    from sympy.solvers.simplex import InfeasibleLPError, linprog
+
+    A = matrix(data["A"])
+    b = vector(data["b"], 3)
+    if len(A) != 3 or len(A[0]) > 8 or any(v < 0 for row in A for v in row) or any(v < 0 for v in b):
+        raise ValueError("Ingresá tres filas de nutrientes, de uno a ocho alimentos y datos no negativos.")
+    size = len(A[0])
+    labels = [part.strip() for part in data.get("alimentos", "").split(";") if part.strip()]
+    if labels and len(labels) != size:
+        raise ValueError("Ingresá un nombre por alimento, separado por punto y coma.")
+    labels = labels or [f"Alimento {j+1}" for j in range(size)]
+    portion = parse_number(data.get("porcion", "100"))
+    if portion <= 0:
+        raise ValueError("El peso de una porción debe ser positivo.")
+    variables = sp.symbols(f"x1:{size+1}")
+    ctx.emit("variables", "Contar porciones de cada alimento. Expresar los aportes y metas en gramos.",
+             {"alimentos": labels,"gramos_por_porcion":portion}, r"x_j\ge0,\quad m_j=x_j\,m_{\rm porci\acute on}")
+    for name, row, target in zip(("Proteínas","Carbohidratos","Grasas"), A, b):
+        equation = sp.Eq(sum(a*v for a,v in zip(row,variables)),target,evaluate=False)
+        ctx.emit("ecuacion_modelo", f"Escribir el balance de {name.lower()} en gramos.",
+                 {"nutriente":name,"aportaciones":row,"meta":target,"unidades":"g"}, sp.latex(equation))
+    answer = solve(A,b,ctx)
+    x = answer["particular"]
+    if x is not None and min(x) < 0:
+        if answer["direcciones"]:
+            try:
+                _, feasible = linprog([0]*size, A=sp.zeros(1,size), b=[0], A_eq=A, b_eq=b)
+                x = [Fraction(v) for v in feasible]
+            except InfeasibleLPError:
+                x = None
+        else:
+            x = None
+    out = {"factible_no_negativo":x is not None,"clasificacion":answer["clasificacion"],
+           "rango_A":answer["rango_A"],"rango_aumentada":answer["rango_aumentada"]}
+    if x is None:
+        ctx.emit("factibilidad", "Las metas no admiten una combinación de porciones no negativas.",
+                 {"metas_g":b}, r"Ax=b,\quad x\ge0")
+        return out, {"metas_g":b,"factibilidad_no_negativa":False}
+    actual = [sum(a*t for a,t in zip(row,x)) for row in A]
+    masses = [quantity*portion for quantity in x]
+    out.update(porciones=x, gramos=masses, tabla=list(zip(labels,x,masses)),
+               encabezados=["Alimento","Porciones","Masa (g)"])
+    ctx.emit("validar_dieta", "Convertir las porciones a masa y reconstruir los tres aportes.",
+             {"gramos":masses,"metas_g":b,"aportes_g":actual}, r"Ax=b,\quad m_j=x_j\,m_{\rm porci\acute on}")
+    return out, {"passed":actual == b and all(value >= 0 for value in x),
+                 "metas_g":b,"aportes_g":actual}

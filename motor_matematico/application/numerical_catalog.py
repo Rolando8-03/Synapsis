@@ -73,7 +73,10 @@ for method, title in [
         ]
     )
     options = (
-        [field("derivada", "Derivada f′(x), vacía usa reglas simbólicas", "expression"),
+        [field("modo_derivada", "Cómo calcular la pendiente", "select", "simbolica",
+               choices=["simbolica","adelante","atras","central","horner"]),
+         field("derivada", "Derivada f′(x) · opcional", "expression", when={"modo_derivada":["simbolica"]}),
+         field("paso_h", "Paso h", default="0.01", when={"modo_derivada":["adelante","atras","central"]}),
          field("multiplicidad","Multiplicidad conocida · 1 para Newton-Raphson estándar","integer","1")]
         if method == "newton"
         else []

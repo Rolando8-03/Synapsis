@@ -32,6 +32,8 @@ El menú ofrece **Cálculo**, **Sistemas lineales**, **Matrices**, **Vectores y 
 - En **Cálculo**, usá las teclas de integral, derivada o límite. Podés elegir una técnica o dejar la selección en **Automática**.
 - **Temario del curso**, en la barra lateral, enlaza las 22 sesiones con sus operaciones y ejemplos. **Historial** reabre cálculos del módulo.
 
+**Exportar PDF** está disponible desde los resultados y desde el laboratorio orbital. Incluye el procedimiento completo, tablas, comprobaciones y las gráficas del ejercicio. En el navegador o Android, elegí **Guardar como PDF** en el diálogo de impresión. La ventana de escritorio pide directamente el nombre y la ubicación del archivo.
+
 ## Temario y formatos
 
 | Sesiones | Herramientas |

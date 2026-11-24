@@ -94,6 +94,7 @@ def execute_linear(problem, ctx):
         b = vector(data["b"], len(A))
         if op == "sistemas.cramer":
             det = m.determinant(A, ctx)
+            m.invertibility_evidence(A, det, ctx)
             if not det:
                 raise LinearFailure(
                     "not_applicable",

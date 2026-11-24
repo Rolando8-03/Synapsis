@@ -3,6 +3,7 @@
 from decimal import Decimal as D
 from fractions import Fraction as F
 from .functions import Function, decimal
+from .polynomials import DIFFERENCES, difference, horner, step_size
 from ..linear.context import integer, tex
 from ...parsing.numbers import parse_number
 from ...domain.models import InputError, DomainError
@@ -108,6 +109,12 @@ def roots(method, data, ctx):
                 )
         if (fa > 0) == (fb > 0):
             raise InputError("Se requiere cambio de signo en un intervalo continuo.")
+        ctx.emit("teorema","Aplicar el teorema de Bolzano.", {"teorema":{
+            "enunciado":r"f\in C([a,b]),\ f(a)f(b)<0\implies\exists c\in(a,b):f(c)=0",
+            "hipotesis":"Se verificó continuidad en el intervalo. Las evaluaciones tienen signos opuestos.",
+            "evidencia":{"a":a,"b":b,"f_a":fa,"f_b":fb},
+            "conclusion":"El cambio de signo garantiza al menos una raíz para evaluaciones de signo fiables.",
+        }})
         criterion = data.get(
             "criterio", "cota" if method == "biseccion" else "residual_y_paso"
         )
@@ -225,20 +232,29 @@ def roots(method, data, ctx):
             previous = x
         return finish("iteration_limit", "maximo_de_iteraciones", x, fx)
     derivative = None
+    scheme = data.get("modo_derivada", "simbolica")
     x = decimal(data["inicial"])
     fx = f.value(x)
     if method == "newton":
-        derivative, source = f.derivative(data.get("derivada"))
-        result.update(derivada=derivative.expression, origen_derivada=source)
+        if scheme == "simbolica":
+            derivative, source = f.derivative(data.get("derivada"))
+            result.update(derivada=derivative.expression, origen_derivada=source)
+            if source == "proporcionada_por_usuario":
+                warnings.append("La derivada proporcionada se usa como dato. Revisá su equivalencia con f.")
+        elif scheme in DIFFERENCES:
+            h = step_size(data)
+            result.update(origen_derivada="diferencia_"+scheme, paso_h=h)
+        elif scheme == "horner":
+            if not f.polynomial or max(f.polynomial) == 0:
+                raise InputError("Horner requiere un polinomio de grado positivo.")
+            result["origen_derivada"] = "horner"
+        else:
+            raise InputError("Elegí una forma válida de calcular la derivada.")
         multiplicity = integer(data.get("multiplicidad",1), "Multiplicidad",1,20)
         result["multiplicidad"] = multiplicity
-        ctx.emit("derivar","Obtener la derivada y fijar la multiplicidad que se usará.",
-                 {"funcion":f.expression,"derivada":derivative.expression,"multiplicidad":multiplicity},
+        ctx.emit("derivar","Fijar el método para evaluar la pendiente y la multiplicidad.",
+                 {"funcion":f.expression,"origen":result["origen_derivada"],"multiplicidad":multiplicity},
                  r"x_{k+1}=x_k-m\frac{f(x_k)}{f'(x_k)}")
-        if source == "proporcionada_por_usuario":
-            warnings.append(
-                "La derivada proporcionada se usa como dato; no se certifica su equivalencia simbólica con f."
-            )
         previous = None
     else:
         previous = decimal(data["anterior"])
@@ -259,14 +275,20 @@ def roots(method, data, ctx):
         ctx.tick()
         try:
             if method == "newton":
-                denominator = derivative.value(x)
+                if scheme in DIFFERENCES:
+                    denominator = difference(f, x, h, scheme, ctx)
+                elif scheme == "horner":
+                    _, synthetic, slope = horner(f, F(x), ctx)
+                    fx, denominator = decimal(synthetic[-1]), decimal(slope)
+                else:
+                    denominator = derivative.value(x)
                 if denominator == 0 or (abs(denominator) <= D("1e-16")*abs(fx)):
                     ctx.emit("derivada_pequena","Evaluar el denominador antes de dividir.",
                              {"x":x,"f_x":fx,"derivada":denominator})
                     return finish("breakdown", "derivada_nula_o_demasiado_pequena", x, fx)
                 correction = multiplicity * fx / denominator
                 next_x = x - correction
-                formula = r"x_{k+1}=x_k-f(x_k)/f\prime(x_k)"
+                formula = r"x_{k+1}=x_k-m\frac{f(x_k)}{f\prime(x_k)}"
                 extra = {"derivada_x": denominator,
                          "desarrollo": rf"x_{{{k}}}\approx({x:.10g})-({multiplicity})\frac{{{fx:.10g}}}{{{denominator:.10g}}}\approx {next_x:.10g}"}
             else:

@@ -1,0 +1,114 @@
+.ws-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.ws-summary-card {
+  padding: 12px;
+  min-width: 0;
+  border: 1px solid var(--ws-line,var(--line));
+  border-radius: 10px;
+  background: var(--ws-chip,var(--surface));
+}
+.ws-summary-card h3 { color: var(--ws-muted,var(--muted)); font-size: .85rem; margin-bottom: 5px; }
+.ws-summary-card :is(span, div) { overflow-wrap: anywhere; }
+@media screen and (max-width: 800px) { .ws-summary-cards { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+
+@page {
+  size: A4;
+  margin: 15mm 13mm;
+  @bottom-center { content: counter(page) " / " counter(pages); color: #526781; font: 8pt sans-serif; }
+}
+.pdf-report {
+  position: absolute;
+  left: -200vw;
+  top: 0;
+  width: 180mm;
+  background: white;
+  font: 10pt/1.45 var(--body), sans-serif;
+  color: #142742;
+  --muted: #415674;
+  --plot-grid: #b8c8df;
+  --plot-axis: #334d70;
+  --plot-series-1: #205392;
+  --plot-series-2: #9c5627;
+  --plot-series-3: #615197;
+}
+.pdf-report .pdf-graph { display: block; max-width: 100%; height: auto; margin: 8px auto; }
+@media print {
+  :root { color-scheme: light; scroll-padding: 0; }
+  body:has(> .pdf-report) > :not(.pdf-report) { display: none !important; }
+  .pdf-report {
+    --text: #142742;
+    --muted: #415674;
+    --surface: #f2f6fc;
+    --ws-text: #142742;
+    --ws-muted: #415674;
+    --ws-line: #a7bad3;
+    --ws-card: #f2f6fc;
+    --ws-surface: #fff;
+    --ws-chip: #edf3fc;
+    --ws-accent: #1d4d8d;
+    position: static;
+    width: auto;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .pdf-report .pdf-masthead {
+    background: #10223c;
+    color: #ffdd72;
+    padding: 8px 12px;
+    font-weight: 750;
+    letter-spacing: .04em;
+  }
+  .pdf-report h1 {
+    font-size: 22pt;
+    letter-spacing: -.025em;
+    line-height: 1.12;
+    margin: 12px 0;
+    color: #10223c;
+  }
+  .pdf-report h2 {
+    font-size: 15pt;
+    color: #1d4d8d;
+    padding-top: 5px;
+    border-top: 1px solid #adc3df;
+    margin: 14px 0 6px;
+    break-after: avoid;
+  }
+  .pdf-report h3 { font-size: 10pt; break-after: avoid; }
+  .pdf-report h4 { margin: 5px 0; font-size: 9pt; break-after: avoid; }
+  .pdf-report .ws-summary-cards { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .pdf-report .ws-summary-card { background: #edf3fc; border-color: #c4d3e8; }
+  .pdf-report :is(.ws-playback, button, select, input, textarea, .ws-book-controls) { display: none !important; }
+  .pdf-report :is(.ws-table-scroll, .ws-math-display, .ws-matrix-formula, .ws-result-stack, .ws-detailed-steps) {
+    overflow: visible;
+    max-height: none;
+  }
+  .pdf-report .ws-result-table {
+    width: 100%;
+    font-size: 8pt;
+    table-layout: fixed;
+  }
+  .pdf-report .ws-result-table :is(td,th) { padding: 3px; white-space: normal; overflow-wrap: anywhere; }
+  .pdf-report .ws-result-table th { background: #e4edf9; color: #10223c; }
+  .pdf-report .ws-result-table td .katex { white-space: normal; font-size: .94em; }
+  .pdf-report .ws-matrix-formula { break-inside: avoid; }
+  .pdf-report :is(.ws-step-card, .ws-step-data) { padding: 7px 9px; }
+  .pdf-report .ws-result-table thead { display: table-header-group; }
+  .pdf-report .ws-result-table tr { break-inside: avoid; }
+  .pdf-report .ws-data-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 0 9px; }
+  .pdf-report .ws-data-list > div { padding: 3px 0; break-inside: avoid; }
+  .pdf-report .ws-data-list dt { font-size: 8pt; }
+  .pdf-report .ws-data-list dd { min-width: 0; overflow-wrap: anywhere; }
+  .pdf-report .ws-data-list dd > :is(.ws-matrix-formula,.ws-table-scroll,.ws-data-list) { grid-column: 1/-1; }
+  .pdf-report .ws-data-list > div:has(> dd > :is(.ws-matrix-formula,.ws-table-scroll,.ws-data-list)) { grid-column: 1/-1; }
+  .pdf-report .ws-step-list > li { margin-bottom: 8px; break-inside: avoid; }
+  .pdf-report :is(.ws-step-card,.ws-step-data) { background: #f5f8fd; color: #142742; }
+  .pdf-report .ws-step-card { border: 1px solid #c9d7e9; }
+  .pdf-report .ws-math-display .katex-display { white-space: normal; margin: .35em 0; }
+  .pdf-report .ws-math-display .katex { font-size: .94em; }
+  .pdf-report .pdf-section { break-inside: auto; }
+  .pdf-report :is(img,svg,canvas).pdf-graph { break-inside: avoid; max-height: 92mm; object-fit: contain; }
+}

@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="vendor/katex/katex.min.css">
   <link rel="stylesheet" href="workspace.css">
   <link rel="stylesheet" href="kepler.css">
+  <link rel="stylesheet" href="result-print.css">
   <script defer src="vendor/katex/katex.min.js"></script>
   <script type="module" src="app.js"></script>
 </head>
@@ -203,6 +204,7 @@
                 </label>
                 <div class="orbit-actions">
                   <button id="kepler-play" class="primary" type="button">Reproducir</button>
+                  <button id="kepler-export" class="secondary" type="button">Exportar PDF</button>
                   <button id="kepler-back" class="secondary" type="button">Retroceder</button>
                   <button id="kepler-forward" class="secondary" type="button">Avanzar</button>
                   <button id="kepler-reset" class="secondary" type="button">Ir al perihelio</button>
@@ -301,6 +303,7 @@
               <div class="orbit-actions">
                 <button id="orbit-play" class="secondary" type="button">Pausar órbita</button>
                 <button id="orbit-reset" class="secondary" type="button">Ir al inicio</button>
+                  <button id="orbit-export" class="secondary" type="button">Exportar PDF</button>
               </div>
             </div>
             <div class="orbit-visual">

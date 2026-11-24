@@ -1,5 +1,7 @@
 # Cobertura de los procedimientos
 
+[Auditoría de variantes de las 22 sesiones y los teoremas aplicados](docs/cobertura-sesiones.md).
+
 | Material del curso | Dónde revisar el desarrollo |
 | --- | --- |
 | Programas 1 y 2, primer y segundo sistemáticos | Sistemas muestra el planteamiento, matriz inicial, operaciones de Gauss/Gauss-Jordan, pivotes, parametrización y sustitución exacta. |

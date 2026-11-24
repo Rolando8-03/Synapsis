@@ -9,17 +9,13 @@ concurrency:
   group: pages
   cancel-in-progress: false
 jobs:
-  publicar:
+  preparar:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      pages: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,6 +27,31 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ${{ runner.temp }}/site
+  publicar:
+    needs: preparar
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Confirmar que el artefacto se puede consultar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in {1..18}; do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?name=github-pages" \
+              --jq '.artifacts[] | select(.expired == false and .size_in_bytes > 0) | .id' | grep -q '[0-9]'; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo '::error::El servicio de artefactos todavía no lista github-pages para esta ejecución.'
+          exit 1
       - uses: actions/deploy-pages@v4
         id: deployment
   verificar:

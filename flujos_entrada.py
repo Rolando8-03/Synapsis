@@ -127,7 +127,12 @@ def systems(data, steps, calculate):
         rank = len(reduction["pivots"])
         contradiction = any(not any(row[:-1]) and row[-1] for row in reduction["matrix"])
         out = classify_ranks(rank, rank + contradiction, size)
-        ctx.emit("clasificar", "Comparar ambos rangos con la cantidad de incógnitas.", out,
+        ctx.emit("teorema", "Aplicar Rouché–Frobenius para clasificar el sistema.", {"teorema": {
+            "enunciado": r"Ax=b\text{ compatible}\iff\operatorname{rang}(A)=\operatorname{rang}([A\mid b])",
+            "hipotesis": "A y b tienen la misma cantidad de ecuaciones y coeficientes reales.",
+            "evidencia": out,
+            "conclusion": out["clasificacion"],
+        }},
                  rf"\operatorname{{rang}}(A)={rank},\quad "
                  rf"\operatorname{{rang}}([A\mid b])={rank + contradiction},\quad n={size}")
         answer = {"status":"ok","result":out,"steps":serializar([step.to_dict() for step in ctx.steps])}

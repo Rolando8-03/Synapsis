@@ -1,3 +1,5 @@
+import { printReport, reportSection } from './result-print.js';
+import { math } from './math-format.js';
 import { loadingProgress, renderingProgress } from './loading-progress.js';
 import { motor } from './transport.js';
 import { bindOrbit } from './orbit.js';
@@ -311,6 +313,31 @@ function bindScene(section) {
     if (playing && index === scene.frames.length-1) show(0);
     if (!playing) clockStatus.textContent = `Pausa en ${timeValue.textContent}.`;
     sync();
+  });
+  find('export').addEventListener('click', () => {
+    if (!scene || clock.disabled) return;
+    playing = false;
+    sync();
+    const wasOpen = procedure.element.open;
+    procedure.element.open = true;
+    procedure.draw(scene,scene.frames[index]);
+    const steps = procedure.element.cloneNode(true);
+    procedure.element.open = wasOpen;
+    steps.querySelector('summary').remove();
+    const graph = find('chart').cloneNode(true);
+    graph.classList.add('pdf-graph');
+    const formulas = document.createElement('div');
+    formulas.append(
+      math('d_1+d_2=2a', 'Suma de distancias a los focos', true),
+      math('A_1=A_2\\quad(\\Delta t_1=\\Delta t_2)', 'Áreas iguales en tiempos iguales', true),
+      math('T^2/a^3=4\\pi^2/\\mu', 'Relación entre período y semieje', true),
+    );
+    printReport('Laboratorio de Kepler', [
+      reportSection('Tres leyes de Kepler', formulas),
+      reportSection('Gráfica orbital', graph),
+      reportSection('Mediciones y comprobación', measurements.cloneNode(true)),
+      reportSection('Procedimiento del instante', steps),
+    ]);
   });
   new IntersectionObserver(([entry]) => {
     inView = entry.isIntersecting;

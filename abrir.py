@@ -91,7 +91,7 @@ def desktop(url):
     try:
         from PySide6.QtCore import QUrl
         from PySide6.QtGui import QIcon
-        from PySide6.QtWidgets import QApplication, QMainWindow
+        from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox
         from PySide6.QtWebEngineWidgets import QWebEngineView
         from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
     except ImportError as error:
@@ -114,6 +114,21 @@ def desktop(url):
     page.settings().setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanAccessClipboard, True)
     view.setPage(page)
     window.setCentralWidget(view)
+    def save_report_pdf():
+        path, _ = QFileDialog.getSaveFileName(window, "Guardar informe de Synapsis", "Synapsis.pdf",
+                                               "Documento PDF (*.pdf)")
+        if path:
+            view.printToPdf(path if path.lower().endswith(".pdf") else path + ".pdf")
+        else:
+            page.runJavaScript("dispatchEvent(new Event('afterprint'))")
+
+    def report_finished(path, success):
+        page.runJavaScript("dispatchEvent(new Event('afterprint'))")
+        if not success:
+            QMessageBox.warning(window, "Synapsis", f"No se pudo guardar el informe en {path}.")
+
+    view.printRequested.connect(save_report_pdf)
+    view.pdfPrintingFinished.connect(report_finished)
     view.load(QUrl(url))
     window.show()
     code = app.exec()

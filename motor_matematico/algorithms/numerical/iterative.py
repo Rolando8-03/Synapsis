@@ -79,6 +79,34 @@ def iterative(method, data, ctx):
     images = [update(e, [F(0)] * n) for e in identity(n)]
     T = [list(row) for row in zip(*images)]
     q = max(sum(map(abs, row), F(0)) for row in T)
+    if method != "sor":
+        margins = [abs(A[i][i])-sum(abs(A[i][j]) for j in range(n) if j != i) for i in range(n)]
+        ctx.emit("teorema", "Revisar la dominancia diagonal estricta.", {"teorema":{
+            "enunciado":r"\forall i:\ |a_{ii}|>\sum_{j\ne i}|a_{ij}|\implies\text{ convergencia}",
+            "hipotesis":"A es cuadrada, de diagonal no nula. El método es Jacobi o Gauss-Seidel.",
+            "evidencia":{"margen_por_fila":margins},
+            "conclusion":"Se cumple la condición suficiente." if dominant else
+                         "Los márgenes no bastan para decidir la convergencia.",
+        }})
+    spectrum = None
+    if n <= 4 and ctx.collect_steps:
+        import sympy as sp
+        try:
+            eigenvalues = sp.Matrix(T).eigenvals()
+            if eigenvalues:
+                spectrum = format(max(abs(complex(value.evalf(20))) for value in eigenvalues), ".12g")
+        except (ValueError, ArithmeticError, NotImplementedError, sp.MatrixError):
+            pass
+    conclusion = ("La norma infinito menor que uno certifica que el radio es menor que uno." if q < 1
+                  else "La norma infinito no permite certificar esta condición.")
+    if spectrum is not None:
+        conclusion += " El radio mostrado es una estimación numérica."
+    ctx.emit("teorema","Interpretar el criterio del radio espectral.", {"teorema":{
+        "enunciado":r"x^{(k+1)}=Gx^{(k)}+c\text{ converge para toda semilla}\iff \rho(G)<1",
+        "hipotesis":"La iteración es lineal estacionaria y G se construyó con el método seleccionado.",
+        "evidencia":{"matriz_iteracion":T,"norma_infinito":q,"radio_espectral_estimado":spectrum},
+        "conclusion":conclusion,
+    }}, rf"\rho(G)\le\lVert G\rVert_\infty={tex(q)}")
     table = []
     history = []
     warnings = []

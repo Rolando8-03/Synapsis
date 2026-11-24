@@ -1,6 +1,5 @@
 import { node } from './matrix-input.js';
 
-const page = document.documentElement;
 const clamp = (value, lower, upper) => Math.min(upper, Math.max(lower, value));
 const tickFormat = new Intl.NumberFormat('es-NI', { maximumSignificantDigits: 3, useGrouping: false });
 
@@ -60,7 +59,7 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
     if (!canvas.isConnected) return;
     context.clearRect(0, 0, width, height);
     context.lineWidth = 1;
-    const palette = getComputedStyle(page);
+    const palette = getComputedStyle(canvas);
     const color = name => palette.getPropertyValue(name).trim();
     const graphGrid = color('--plot-grid');
     const graphAxis = color('--plot-axis');

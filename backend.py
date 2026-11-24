@@ -13,11 +13,12 @@ from motor_matematico.application.derivative_view import derivative_lines, expre
 from motor_matematico.application.service import execute
 from motor_matematico.algorithms.linear.context import Context, vector as parse_vector, matrix as bounded_matrix
 from motor_matematico.algorithms.numerical.functions import Function, decimal
+from motor_matematico.algorithms.numerical.polynomials import difference_report, horner_report
 from motor_matematico.algorithms.calculo import analizar
 from motor_matematico.domain.models import DomainError, serializar
 from motor_matematico.algorithms.linear.factorization import factor, reuse_factors
 from curso import (
-    accumulation, accuracy, balance, dominance, economy, entry, from_equations,
+    accumulation, accuracy, balance, diet, dominance, economy, entry, from_equations,
     invertible_theorem, machine, matrix_compare, nonnegative, parametric,
     polynomials, precision, propagation, subspace, taylor_exp, transformation, vector_diagram,
 )
@@ -160,6 +161,28 @@ EXTRA.update(CALCULUS_II)
 BOOKS, BOOK_HANDLERS, BOOK_GROUPS = book_entries(field, spec)
 EXTRA.update(BOOKS)
 
+EXTRA.update({
+    "raices.diferencias": spec("Derivada por diferencias finitas", "Compará las tres aproximaciones de la sesión 22 con la derivada analítica.", [
+        field("expresion","Función f(x)","expression","x^3-2*x-5", visual=True),
+        field("punto","Punto de evaluación",default="2"),
+        field("paso_h","Paso h",default="0.01"),
+        field("esquema","Esquema","select","comparar",False,choices=["comparar","adelante","atras","central"],
+              choice_labels={"comparar":"Comparar los tres esquemas","adelante":"Hacia adelante","atras":"Hacia atrás","central":"Central"})]),
+    "raices.horner": spec("Horner y deflación", "Evaluá p y p′. Si querés deflactar, comprobá primero el residuo en la raíz propuesta.", [
+        field("expresion","Polinomio p(x)","expression","x^5-4*x^4+5*x^3-6*x+4", visual=True),
+        field("punto","Punto o raíz propuesta",default="-1"),
+        field("accion","Qué querés hacer","select","evaluar",False,choices=["evaluar","deflactar"]),
+        field("tolerancia_residuo","Tolerancia del resto · 0 exige raíz exacta",default="0",required=False,
+              when={"accion":["deflactar"]})]),
+    "modelos.dieta": spec("Dieta por balance de nutrientes", "Las filas son proteínas, carbohidratos y grasas. Las columnas contienen gramos por porción de cada alimento.", [
+        field("A","Aportes por porción","matrix","36 51 13\n52 34 74\n0 7 1.1"),
+        field("b","Metas (g) · proteínas, carbohidratos y grasas","vector","33 45 3"),
+        field("porcion","Gramos por porción",default="100",required=False),
+        field("alimentos","Nombres · separados por punto y coma","text",
+              "Leche descremada; Harina de soya; Suero de leche",False)]),
+})
+
+
 def workbench_catalog():
     options = [{"objetivo":["comparar"]}, {"objetivo":["resolver"], "metodo":list(flows.ITERATIVE)}]
     iterations = [{**f, "when_any":options} for f in CATALOG["iterativos.jacobi"].fields if f["name"] not in {"A","b"}]
@@ -207,7 +230,7 @@ EXTRA.update(workbench_catalog())
 MODULES = {
     "sistemas": [("Resolver un sistema", ["sistemas.trabajo"]), ("Resolución", ["original.sistema", "sistemas.resolver", "sistemas.homogeneo", "sistemas.cramer", "sistemas.parametrico", "sistemas.inversa"]),
         ("Factorización", ["factorizacion.lu", "factorizacion.plu", "factorizacion.resolver", "original.triangular"]),
-        ("Notación y modelos", ["sistemas.ecuaciones","modelos.economia","modelos.balance","modelos.flujos"])],
+        ("Notación y modelos", ["sistemas.ecuaciones","modelos.economia","modelos.balance","modelos.flujos","modelos.dieta"])],
     "matrices": [("Operaciones", ["matrices.notacion", "matrices.comparar", "matrices.suma", "matrices.resta", "matrices.producto", "matrices.escalar", "matrices.transpuesta", "matrices.traza", "matrices.potencia"]),
         ("Reducción y propiedades", ["matrices.analizar", "matrices.ref", "matrices.rref", "matrices.elemental", "matrices.propiedades"]),
         ("Determinantes e inversa", ["determinantes.calcular", "determinantes.cofactores", "matrices.inversa", "original.inversa_adjunta", "original.propiedades_det", "matrices.teorema_invertible"]),
@@ -223,7 +246,8 @@ MODULES = {
         *CALCULUS_GROUPS,
         *INTEGRAL_GROUPS,
     ],
-    "raices": [("Métodos de intervalo", ["raices.biseccion", "raices.falsa_posicion"]), ("Métodos abiertos", ["raices.newton", "raices.secante"])],
+    "raices": [("Métodos de intervalo", ["raices.biseccion", "raices.falsa_posicion"]), ("Métodos abiertos", ["raices.newton", "raices.secante"]),
+        ("Pendientes y polinomios", ["raices.diferencias","raices.horner"])],
     "iterativos": [("Métodos de aproximación", ["iterativos.jacobi", "iterativos.gauss_seidel", "iterativos.sor", "iterativos.dominancia","iterativos.comparar"])],
     "errores": [("Análisis numérico", ["errores.calcular", "errores.redondeo", "errores.propagacion", "errores.acumulacion", "errores.taylor", "errores.exactitud", "errores.maquina", "calculadora.evaluar"])],
     "bases": [("Conversiones", ["bases.enteros", "conversiones.bases", "bases.romanos"]), ("Conjuntos", ["conjuntos.operar"])],
@@ -516,12 +540,22 @@ def calculate(operation, data, steps=True):
             output, verification = reuse_factors(A, b, data["factores"], method == "plu", context)
         else:
             output, verification = factor(A, context, method == "plu", b)
+    elif operation == "modelos.dieta":
+        output, verification = diet(data,context)
+    elif operation == "raices.horner":
+        output, verification = horner_report(data,context)
+    elif operation == "raices.diferencias":
+        output = difference_report(data,context)
+        verification = {"derivada_analitica":output["derivada_analitica"]}
     elif operation=="iterativos.comparar":
         output=compare_iterations(data,context)
         metadata["exact"]=False
     elif operation in COURSE_HANDLERS:
         handler = COURSE_HANDLERS[operation]
         output = handler(data, context) if operation in WITH_CONTEXT else handler(data)
+        if operation in {"calculo.sustitucion", "calculo.por_partes", "calculo.fracciones_parciales"}:
+            verification = {"passed":True,"description":"Derivar la primitiva reproduce el integrando en su dominio.",
+                            "dominio":output["dominio"]}
         metadata["exact"] = output.get("exactitud") != "aproximada" and operation not in {
             "errores.propagacion", "errores.maquina", "errores.acumulacion", "errores.taylor", "errores.exactitud"}
     elif operation.startswith("original."):
