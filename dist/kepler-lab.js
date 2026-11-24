@@ -307,6 +307,7 @@ function bindScene(section) {
     sync();
   }).observe(section.querySelector('.kepler-layout'));
   document.addEventListener('visibilitychange',sync);
+  window.addEventListener('synapsis:pause', () => { playing = false; sync(); });
   return {
     setEnabled(value) { enabled = value; sync(); },
     setObscured(value) { obscured = value; sync(); },

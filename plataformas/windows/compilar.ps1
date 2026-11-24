@@ -19,7 +19,7 @@ if ($LASTEXITCODE) { throw "No se pudo generar el icono." }
 Push-Location $Root
 try {
     & $Python -m PyInstaller --noconfirm --onedir --windowed --name Synapsis --icon $Icon `
-        --add-data "dist;dist" --paths motor_grupo4 --exclude-module scipy `
+        --add-data "$(Join-Path $Root "dist");dist" --paths motor_grupo4 --exclude-module scipy `
         --distpath (Join-Path $Salida "bin") --workpath (Join-Path $Salida "temp") `
         --specpath $Salida abrir.py
     if ($LASTEXITCODE) { throw "Falló PyInstaller." }

@@ -285,6 +285,7 @@ export function bindOrbit(section) {
     sync();
   }, { threshold: .16 }).observe(section.querySelector('.orbit-visual'));
   document.addEventListener('visibilitychange', sync);
+  window.addEventListener('synapsis:pause', () => { running = false; sync(); });
   showLaw(1);
 
   return {
