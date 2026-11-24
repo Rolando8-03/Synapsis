@@ -111,3 +111,47 @@ def partial_fractions(data, ctx):
         primitive += term
     return {**primitive_result(original, primitive, domain, ctx), 'descomposicion':str(decomposition),
             'numerador_reconstruido':str(reconstructed)}
+
+
+def exponent(value, label):
+    from calculo_i import exact
+    n = exact(value)
+    if not n.is_Integer or not 0 <= n <= 12:
+        raise ValueError(f'{label} debe ser un entero entre 0 y 12.')
+    return int(n)
+
+
+def sine_cosine(m, n, ctx):
+    s, c = sp.sin(X), sp.cos(X)
+    u = sp.Symbol('u', real=True)
+    if m % 2:
+        inner, adjusted = c, -(1-u**2)**((m-1)//2)*u**n
+        formula = r'u=\cos x,\quad du=-\sin x\,dx,\quad \sin^2 x=1-u^2'
+        reason = 'El exponente del seno es impar. Reservar un seno para el diferencial.'
+    elif n % 2:
+        inner, adjusted = s, (1-u**2)**((n-1)//2)*u**m
+        formula = r'u=\sin x,\quad du=\cos x\,dx,\quad \cos^2 x=1-u^2'
+        reason = 'El exponente del coseno es impar. Reservar un coseno para el diferencial.'
+    else:
+        step(ctx, 'Los dos exponentes son pares. Reducir de dos en dos usando la identidad pitagórica y partes.',
+             r'I_{m,n}=-\frac{\sin^{m-1}(x)\cos^{n+1}(x)}{m+n}+\frac{m-1}{m+n}I_{m-2,n}\quad(m\ge2)')
+        value = X
+        for j in range(2,n+1,2):
+            value = s*c**(j-1)/j + sp.Rational(j-1,j)*value
+            step(ctx, 'Reducir la potencia par del coseno.', rf'I_{{0,{j}}}={latex(value)}')
+        for i in range(2,m+1,2):
+            value = -s**(i-1)*c**(n+1)/(i+n) + sp.Rational(i-1,i+n)*value
+            step(ctx, 'Reducir la potencia par del seno.', rf'I_{{{i},{n}}}={latex(value)}')
+        return value
+    step(ctx, reason, formula)
+    step(ctx, 'La identidad deja un polinomio en u.', rf'\int {latex(adjusted)}\,du')
+    return elementary(sp.expand(adjusted),u,ctx).subs(u,inner)
+
+
+def trig_powers(data, ctx):
+    m = exponent(data['potencia'], 'El primer exponente')
+    n = exponent(data.get('potencia_coseno','0'), 'El exponente del coseno')
+    if data['familia'] != 'seno_coseno':
+        raise ValueError('Elegí una familia de potencias trigonométricas.')
+    f = sp.sin(X)**m*sp.cos(X)**n
+    return primitive_result(f,sine_cosine(m,n,ctx),sp.S.Reals,ctx)

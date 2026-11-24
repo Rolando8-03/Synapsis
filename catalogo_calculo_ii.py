@@ -25,6 +25,14 @@ def catalog_entries(field, spec):
     add(TECHNIQUES, 'fracciones_parciales', 'Fracciones parciales',
         'Ingresá la función racional para obtener sus coeficientes y una primitiva.',
         [expression('1/(x*(x+1))')], methods.partial_fractions)
+    add(TECHNIQUES, 'potencias_trigonometricas', 'Potencias trigonométricas',
+        'Elegí la familia y escribí sus exponentes enteros de 0 a 12.', [
+            field('familia','Familia','select','seno_coseno',choices=['seno_coseno'],
+                  choice_labels={'seno_coseno':'Seno y coseno'}),
+            field('potencia','Exponente de la primera función','integer','3'),
+            field('potencia_coseno','Exponente del coseno','integer','2',False,
+                  when={'familia':['seno_coseno']}),
+        ], methods.trig_powers)
     return entries, handlers, list(groups.items())
 
 
