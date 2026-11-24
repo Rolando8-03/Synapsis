@@ -63,6 +63,8 @@
     if ($('#ws-history-link').getAttribute('aria-pressed')!=='true') $('#ws-history-link').click();
     last=null;
     $('#ws-history-items button').click();
+    await observe(()=>!$('#ws-form').hidden && !$('#ws-calculate').disabled);
+    $('#ws-calculate').click();
     await observe(()=>!$('#ws-error').hidden || (last?.request.operation===operation && !$('#ws-results').hidden));
     return last?.reply ?? {status:'invalid_input',error:{message:$('#ws-error').textContent}};
   }
@@ -115,6 +117,19 @@
   }
 
   if (quality) {
+    const newton = await restore('raices/raices.newton',{expresion:'x^2-2',inicial:'1'});
+    tab('Gráfica');
+    const chart = $('#ws-result-content canvas');
+    const original = chart.toDataURL();
+    chart.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));
+    const second = newton.result.tabla[1], active = $('.ws-frame-formula');
+    check(chart.dataset.frame==='2' && active.dataset.iteration==='2' && chart.toDataURL()!==original,
+      'El visor no muestra la segunda iteración');
+    check(active.querySelector('[data-plain]').dataset.plain===second.desarrollo &&
+      active.querySelector('tbody tr').textContent.includes(second.x_decimal),
+      'La fórmula difiere de la segunda fila');
+    tab('Iteraciones');
+    check($('#ws-result-content tr[aria-current="step"] td [data-plain]').dataset.plain==='2','La tabla perdió la segunda iteración');
     const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
     const key = (element,key) => element.dispatchEvent(new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));
     const action = label => all('.ws-book-view button').find(item=>item.textContent===label);

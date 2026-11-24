@@ -306,7 +306,7 @@ def compare_iterations(data, ctx):
 
 
 def root_visual(data, out):
-    """Muestreo Python para mostrar aproximaciones y algunas tangentes de Newton."""
+    """Muestras y construcciones de las mismas filas que devolvió el método."""
     from math import isfinite
     from decimal import Decimal, localcontext
     from motor_matematico.algorithms.numerical.functions import Function
@@ -318,6 +318,13 @@ def root_visual(data, out):
         return float(Fraction(value))
     middle=real(out["aproximacion"])
     seeds=[middle,*[real(row.get("x_anterior",row["x"])) for row in rows]]
+    for row in rows:
+        if "derivada_x" in row and Fraction(row["derivada_x"]):
+            cut = Fraction(row["x_anterior"]) - Fraction(row["f_anterior_actual"])/Fraction(row["derivada_x"])
+            if abs(cut) < 10**12:
+                seeds.append(float(cut))
+        elif "anterior" in row:
+            seeds.append(real(row["anterior"]))
     if out.get("intervalo_inicial"):
         begin,end=map(real,out["intervalo_inicial"])
     else:
@@ -326,7 +333,7 @@ def root_visual(data, out):
         begin,end=begin-margin,end+margin
     if not isfinite(begin) or not isfinite(end) or abs(begin)+abs(end)>1e12:
         return None
-    points,tangents,markers,iterations=[],[],[],[]
+    points,tangents,markers,iterations,frames=[],[],[],[],[]
     with localcontext() as arithmetic:
         arithmetic.prec=26
         for i in range(801):
@@ -337,19 +344,31 @@ def root_visual(data, out):
             except (DomainError, ArithmeticError,ValueError):
                 points.append([x,None])
     for row in rows:
-        if "derivada_x" in row:
-            left,top,new=real(row["x_anterior"]),real(row["f_anterior_actual"]),real(row["x"])
-            # Para Newton modificado el punto de la tangente en y=0 es diferente del iterado.
-            slope = real(row["derivada_x"])
+        x, y = real(row["x"]), real(row["fx"])
+        frame = {"iteracion":row["iteracion"], "formula":row["desarrollo"], "siguiente":x, "punto":[x,y]}
+        if "a" in row:
+            a,b = real(row["a"]),real(row["b"])
+            frame["intervalo"] = [a,b]
+            frame["intervalo_siguiente"] = list(map(real,row["intervalo_siguiente"]))
+            frame["extremos"] = [[a,real(row["fa"])],[b,real(row["fb"])]]
+            frame["decision"] = row["decision_intervalo"]
+            if out.get("metodo") == "falsa_posicion":
+                frame["recta"] = [frame["extremos"][0],[x,0]]
+        elif "derivada_x" in row:
+            at, value, slope = (Fraction(row[key]) for key in ("x_anterior","f_anterior_actual","derivada_x"))
             if slope:
-                intercept = left - top / slope
-                tangents.append([[left, top], [intercept, 0]])
-            markers.append([new,0])
+                intercept = float(at-value/slope)
+                frame["recta"] = [[float(at),float(value)],[intercept,0]]
+                frame["corte_decimal"] = format(intercept,".14g")
+                frame["tipo_recta"] = "Tangente" if not out.get("origen_derivada","").startswith("diferencia_") else "Tangente aproximada"
+                tangents.append(frame["recta"])
         else:
-            markers.append([real(row["x"]),real(row["fx"])])
-        iterations.append([row["iteracion"], *markers[-1]])
+            frame["recta"] = [[real(row["x_anterior"]),real(row["f_anterior_actual"])],[x,0]]
+        markers.append(frame["punto"])
+        iterations.append([row["iteracion"], x, y])
+        frames.append(frame)
     return {"points":points,"tangents":tangents,"markers":[*markers,[middle,0]], "iteraciones": iterations,
-            "caption":"Función, aproximaciones y tangentes de Newton-Raphson" if tangents else "Función y aproximaciones"}
+            "cuadros":frames, "caption":"Función y aproximaciones del método"}
 
 
 def compare_bisection(data, output):

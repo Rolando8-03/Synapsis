@@ -127,6 +127,20 @@ def desktop(url):
         if not success:
             QMessageBox.warning(window, "Synapsis", f"No se pudo guardar el informe en {path}.")
 
+    def save_graph(download):
+        if not download.url().toString().startswith("data:image/png;base64,"):
+            return
+        path, _ = QFileDialog.getSaveFileName(window, "Guardar gráfica", "synapsis-grafica.png",
+                                               "Imagen PNG (*.png)")
+        if path:
+            target = Path(path if path.lower().endswith(".png") else path + ".png")
+            download.setDownloadDirectory(str(target.parent))
+            download.setDownloadFileName(target.name)
+            download.accept()
+        else:
+            download.cancel()
+
+    profile.downloadRequested.connect(save_graph)
     view.printRequested.connect(save_report_pdf)
     view.pdfPrintingFinished.connect(report_finished)
     view.load(QUrl(url))

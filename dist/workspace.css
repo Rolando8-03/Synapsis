@@ -312,3 +312,10 @@
 
 .ws-book-view { display: flex; gap: .35rem; flex-wrap: wrap; width: 100%; }
 .ws-book-equations { display: flex; gap: .6rem 1rem; flex-wrap: wrap; align-items: center; }
+.ws-graph-controls { display:flex; gap:6px 8px; flex-wrap:wrap; align-items:center; }
+.ws-graph-controls .secondary { min-height:36px; padding:6px 10px; }
+.ws-graph-controls :is(select,input) { accent-color:var(--highlight); }
+.ws-graph-slider { display:flex; align-items:center; flex:1 1 14rem; gap:.6rem; }
+.ws-graph-slider input { flex:1; width:0; min-width:5rem; }
+.ws-graph-reading { color:var(--ws-text); font-variant-numeric:tabular-nums; }
+.ws-plot-figure { display:grid; gap:8px; min-width:0; }

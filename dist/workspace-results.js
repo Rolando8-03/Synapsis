@@ -357,11 +357,65 @@ function procedureView(entries, selection, printing = false) {
   return stack;
 }
 
+function rootColumns(row) {
+  return row.a !== undefined
+    ? ['k','a','b','xᵣ','f(a)','f(b)','f(xᵣ)','Signo f(a)f(xᵣ)','εₐ (%)','Cota']
+    : ['k','xₖ','f(xₖ)',row.derivada_x !== undefined ? 'f′(xₖ)' : 'f(xₖ₋₁)','xₖ₊₁','εₐ (%)','Error absoluto','|f(xₖ₊₁)|'];
+}
+function rootCells(row) {
+  return row.a !== undefined
+    ? [row.iteracion,row.a,row.b,row.x_decimal,row.fa,row.fb,row.fx,row.signo_fa_por_fx,row.error_porcentual,row.cota_intervalo]
+    : [row.iteracion,row.x_anterior,row.f_anterior_actual,row.derivada_x ?? row.f_anterior,
+      row.x_decimal,row.error_porcentual,row.error_aproximado_absoluto,row.residual];
+}
+function rootGraph(graph, rows, selection) {
+  const view = node('div','ws-result-stack');
+  const chart = addPlot({...graph, selection, playback:false});
+  const explanation = node('div','ws-frame-formula');
+  const byIndex = new Map(rows.map(row=>[row.iteracion,row]));
+  const byFrame = new Map(graph.cuadros?.map(frame=>[frame.iteracion,frame]));
+  selection?.subscribe(index => {
+    const row = byIndex.get(index);
+    const frame = byFrame.get(index);
+    explanation.dataset.iteration = index;
+    const summary = [frame?.tipo_recta, frame?.corte_decimal ? 'Corte con el eje x ≈ '+frame.corte_decimal : '',
+      frame?.decision].filter(Boolean).join(' · ');
+    const essential = row.a !== undefined ? 7 : 5;
+    const active = table(rootColumns(row).slice(0,essential),[rootCells(row).slice(0,essential)],'Fila de la iteración '+index);
+    active.querySelector('tbody tr').classList.add('ws-iteration-active');
+    explanation.replaceChildren(math(frame?.formula ?? row.desarrollo,row.desarrollo,true),active);
+    if (summary) explanation.prepend(node('p','ws-muted',summary));
+  });
+  view.append(chart,explanation);
+  view.pausePlayback = chart.pausePlayback;
+  return view;
+}
+
+function connectRows(grid, selection, indices) {
+  const rows = [...grid.querySelectorAll('tbody tr')];
+  const key = i => indices?.[i] ?? i;
+  rows.forEach((row,i) => {
+    row.tabIndex = 0;
+    const select = () => selection.select(key(i));
+    row.addEventListener('click',select);
+    row.addEventListener('keydown',event=>{
+      if (!['Enter',' '].includes(event.key)) return;
+      event.preventDefault();
+      select();
+    });
+  });
+  selection.subscribe(index => rows.forEach((row,i) => {
+    const active = key(i) === index;
+    row.classList.toggle('ws-iteration-active',active);
+    row.setAttribute('aria-current',active ? 'step' : 'false');
+  }));
+}
+
 function genericResult(response, recalculate, camera, {printing = false, showSteps = true} = {}) {
   const output = response.result;
   const main = node('div', 'ws-result-stack');
   const panels = [['Resultado', main]];
-  const {points, parametric, muestras, tabla, encabezados, formula_latex, series, diagrama_vectores, grafico_raiz, visual_integral, visual_libro, control_libro, ...general} = output;
+  const {points, parametric, muestras, parametros, tabla, encabezados, formula_latex, series, diagrama_vectores, grafico_raiz, visual_integral, visual_libro, control_libro, ...general} = output;
   if (response.operation_id === 'sistemas.resolver') {
     general.metodo = output.metodo === 'gauss' ? 'Gauss' : 'Gauss-Jordan';
     main.append(matrixView(output.matrix, `[A | b] después de ${general.metodo}`, true, matrixLabels(output.dimension_dominio)));
@@ -408,10 +462,21 @@ function genericResult(response, recalculate, camera, {printing = false, showSte
   }
   if (control_libro && !printing) main.append(bookControl(control_libro,recalculate));
   if (visual_libro) main.append(bookScene(visual_libro,response,recalculate,camera));
-  if (series?.points?.length) main.append(addPlot(series));
+  const seriesTimeline = series?.points?.length && encabezados && tabla?.length === series.points.length
+    ? iterationSelection(series.points.map((_,i)=>i),series.points.length-1) : null;
+  if (series?.points?.length) {
+    const xLabel = seriesTimeline && encabezados[0] === 'Período' ? 'Período' :
+      ['iterativos.comparar','libros.markov','libros.svd'].includes(response.operation_id) ? 'k' : 'x';
+    main.append(addPlot({...series,sampleTimeline:seriesTimeline,axisLabels:[xLabel, 'Valor']}));
+    if (seriesTimeline) {
+      const active = node('div','ws-frame-formula');
+      seriesTimeline.subscribe(index => active.replaceChildren(table(encabezados,[tabla[index]],'Datos de la muestra')));
+      main.append(active);
+    }
+  }
   const indices = grafico_raiz?.iteraciones?.map(([index]) => index);
   const selection = indices?.length ? iterationSelection(indices) : null;
-  if (grafico_raiz?.points?.length) panels.push(['Gráfica', () => addPlot({...grafico_raiz, selection})]);
+  if (grafico_raiz?.points?.length) panels.push(['Gráfica', () => rootGraph(grafico_raiz,tabla,selection)]);
   if (diagrama_vectores?.length) main.append(addPlot({diagram:diagrama_vectores}));
   if (formula_latex) {
     main.append(math(formula_latex, formula_latex, true));
@@ -421,7 +486,7 @@ function genericResult(response, recalculate, camera, {printing = false, showSte
   if (visual_integral?.tipo === 'seccion') main.append(sectionPlot(visual_integral));
   if (['area','tangente'].includes(visual_integral?.tipo)) main.append(curveFrames(visual_integral));
   if (points?.length) {
-    main.append(addPlot({points, parametric}), table(parametric ? ['t', 'x(t)', 'y(t)'] : ['x','f(x)'],
+    main.append(addPlot({points, parametric, parametros}), table(parametric ? ['t', 'x(t)', 'y(t)'] : ['x','f(x)'],
       muestras.map(row => parametric ? row : row.slice(1)), 'Puntos de referencia'));
   }
   if (response.operation_id === 'calculo.derivar' && response.metadata?.formulas_derivada) {
@@ -430,11 +495,14 @@ function genericResult(response, recalculate, camera, {printing = false, showSte
     }
   } else if (Object.keys(general).length) main.append(valueView(general));
   if (tabla?.length) panels.push([encabezados ? 'Tabla' : 'Iteraciones', () => {
-    if (encabezados) return table(encabezados, tabla);
+    if (encabezados) {
+      const grid = table(encabezados,tabla);
+      if (seriesTimeline) connectRows(grid,seriesTimeline);
+      return grid;
+    }
     const first = tabla[0];
     const body = node('div','ws-result-stack');
     if (first.x_decimal !== undefined) {
-      const bracket = first.a !== undefined;
       const formatDecimal = value => {
         if (value == null) return null;
         const number = Number(value);
@@ -443,19 +511,9 @@ function genericResult(response, recalculate, camera, {printing = false, showSte
         return magnitude !== 0 && (magnitude < .01 || magnitude >= 1e5)
           ? number.toExponential(4) : String(Number(number.toPrecision(7)));
       };
-      const cols = bracket
-        ? ['k','a','b','xᵣ','f(a)','f(b)','f(xᵣ)','Signo f(a)f(xᵣ)','εₐ (%)','Cota']
-        : ['k','xₖ','f(xₖ)',first.derivada_x !== undefined ? 'f′(xₖ)' : 'f(xₖ₋₁)','xₖ₊₁','εₐ (%)','Error absoluto','|f(xₖ₊₁)|'];
-      const iterations = table(cols, tabla.map(row => (bracket
-        ? [row.iteracion,row.a,row.b,row.x_decimal,row.fa,row.fb,row.fx,row.signo_fa_por_fx,row.error_porcentual,row.cota_intervalo]
-        : [row.iteracion,row.x_anterior,row.f_anterior_actual,row.derivada_x ?? row.f_anterior,
-          row.x_decimal,row.error_porcentual,row.error_aproximado_absoluto,row.residual]).map(formatDecimal)));
+      const iterations = table(rootColumns(first),tabla.map(row=>rootCells(row).map(formatDecimal)));
       body.append(iterations);
-      if (selection) {
-        const rows = [...iterations.querySelectorAll('tbody tr')];
-        rows.forEach((row, i) => row.addEventListener('click', () => selection.select(tabla[i].iteracion)));
-        selection.subscribe(index => rows.forEach((row, i) => row.classList.toggle('ws-iteration-active', tabla[i].iteracion === index)));
-      }
+      if (selection) connectRows(iterations,selection,tabla.map(row=>row.iteracion));
     } else if (first.vector_decimal) {
       body.append(table(['k','xₖ · aproximado','‖Ax−b‖','Cambio absoluto','Cambio relativo','Error por componente (%)'],
         tabla.map(row => [row.iteracion,row.vector_decimal,row.norma_residual_decimal,
@@ -543,6 +601,11 @@ function exportResult(target, response, original, camera, report) {
   return printReport(report.title,content);
 }
 
+function pauseGraphs(content) {
+  content?.firstElementChild?.pausePlayback?.();
+  content?.querySelectorAll('.ws-graph-controls').forEach(controls=>controls.pausePlayback?.());
+}
+
 export function renderResult(target, response, choices, originalSystem, onEdit, recalculate, camera, report) {
   const selectedTab = target.dataset.selectedTab;
   target.replaceChildren();
@@ -554,7 +617,7 @@ export function renderResult(target, response, choices, originalSystem, onEdit, 
   const edit = node('button','secondary','Editar datos');
   edit.type = 'button';
   edit.addEventListener('click', () => {
-    target.querySelector('#ws-result-content')?.firstElementChild?.pausePlayback?.();
+    pauseGraphs(target.querySelector('#ws-result-content'));
     onEdit();
   });
   actions.append(edit);
@@ -616,9 +679,9 @@ export function renderResult(target, response, choices, originalSystem, onEdit, 
       button.tabIndex = i === index ? 0 : -1;
     });
     content.setAttribute('aria-labelledby', buttons[i].id);
-    content.firstElementChild?.pausePlayback?.();
+    pauseGraphs(content);
     content.replaceChildren(panelContent(i));
-    content.querySelectorAll("canvas.plot").forEach(canvas => canvas.redrawPlot?.());
+    content.querySelectorAll("canvas.plot, canvas.ws-book-canvas").forEach(canvas => canvas.redrawPlot?.());
   };
   buttons.forEach((button, i) => {
     button.addEventListener('click', () => select(i));

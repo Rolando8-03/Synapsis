@@ -112,3 +112,5 @@
   .pdf-report .pdf-section { break-inside: auto; }
   .pdf-report :is(img,svg,canvas).pdf-graph { break-inside: avoid; max-height: 92mm; object-fit: contain; }
 }
+
+.pdf-report .ws-graph-controls { display: none; }

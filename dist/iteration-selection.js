@@ -1,7 +1,7 @@
 import { node } from './matrix-input.js';
 
-export function iterationSelection(indices) {
-  let position = 0;
+export function iterationSelection(indices, initial = 0) {
+  let position = Math.max(0,Math.min(initial,indices.length-1));
   const listeners = new Set();
   function select(index) {
     const next = indices.indexOf(index);
@@ -11,6 +11,9 @@ export function iterationSelection(indices) {
   }
   return {
     select,
+    get position() { return position; },
+    get size() { return indices.length; },
+    seek(position) { select(indices[position]); },
     move(offset) {
       const next = Math.max(0, Math.min(position + offset, indices.length - 1));
       select(indices[next]);
