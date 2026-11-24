@@ -165,6 +165,24 @@ def tangent_cotangent(m, fn, ctx):
     return z**m, value, condition_set(axis,X,'no_cero') if m else R
 
 
+def secant_cosecant(m, fn, ctx):
+    z = fn(X)
+    secant = fn == sp.sec
+    orientation = 1 if secant else -1
+    companion = sp.tan(X) if secant else sp.cot(X)
+    axis = sp.cos(X) if secant else sp.sin(X)
+    differential = r'd(\tan x)=\sec^2x\,dx' if secant else r'd(\cot x)=-\csc^2x\,dx'
+    step(ctx, 'Reservar la potencia cuadrada para el diferencial. Reducir por partes y la identidad pitagórica.',
+         differential)
+    value = sp.log(sp.Abs(z+orientation*companion)) if m % 2 else X
+    step(ctx, 'La paridad fija el caso base. En exponente impar se usa el logaritmo del producto auxiliar.',
+         rf'I_{{{m%2}}}={latex(value)}')
+    for j in range(2+m%2,m+1,2):
+        value = orientation*z**(j-2)*companion/(j-1) + sp.Rational(j-2,j-1)*value
+        step(ctx, 'Integrar por partes el factor reservado y reducir dos potencias.', rf'I_{{{j}}}={latex(value)}')
+    return z**m, value, condition_set(axis,X,'no_cero') if m else R
+
+
 def trig_powers(data, ctx):
     m = exponent(data['potencia'], 'El primer exponente')
     n = exponent(data.get('potencia_coseno','0'), 'El exponente del coseno')
@@ -174,5 +192,8 @@ def trig_powers(data, ctx):
         return primitive_result(f,sine_cosine(m,n,ctx),R,ctx)
     if family in ('tangente','cotangente'):
         f, value, domain = tangent_cotangent(m,sp.tan if family=='tangente' else sp.cot,ctx)
+        return primitive_result(f,value,domain,ctx)
+    if family in ('secante','cosecante'):
+        f, value, domain = secant_cosecant(m,sp.sec if family=='secante' else sp.csc,ctx)
         return primitive_result(f,value,domain,ctx)
     raise ValueError('Elegí una familia de potencias trigonométricas.')
