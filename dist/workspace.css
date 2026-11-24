@@ -297,3 +297,14 @@
 .ws-iteration-active { outline: 2px solid var(--ws-accent); outline-offset: -2px; }
 .ws-playback { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 #workspace .ws-cross-section { width: min(100%, 240px); }
+
+.ws-book-scene { display: grid; min-width: 0; gap: .65rem; }
+.ws-book-canvas { width: min(100%, 44rem); height: auto; margin-inline: auto; border-radius: 12px; border: 1px solid var(--ws-line); background: var(--ws-input); }
+.ws-book-controls { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,9rem),1fr)); gap: .6rem; align-items: end; }
+.ws-book-controls :is(input,select) { width: 100%; }
+.ws-book-images { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .7rem; }
+.ws-book-images figure { margin: 0; }
+.ws-book-images canvas { width: min(100%,14rem); height: auto; image-rendering: pixelated; }
+.ws-book-images label { grid-column: 1/-1; }
+
+.ws-vector-formula { display: block; max-width: 100%; overflow-x: auto; position: relative; }

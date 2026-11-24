@@ -7,6 +7,16 @@ from ...domain.models import InputError
 from ...parsing.numbers import parse_number
 
 
+def weighted_mesh(f, a, b, n, *, simpson):
+    """Devuelve el ancho, los pesos, las muestras y el valor en una malla uniforme."""
+    if n < 1 or simpson and n % 2:
+        raise InputError("Simpson 1/3 requiere un número positivo y par de subintervalos.")
+    h = (b - a) / n
+    weights = [1] + [4 if i % 2 else 2 for i in range(1, n)] + [1] if simpson else [1] + [2] * (n - 1) + [1]
+    values = [f.exact(a + i * h) for i in range(n + 1)]
+    return h, weights, values, h * sum(w * v for w, v in zip(weights, values)) / (3 if simpson else 2)
+
+
 def integrate(data, ctx):
     f = Function(data["expresion"], ctx)
     a, b = parse_number(data["inferior"]), parse_number(data["superior"])
@@ -45,21 +55,7 @@ def integrate(data, ctx):
         )
 
     def simpson(n):
-        h = (b - a) / n
-        values = []
-        for j in range(n + 1):
-            ctx.tick()
-            values.append(f.exact(a + j * h))
-        return (
-            h
-            * (
-                values[0]
-                + values[-1]
-                + 4 * sum(values[1:-1:2], F(0))
-                + 2 * sum(values[2:-1:2], F(0))
-            )
-            / 3
-        )
+        return weighted_mesh(f, a, b, n, simpson=True)[-1]
 
     previous = simpson(2)
     n = 4
