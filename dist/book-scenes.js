@@ -72,6 +72,20 @@ export function bookScene(scene, response, recalculate) {
     return body;
   }
 
+  // El contrato HTTP envía las magnitudes como texto. El lienzo usa coordenadas numéricas.
+  scene = {...scene};
+  const numericPoint = point => point.map(Number);
+  for (const key of ['punto','direccion','particular']) {
+    if (Array.isArray(scene[key])) scene[key] = numericPoint(scene[key]);
+  }
+  for (const key of ['puntos','vertices']) {
+    if (scene[key]) scene[key] = scene[key].map(numericPoint);
+  }
+  for (const key of ['lineas','planos']) {
+    if (scene[key]) scene[key] = scene[key].map(polyline=>polyline.map(numericPoint));
+  }
+  if (scene.vectores) scene.vectores = scene.vectores.map(([label,p])=>[label,numericPoint(p)]);
+
   const controls = node('div','ws-book-controls');
   const legend = node('p','ws-field-help',scene.etiqueta || '');
   const canvas = node('canvas','ws-book-canvas');
@@ -200,8 +214,8 @@ export function bookScene(scene, response, recalculate) {
   if (showPlanes) {
     const [h,azimuth] = input('Giro horizontal','-33','range');
     const [v,elevation] = input('Elevación','34','range');
-    azimuth.min=-180;azimuth.max=180;
-    elevation.min=-90;elevation.max=90;
+    azimuth.min=-180;azimuth.max=180;azimuth.value=-33;
+    elevation.min=-90;elevation.max=90;elevation.value=34;
     azimuth.addEventListener('input',()=>{yaw=Number(azimuth.value)*Math.PI/180;draw();});
     elevation.addEventListener('input',()=>{pitch=Number(elevation.value)*Math.PI/180;draw();});
     controls.append(h,v);
