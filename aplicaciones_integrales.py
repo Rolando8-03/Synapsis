@@ -5,7 +5,7 @@ from math import isfinite
 import sympy as sp
 
 from calculo_i import X, exact, function, interval, require_interval
-from integracion import integral_tex, latex, step
+from integracion import elementary, integral_tex, latex, step
 from motor_matematico.algorithms.calculo import analizar, evaluar
 from motor_matematico.domain.models import DomainError
 
@@ -61,3 +61,51 @@ def riemann(data, ctx):
     return {'formula_latex':summation,'exactitud':'exacta' if is_exact else 'aproximada',
             'visual_integral':{'tipo':'riemann','curva':curve,'cuadros':frames,'inicial':int(n)-1,
                               'exacta':is_exact}}
+
+
+def evaluate_primitive(primitive, a, b, variable=X):
+    value = sp.simplify(primitive.subs(variable,b)-primitive.subs(variable,a))
+    if value.has(sp.nan, sp.zoo, sp.oo, -sp.oo, sp.I, sp.Integral):
+        raise DomainError('La evaluación no produce un valor real finito.')
+    return value
+
+
+def exact_integral(f, a, b):
+    return evaluate_primitive(elementary(sp.expand(f,power_base=False)),a,b)
+
+
+def wants_value(data):
+    mode = data.get('entrega','plantear')
+    if mode not in ('plantear','resolver'):
+        raise ValueError('Elegí plantear o resolver.')
+    return mode == 'resolver'
+
+
+def net_change(data, ctx):
+    a, b, region = interval(data)
+    f, domain, _ = function(data['expresion'],ctx)
+    require_interval(domain,region)
+    quantity, time = (str(data.get(key,'')).strip() for key in ('unidad_cantidad','unidad_tiempo'))
+    if len(quantity)>24 or len(time)>24:
+        raise ValueError('Escribí unidades de hasta 24 caracteres.')
+    mode = data.get('entrega','cambio')
+    if mode not in ('cambio','final'):
+        raise ValueError('Elegí obtener el cambio o el valor final.')
+    initial = None
+    if mode == 'final':
+        if not str(data.get('inicial','')).strip():
+            raise ValueError('Ingresá el valor inicial para calcular el valor final.')
+        initial = exact(data['inicial'])
+    formula = r'\Delta Q=' + integral_tex(f,a,b)
+    step(ctx,'Integrar la tasa sobre el intervalo y multiplicar sus unidades por la unidad de la variable.',
+         formula, unidad_tasa='/'.join(piece for piece in (quantity,time) if piece), unidad_cambio=quantity)
+    primitive = elementary(sp.expand(f,power_base=False),ctx=ctx)
+    change = evaluate_primitive(primitive,a,b)
+    step(ctx,'Evaluar la primitiva de la tasa para hallar el cambio neto.',formula+'='+latex(change))
+    result = {'cambio_neto':str(change), 'unidad':quantity, 'formula_latex':formula+'='+latex(change)}
+    if initial is not None:
+        final = initial+change
+        step(ctx,'Sumar el cambio neto al valor inicial.',
+             rf'Q(b)=Q(a)+\Delta Q={latex(initial)}+\left({latex(change)}\right)={latex(final)}')
+        result.update(valor_final=str(final),valor_inicial=str(initial))
+    return result

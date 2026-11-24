@@ -53,6 +53,16 @@ def catalog_entries(field, spec):
                   choice_labels={'izquierda':'Izquierdo','medio':'Punto medio','derecha':'Derecho'}),
             field('n','Rectángulos iniciales','integer','4'),
         ], uses.riemann)
+    add(DEFINITE, 'cambio_neto', 'Cambio neto a partir de una tasa',
+        'Integrá una tasa elemental. Para calcular el valor final, agregá el valor inicial.', [
+            expression('3*x^2',label='Tasa de cambio Q′(x)'), *bounds('0','2'),
+            field('entrega','Resultado solicitado','select','cambio',choices=['cambio','final'],
+                  choice_labels={'cambio':'Cambio neto','final':'Valor final'}),
+            field('inicial','Valor inicial Q(a)',default='',required=False,
+                  when={'entrega':['final']},required_when={'entrega':['final']}),
+            field('unidad_cantidad','Unidad de la cantidad','text','m',False),
+            field('unidad_tiempo','Unidad de la variable','text','s',False),
+        ], uses.net_change)
     return entries, handlers, list(groups.items())
 
 
