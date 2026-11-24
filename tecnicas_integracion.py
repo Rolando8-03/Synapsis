@@ -223,6 +223,21 @@ def trig_substitution(data, ctx):
         inverse = sp.atan(X/a)
         value = (X*sp.sqrt(radicand)+a**2*sp.log((X+sp.sqrt(radicand))/a))/2
         identity = r'1+\tan^2\theta=\sec^2\theta,\quad \sec\theta>0'
+    elif family == 'exterior':
+        branch = data.get('rama','positiva')
+        if branch not in ('positiva','negativa'):
+            raise ValueError('Elegí la rama x ≥ a o x ≤ −a.')
+        sign = 1 if branch=='positiva' else -1
+        radicand = X**2-a**2
+        domain = sp.Interval(a,sp.oo) if sign==1 else sp.Interval(-sp.oo,-a)
+        angles = r'0\le\theta<\pi/2'
+        sec, tan = sp.sec(theta), sp.tan(theta)
+        transform = sign*a*sec
+        reduced_root = a*tan
+        in_theta = sign*a**2*(sec*tan-sp.log(sec+tan))/2
+        inverse = sp.acos(sign*a/X)
+        value = X*sp.sqrt(radicand)/2 - a**2*(sp.log(sp.Abs(X+sp.sqrt(radicand)))-sp.log(a))/2
+        identity = r'\sec^2\theta-1=\tan^2\theta,\quad \tan\theta\ge0'
     else:
         raise ValueError('Elegí una familia de radicales.')
     root = sp.sqrt(radicand)

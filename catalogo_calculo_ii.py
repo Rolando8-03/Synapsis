@@ -36,9 +36,11 @@ def catalog_entries(field, spec):
         ], methods.trig_powers)
     add(TECHNIQUES, 'sustitucion_trigonometrica', 'Sustitución trigonométrica',
         'Integrá el radical de la familia elegida. El parámetro a debe ser positivo.', [
-            field('familia','Radical','select','diferencia',choices=['diferencia','suma'],
-                  choice_labels={'diferencia':'√(a² − x²)','suma':'√(a² + x²)'}),
+            field('familia','Radical','select','diferencia',choices=['diferencia','suma','exterior'],
+                  choice_labels={'diferencia':'√(a² − x²)','suma':'√(a² + x²)','exterior':'√(x² − a²)'}),
             field('parametro','Parámetro a',default='2'),
+            field('rama','Intervalo de x','select','positiva',False,choices=['positiva','negativa'],
+                  when={'familia':['exterior']},choice_labels={'positiva':'x ≥ a','negativa':'x ≤ −a'}),
         ], methods.trig_substitution)
     return entries, handlers, list(groups.items())
 
