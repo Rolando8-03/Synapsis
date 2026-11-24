@@ -1,6 +1,6 @@
 import { bindWorkspace } from './workspace.js';
 import { bindHero } from './hero-motion.js';
-import { bindOrbit } from './orbit.js';
+import { bindKeplerLab } from './kepler-lab.js';
 
 const page = document.documentElement;
 const hero = document.querySelector('.hero');
@@ -19,7 +19,7 @@ const systemTheme = matchMedia('(prefers-color-scheme: dark)');
 const nav = [...document.querySelectorAll('.topbar nav a')];
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const scenery = bindHero(cover, topbar);
-const orbitalLab = bindOrbit(orbit);
+const orbitalLab = bindKeplerLab(orbit);
 
 function read(key) {
   try { return localStorage.getItem(key); } catch { return null; }
