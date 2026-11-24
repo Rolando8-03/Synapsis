@@ -109,7 +109,10 @@ def main():
             if not success or pdf.load(path) != QPdfDocument.Error.None_:
                 self.completed("ARRANQUE ERROR No se guardó el PDF de Kepler")
                 return
-            content = "\n".join(pdf.getAllText(i).text() for i in range(pdf.pageCount()))
+            try:
+                content = "\n".join(pdf.getAllText(i).text() for i in range(pdf.pageCount()))
+            finally:
+                pdf.close()
             if "Laboratorio de Kepler" in content and ("6.43 años" in content or "6,43 años" in content):
                 self.completed("ARRANQUE OK")
             else:
