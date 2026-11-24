@@ -98,11 +98,48 @@ export function bindWorkspace(setOpen) {
   const historyView = get('ws-history');
   const toggle = get('ws-sidebar-toggle');
   const compactToggle = get('ws-compact-toggle');
-  const cards = new Map([...document.querySelectorAll('.card-open')].map(link => {
-    const card = link.closest('.card');
-    return [link.dataset.module, { link, name:card.querySelector('h3').textContent }];
-  }));
-  for (const [id, card] of cards) sections.add(new Option(card.name,id));
+  const cards = new Map([...document.querySelectorAll('.card-open[data-module]')].map(link =>
+    [link.dataset.module, link.closest('.card').querySelector('h3').textContent]));
+  for (const [id, name] of cards) sections.add(new Option(name,id));
+  const laboratory = document.querySelector('.card-orbita h3');
+  sections.add(new Option(laboratory.textContent,'orbita'));
+
+  // El menú reúne operaciones por tarea. Las rutas conservan el módulo de origen.
+  const menuGroups = new Map();
+  const legacyModules = new Set(['raices', 'iterativos', 'errores', 'bases']);
+  const menuDefaults = {
+    calculo: ['grafica', 'calculo.derivar'],
+    transformaciones: ['vectores', 'transformaciones.formula'],
+    numericos: ['raices', 'raices.biseccion'],
+  };
+  function menuDestination(module, id) {
+    if (module === 'iterativos') return 'sistemas';
+    if (legacyModules.has(module)) return 'numericos';
+    if (module === 'vectores' && (id.startsWith('transformaciones.') || id === 'libros.transformacion')) {
+      return 'transformaciones';
+    }
+    if (module === 'grafica' && (id.startsWith('calculo.') || id === 'original.primitiva' || id === 'funciones.evaluar')) {
+      return 'calculo';
+    }
+    if (module === 'sistemas' && ['factorizacion.lu','factorizacion.plu'].includes(id)) return 'matrices';
+    return module;
+  }
+
+  function indexMenu(modules) {
+    for (const [module, groups] of Object.entries(modules)) {
+      for (const [label, ids] of groups) {
+        for (const id of ids) {
+          const destination = menuDestination(module, id);
+          if (!menuGroups.has(destination)) menuGroups.set(destination, new Map());
+          const sections = menuGroups.get(destination);
+          const group = module === 'grafica' && destination === 'calculo' && label === 'Gráficas'
+            ? 'Funciones' : label;
+          if (!sections.has(group)) sections.set(group, new Map());
+          sections.get(group).set(id, module);
+        }
+      }
+    }
+  }
 
   let expressionField;
   let savedFactors;
@@ -125,6 +162,7 @@ export function bindWorkspace(setOpen) {
       onProgress: motorProgress,
     }).then(result => {
       catalog = result;
+      indexMenu(result.modules);
       if (workspace.hidden) startup = null;
       return result;
     }).catch(error => {
@@ -216,7 +254,7 @@ export function bindWorkspace(setOpen) {
     showView('history');
     const list = get('ws-history-items');
     list.replaceChildren();
-    const entries = historyEntries().filter(x => x.module === state.module);
+    const entries = historyEntries().filter(x => menuDestination(x.module, x.op) === state.destination);
     if (!entries.length) list.append(node('p','ws-muted','Todavía no hay cálculos guardados en este módulo.'));
     for (const entry of entries) {
       const button = node('button','ws-history-item');
@@ -384,16 +422,16 @@ export function bindWorkspace(setOpen) {
 
   }
 
-  function operationsSidebar(module, selected) {
+  function operationsSidebar(destination, selected) {
     const menu = document.createDocumentFragment();
-    for (const [group, ids] of catalog.modules[module]) {
+    for (const [group, routes] of menuGroups.get(destination)) {
       const details = node('details','ws-nav-group');
-      details.open = ids.includes(selected);
+      details.open = routes.has(selected);
       const summary = node('summary');
       summary.title = group;
       summary.append(navIcon(GROUP_ICONS[group] ?? '◈'), node('span','ws-nav-label',group));
       details.append(summary);
-      for (const id of ids) {
+      for (const [id, module] of routes) {
         const label = catalog.operations[id].title;
         const link = node('a','ws-op-link');
         link.title = label;
@@ -565,7 +603,7 @@ export function bindWorkspace(setOpen) {
   }
 
   async function sync({focus = true, compute = false, restore = null} = {}) {
-    const [module, requested] = location.hash.slice(1).split('/');
+    const [route, requested] = location.hash.slice(1).split('/');
     const revision = ++generation;
     clearTimeout(automatic);
     if (request) {
@@ -573,7 +611,7 @@ export function bindWorkspace(setOpen) {
       request = null;
       motorProgress(null);
     }
-    if (!cards.has(module)) {
+    if (!cards.has(route) && !legacyModules.has(route)) {
       progress(null);
       const wasOpen = !workspace.hidden;
       remember();
@@ -589,13 +627,12 @@ export function bindWorkspace(setOpen) {
       if (wasOpen && focus && opener) {
         const target = opener;
         opener = null;
-        requestAnimationFrame(() => target.focus({preventScroll:true}));
+        if (['#modulos', '#portada', ''].includes(location.hash)) requestAnimationFrame(() => target.focus());
       }
       return;
     }
 
     remember();
-    const newModule = state?.module !== module;
     workspace.hidden = false;
     page.classList.add('workspace-open');
     setOpen(true);
@@ -613,8 +650,11 @@ export function bindWorkspace(setOpen) {
       return;
     }
     if (revision !== generation) return;
+    const [module, defaultOperation] = menuDefaults[route] ?? [route];
     const ids = catalog.modules[module].flatMap(([, ids]) => ids);
-    const op = ids.includes(requested) ? requested : ids[0];
+    const op = ids.includes(requested) ? requested : defaultOperation ?? ids[0];
+    const destination = menuDestination(module, op);
+    const newDestination = state?.destination !== destination;
     if ((visualFields[op] || catalog.operations[op].fields.some(field => field.visual)) && !expressionField) {
       motorProgress(renderingProgress('Abriendo el editor matemático',startup));
       try {
@@ -626,10 +666,9 @@ export function bindWorkspace(setOpen) {
       if (revision !== generation) return;
     }
     if (state?.op !== op) delete results.dataset.selectedTab;
-    state = {module,op};
-    const card = cards.get(module);
-    sections.value = module;
-    if (newModule || !sidebar.querySelector('[aria-current]')) operationsSidebar(module,op);
+    state = {module,op,destination};
+    sections.value = destination;
+    if (newDestination || !sidebar.querySelector('[aria-current]')) operationsSidebar(destination,op);
     for (const link of sidebar.querySelectorAll('.ws-op-link')) {
       if (link.hash === `#${module}/${op}`) {
         link.setAttribute('aria-current','page');
@@ -643,7 +682,7 @@ export function bindWorkspace(setOpen) {
     showView('form');
     if (restore) drafts.set(op, restore);
     const definition = catalog.operations[op];
-    get('ws-category').textContent = card.name;
+    get('ws-category').textContent = cards.get(destination);
     header.textContent = definition.title;
     get('ws-description').textContent = definition.description || 'Ingresá los datos para resolver la operación y revisar su procedimiento.';
     status.textContent = '';

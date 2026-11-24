@@ -29,7 +29,8 @@ function store(key, value) {
 }
 
 let stopped = read('synapsis-motion');
-const spaceAnchors = new Set(['#portada', '#orbita']);
+const spaceAnchors = new Set(['#portada']);
+const laboratoryCard = menu.querySelector('[data-laboratory]');
 let serious = read('synapsis-serio') === 'true' && !spaceAnchors.has(location.hash);
 let savedTheme = read('synapsis-tema');
 let active = false;
@@ -51,12 +52,12 @@ function applyView() {
   const paused = stopped === null ? preference.matches : stopped === 'true';
   active = !paused && !serious;
   page.classList.toggle('serious', serious);
+  page.classList.toggle('laboratory-open', location.hash === '#orbita');
   page.classList.toggle('still', paused);
   page.classList.toggle('motion-on', active);
   page.classList.toggle('motion-override', stopped === 'false');
   theme.hidden = !serious;
   seriousTitle.hidden = !serious;
-  for (const art of menu.querySelectorAll('.art')) art.setAttribute('aria-hidden', String(!serious));
   menu.setAttribute('aria-labelledby', serious ? seriousTitle.id : 'modules-title');
   for (const brand of brands) {
     brand.href = serious ? '#modulos' : '#portada';
@@ -73,7 +74,7 @@ function applyView() {
   motion.setAttribute('aria-label', label);
   motion.title = label;
   scenery.setEnabled(active);
-  orbitalLab.setEnabled(active);
+  orbitalLab.setEnabled(!paused);
 }
 
 applyView();
@@ -92,6 +93,7 @@ function goToView(next, position) {
   applyView();
   const hash = serious ? '#modulos' : position.hash;
   history.replaceState(history.state, '', hash || location.pathname + location.search);
+  page.classList.toggle('laboratory-open', hash === '#orbita');
   scrollTo({ top: serious ? 0 : position.top, behavior: 'instant' });
   scheduleNav();
 }
@@ -139,13 +141,24 @@ async function switchView() {
 }
 mode.addEventListener('click', switchView);
 
-addEventListener('hashchange', () => {
-  if (!serious || !spaceAnchors.has(location.hash)) return;
+addEventListener('hashchange', event => {
   const hash = location.hash;
-  serious = false;
-  store('synapsis-serio', false);
-  applyView();
-  document.querySelector(hash).scrollIntoView({ behavior: 'instant' });
+  page.classList.toggle('laboratory-open', hash === '#orbita');
+  if (serious && spaceAnchors.has(hash)) {
+    serious = false;
+    store('synapsis-serio', false);
+    applyView();
+    cover.scrollIntoView({ behavior: 'instant' });
+  }
+  const previous = new URL(event.oldURL).hash;
+  if (hash === '#orbita') {
+    requestAnimationFrame(() => {
+      orbit.scrollIntoView({ behavior: 'instant' });
+      orbit.querySelector('#orbit-title').focus({preventScroll:true});
+    });
+  } else if (hash === '#modulos' && previous === '#orbita') {
+    requestAnimationFrame(() => laboratoryCard.focus());
+  }
   scheduleNav();
 });
 motion.addEventListener('click', () => {

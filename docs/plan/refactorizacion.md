@@ -6,8 +6,8 @@ El objetivo es que una persona pueda ingresar su problema, elegir qué necesita,
 
 ## Fase 1 · Portada y menú
 
-- [ ] Conservar la composición animada de nave, río y montañas. Dejar **Synapsis** en el título y en la pestaña. Retirar «Observatorio matemático» y los puntos decorativos finales. Aplicar amarillo claro `#FFDD72` al logo, acción principal y selección. En modo claro usar texto marino sobre el amarillo. Dibujar íconos matemáticos distinguibles por forma y color.
-- [ ] Conectar estas ocho tarjetas, en el orden de la tabla, al catálogo existente. Distribuirlas en cuatro columnas en escritorio ancho, dos o una según el espacio. Mantener el modo serio con barra y tarjetas estáticas, la barra lateral plegable a íconos y el índice de las 22 sesiones. Conservar enlaces guardados e historial mediante los identificadores existentes.
+- [x] Conservar la composición animada de nave, río y montañas. Dejar **Synapsis** en el título y en la pestaña. Retirar «Observatorio matemático» y los puntos decorativos finales. Aplicar amarillo claro `#FFDD72` al logo, acción principal y selección. En modo claro usar texto marino sobre el amarillo. Dibujar íconos matemáticos distinguibles por forma y color.
+- [x] Conectar estas ocho tarjetas, en el orden de la tabla, al catálogo existente. Distribuirlas en cuatro columnas en escritorio ancho, dos o una según el espacio. Mantener el modo serio con barra y tarjetas estáticas, la barra lateral plegable a íconos y el índice de las 22 sesiones. Conservar enlaces guardados e historial mediante los identificadores existentes.
 
 | Primera fila | Segunda fila (misma columna) |
 | --- | --- |
@@ -17,6 +17,8 @@ El objetivo es que una persona pueda ingresar su problema, elegir qué necesita,
 | Vectores y espacios | Laboratorio 3D |
 
 **Prueba de cierre.** Abrir las ocho tarjetas con teclado y en pantalla estrecha. Verificar foco, contraste en ambos temas y retorno al menú. Comprobar el índice de las 22 sesiones y comparar la portada antes y después.
+
+**Evidencia.** En Chromium se recorrieron las ocho tarjetas con Tab y Enter en el modo espacial, el modo serio oscuro y el modo serio claro. Se verificaron el retorno de foco, las columnas a 1440, 390 y 320 píxeles, los enlaces anteriores, la barra plegable persistente y el acceso a las 22 sesiones.
 
 ## Fase 2 · Ingresar una vez y resolver a pedido
 

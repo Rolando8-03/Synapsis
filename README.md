@@ -1,8 +1,8 @@
-# Synapsis · Observatorio matemático
+# Synapsis
 
 [Plan de refactorización en cinco fases](docs/plan/refactorizacion.md)
 
-Calculadora para escritorio, navegador y Android para estudiar álgebra lineal y métodos numéricos. Esta edición parte de **Synapsis-Proyecto-Completo** e integra el solucionador de la **Calculadora de Álgebra Lineal del Grupo 4**. Incluye la portada animada, los ocho módulos, el modo serio claro u oscuro y el laboratorio de las tres leyes de Kepler.
+Calculadora para escritorio, navegador y Android para estudiar álgebra lineal y métodos numéricos. Esta edición parte de **Synapsis-Proyecto-Completo** e integra el solucionador de la **Calculadora de Álgebra Lineal del Grupo 4**. Incluye la portada animada, ocho tarjetas por tarea y el modo serio claro u oscuro.
 
 ## Cómo abrir Synapsis
 
@@ -23,10 +23,12 @@ Para preparar la web con todas las dependencias en una carpeta independiente, ej
 
 ## Cómo usar la calculadora
 
+El menú ofrece **Cálculo**, **Sistemas lineales**, **Matrices**, **Vectores y espacios**, **Transformaciones lineales**, **Métodos numéricos**, **Graficadora** y **Laboratorio 3D**. La tarjeta de laboratorio abre la simulación de Kepler disponible.
+
 - Abrí una tarjeta para trabajar a pantalla completa. La barra lateral permite cambiar de operación y se pliega a iconos con **«**. Su preferencia queda guardada.
 - En **Sistemas lineales**, trabajá con la cuadrícula aumentada y la columna separada de `b`. Podés pegar una matriz, cambiar sus dimensiones y elegir qué partes del desarrollo mostrar.
 - Al completar la cuadrícula se prepara el cálculo. **Resolver** muestra el resultado en el lugar del formulario. **Editar datos** vuelve a las entradas anteriores. **Cargar ejemplo** carga y resuelve un caso de la operación.
-- Para obtener exclusivamente los factores, elegí **Sistemas lineales → Factorización → Solo factorizar A = LU**. Usá **Solo factorizar PA = LU** para trabajar con pivoteo o **Resolver Ax=b mediante LU o PLU** cuando también querás calcular la solución.
+- Para obtener exclusivamente los factores, elegí **Matrices → Factorización → Solo factorizar A = LU**. Usá **Solo factorizar PA = LU** para trabajar con pivoteo o **Sistemas lineales → Factorización → Resolver Ax=b mediante LU o PLU** cuando también querás calcular la solución.
 - **Temario del curso**, en la barra lateral, enlaza las 22 sesiones con sus operaciones y ejemplos. **Historial** reabre cálculos del módulo.
 
 ## Temario y formatos

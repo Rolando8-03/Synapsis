@@ -105,7 +105,7 @@ def desktop(url):
     app.setApplicationName("Synapsis")
     app.setWindowIcon(QIcon(str(ROOT / "dist" / "assets" / "favicon.svg")))
     window = QMainWindow()
-    window.setWindowTitle("Synapsis · Observatorio matemático")
+    window.setWindowTitle("Synapsis")
     window.resize(1380, 900)
     window.setMinimumSize(700, 560)
     view = QWebEngineView(window)

@@ -13,6 +13,8 @@
 :root {
   color-scheme: dark;
   --navy: #0b172b;
+  --gold: #ffdd72;
+  --gold-hover: #ffe8a0;
   --blue-surface: #142844;
   --blue-mist: #eaf2ff;
   --blue-accent: #88b8ff;
@@ -77,7 +79,7 @@ svg { display: block; }
 }
 .bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; height: var(--bar); gap: 24px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; width: fit-content; font: 700 1.45rem/1 var(--display); letter-spacing: -.055em; }
-.brand svg { width: 26px; color: var(--accent); }
+.brand svg { width: 26px; color: var(--gold); }
 nav { display: flex; gap: 33px; align-self: stretch; }
 nav a { display: grid; align-items: center; position: relative; color: var(--muted); font-size: .91rem; }
 nav a:hover, nav a[aria-current] { color: var(--accent); }
@@ -165,7 +167,6 @@ h1 {
   font-size: clamp(5.1rem, 11vw, 11.2rem); font-weight: 700; letter-spacing: -.088em;
   line-height: .91; margin-left: -.06em;
 }
-h1 span, h2 > span { color: var(--accent); }
 .intro { margin-top: 24px; font-size: clamp(1.12rem, 1.85vw, 1.53rem); line-height: 1.45; color: #e6ebf3; letter-spacing: -.015em; }
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 24px; margin-top: 32px; }
 .primary {
@@ -174,6 +175,8 @@ h1 span, h2 > span { color: var(--accent); }
   border-radius: 8px; padding: 12px 18px; min-height: 48px; font-weight: 700; white-space: nowrap;
 }
 .primary:hover { background: var(--accent-hover); }
+.hero-actions .primary { background: var(--gold); color: var(--navy); }
+.hero-actions .primary:hover { background: var(--gold-hover); }
 .example-link { color: #e6ecf4; font-weight: 650; padding: 7px 0; text-decoration: underline; text-underline-offset: 5px; text-decoration-color: #e6ecf478; }
 .example-link:hover { color: var(--accent); text-decoration-color: currentColor; }
 
@@ -186,13 +189,10 @@ h1 span, h2 > span { color: var(--accent); }
 .section-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; margin-bottom: clamp(22px, 3vw, 34px); }
 .section-head h2 { font-size: clamp(2.15rem, 4.2vw, 4.2rem); font-weight: 700; letter-spacing: -.068em; line-height: 1.02; }
 .section-head p { color: var(--muted); margin-top: 11px; font-size: clamp(1rem, 1.4vw, 1.125rem); }
-.section-meta { display: grid; gap: 4px; justify-items: end; flex: none; }
-.orbit-shortcut { color: #7eaff3; font-size: .85rem; white-space: nowrap; text-underline-offset: 4px; }
-.orbit-shortcut:hover { text-decoration: underline; }
-.module-count { color: var(--muted); font-size: .91rem; border-bottom: 1px solid #c1d6f340; padding: 0 0 5px; white-space: nowrap; }
 .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(12px, 1.35vw, 21px); }
 .card {
   --ink: var(--accent);
+  --art-highlight: var(--gold);
   --card-line: color-mix(in srgb, var(--ink) 28%, #202e41);
   position: relative; overflow: clip; isolation: isolate; border-radius: 15px; min-width: 0;
   border: 1px solid var(--card-line);
@@ -200,8 +200,28 @@ h1 span, h2 > span { color: var(--accent); }
   box-shadow: inset 0 1px #d9e6f80a;
   transition: transform .28s ease, border-color .22s ease;
 }
+.card-calculo { --light-ink: #245b8d; --ink: #8fc6ff; }
+.card-sistemas { --light-ink: #18695b; --ink: #90dfd5; }
+.card-matrices { --light-ink: #655498; --ink: #bcabff; }
+.card-vectores { --light-ink: #14647e; --ink: #7ccde8; }
+.card-transformaciones { --light-ink: #334985; --ink: #a8ccff; }
+.card-numericos { --light-ink: #863952; --ink: #efa9be; }
+.card-grafica { --light-ink: #346747; --ink: #9ad8b2; }
+.card-orbita { --light-ink: #535d9f; --ink: #a8b7ff; }
+.art-accent { color: var(--art-highlight); }
+.art-axis { opacity: .5; }
+.lab-menu-link {
+  display: inline-block;
+  padding-block: 6px;
+  margin-bottom: 10px;
+  color: var(--accent);
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+#orbit-title:focus:not(:focus-visible) { outline: none; }
 .card:has(.card-open:hover), .card:focus-within { transform: translateY(-4px); border-color: color-mix(in srgb, var(--ink) 65%, #1f2c3f); }
-.card:has(.card-open:focus-visible) { outline: 2px solid var(--accent); outline-offset: 4px; }
+.card:has(.card-open:focus-visible) { outline: 2px solid var(--gold); outline-offset: 4px; }
 .art {
   position: relative; display: grid; place-items: center; min-height: 142px; color: var(--ink); perspective: 340px;
   background: radial-gradient(ellipse at 52% 30%, color-mix(in srgb, var(--ink) 12%, transparent), transparent 71%);
@@ -240,7 +260,7 @@ h1 span, h2 > span { color: var(--accent); }
   transition: color .2s, background .2s, transform .27s;
 }
 .card-plus svg { width: 15px; height: 15px; }
-.card-open:is(:hover, :focus-visible) .card-plus { color: #141d2a; background: var(--ink); transform: rotate(90deg); }
+.card-open:is(:hover, :focus-visible) .card-plus { color: #141d2a; background: var(--gold); }
 .motion-on .card.revealed .art > svg { animation: trace-in .6s ease-out both; }
 @keyframes trace-in { from { opacity: .55; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 .footer { background: #0c121a; border-top: 1px solid #c5d7f11e; padding: 30px 0; }
@@ -343,7 +363,6 @@ label, legend { font-weight: 650; }
   .section-head { align-items: start; gap: 9px; }
   .section-head h2 { font-size: clamp(1.75rem, 7.7vw, 2.65rem); }
   .section-head p { font-size: .95rem; margin-top: 8px; }
-  .module-count { font-size: .77rem; margin-top: 5px; }
   .art { min-height: 107px; }
   .art > svg { height: 81px; margin-top: 8px; }
   .formula { font-size: .74rem; top: 7px; left: 9px; }
@@ -353,7 +372,6 @@ label, legend { font-weight: 650; }
   .card p { font-size: .875rem; }
   .card-plus { right: 9px; bottom: 8px; width: 24px; height: 24px; }
   .footer-inner { column-gap: 11px; font-size: .85rem; }
-  .footer-inner > span { display: none; }
   dialog { width: calc(100% - 18px); max-height: 92svh; }
   .lab-columns { grid-template-columns: 1fr; }
   #lab-results { border-left: 0; border-top: 1px solid var(--line); }
@@ -479,8 +497,8 @@ label, legend { font-weight: 650; }
 /* Grade the same landscape without changing its framing or layers. */
 .land img, .live-scene { filter: url(#scene-navy); }
 
-/* Ámbar para el avance y las acciones de la calculadora y el laboratorio. */
-:root { --highlight: #ffb454; --highlight-fill: #ffb454; --highlight-ink: #23170d; }
+/* Amarillo para el avance y las acciones de la calculadora y el laboratorio. */
+:root { --highlight: var(--gold); --highlight-fill: var(--gold); --highlight-ink: var(--navy); }
 :root.serious[data-serious-theme="light"] { --highlight: #8a4300; }
 .loading-progress {
   color: var(--text); margin: 0 0 1rem; max-width: 40rem; padding: 14px;
