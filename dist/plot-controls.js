@@ -82,7 +82,7 @@ export function plotPlayback(selection, {label = 'Paso de la gráfica', interval
 }
 
 export function plotCamera(canvas, redraw, {
-  view = {x:0,y:0,zoom:1}, captures = () => false, onPinch, resetView
+  view = {x:0,y:0,zoom:1}, captures = () => false, onPinch, resetView, fixed = false
 } = {}) {
   const controls = node('div', 'ws-graph-controls');
   const status = node('span', 'ws-field-help');
@@ -134,9 +134,13 @@ export function plotCamera(canvas, redraw, {
       status.textContent = 'No se pudo guardar la imagen.';
     }
   }
+  canvas.tabIndex = 0;
+  if (fixed) {
+    controls.append(button('Guardar imagen',save),status);
+    return {view, controls, pixel, dragged:() => false};
+  }
   controls.append(button('Acercar',()=>zoom(1.25)),button('Alejar',()=>zoom(.8)),
     button('Restablecer vista',reset),button('Guardar imagen',save),status);
-  canvas.tabIndex = 0;
   canvas.style.touchAction = 'none';
   canvas.addEventListener('wheel', event => {
     event.preventDefault();

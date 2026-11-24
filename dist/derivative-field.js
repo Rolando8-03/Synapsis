@@ -52,7 +52,7 @@ function visualLatex(text, variables) {
   return null;
 }
 
-export function expressionField(definition, initial, onChange, {differential, variables = ['x']}) {
+export function expressionField(definition, initial, onChange, {differential, variables = ['x'], inlineEditor = false}) {
   variables = ({parcial:['x', 'y'], bivariado:['x','y'], sumatoria:['k']})[definition.editor] ?? variables;
   const element = node('div', 'ws-field ws-full-field ws-derivative');
   const label = node('label', '', definition.label);
@@ -121,10 +121,16 @@ export function expressionField(definition, initial, onChange, {differential, va
     row.append(formula('\\displaystyle\\int', '∫'), math, text,
       formula(`\\mathrm{d}${differential}`, `d${differential}`));
     element.append(row);
+  } else if (inlineEditor) {
+    const row = node('div', 'ws-newton-editor');
+    row.append(math, text, toggle);
+    element.append(row);
   } else {
     element.append(math, text);
   }
-  element.append(keys, toggle, feedback);
+  element.append(keys);
+  if (!inlineEditor) element.append(toggle);
+  element.append(feedback);
 
   function useVisual(visual) {
     math.hidden = keys.hidden = !visual;
@@ -136,7 +142,7 @@ export function expressionField(definition, initial, onChange, {differential, va
 
   function set(value) {
     if (typeof value === 'string') {
-      const latex = value === '' || value === definition.default ? visualLatex(value, variables) : null;
+      const latex = !inlineEditor && (value === '' || value === definition.default) ? visualLatex(value, variables) : null;
       if (latex === null) text.value = value;
       else math.setValue(latex, {silenceNotifications:true});
       useVisual(latex !== null);
@@ -149,7 +155,8 @@ export function expressionField(definition, initial, onChange, {differential, va
   let lastVisual;
   toggle.addEventListener('click', () => {
     if (math.hidden) {
-      const latex = lastVisual?.text === text.value ? lastVisual.latex : visualLatex(text.value, variables);
+      const latex = !text.value && inlineEditor ? '' :
+        lastVisual?.text === text.value ? lastVisual.latex : visualLatex(text.value, variables);
       if (latex === null) {
         feedback.textContent = 'Esta expresión se edita como texto. Para empezar una expresión nueva en el editor, vaciá el campo.';
         feedback.hidden = false;

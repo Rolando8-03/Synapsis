@@ -65,7 +65,8 @@
     $('#ws-history-items button').click();
     await observe(()=>!$('#ws-form').hidden && !$('#ws-calculate').disabled);
     $('#ws-calculate').click();
-    await observe(()=>!$('#ws-error').hidden || (last?.request.operation===operation && !$('#ws-results').hidden));
+    await observe(()=>!$('#ws-error').hidden || $('.swal2-popup') ||
+      (last?.request.operation===operation && !$('#ws-results').hidden));
     return last?.reply ?? {status:'invalid_input',error:{message:$('#ws-error').textContent}};
   }
 
@@ -122,14 +123,14 @@
     const chart = $('#ws-result-content canvas');
     const original = chart.toDataURL();
     chart.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));
-    const second = newton.result.tabla[1], active = $('.ws-frame-formula');
-    check(chart.dataset.frame==='2' && active.dataset.iteration==='2' && chart.toDataURL()!==original,
+    check(chart.dataset.frame==='2' && chart.toDataURL()!==original,
       'El visor no muestra la segunda iteración');
-    check(active.querySelector('[data-plain]').dataset.plain===second.desarrollo &&
-      active.querySelector('tbody tr').textContent.includes(second.x_decimal),
-      'La fórmula difiere de la segunda fila');
-    tab('Iteraciones');
-    check($('#ws-result-content tr[aria-current="step"] td [data-plain]').dataset.plain==='2','La tabla perdió la segunda iteración');
+    tab('Procedimiento');
+    const second = all('.ws-newton-iteration')[1];
+    second.querySelector('summary').click();
+    check(second.querySelectorAll('ol li').length === 8 &&
+      all('#ws-result-content tbody tr').length === newton.result.tabla.length,
+      'El procedimiento perdió los pasos de Newton-Raphson');
     const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
     const key = (element,key) => element.dispatchEvent(new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));
     const action = label => all('.ws-book-view button').find(item=>item.textContent===label);
@@ -293,7 +294,12 @@
     const graph=await longGraph();
     const stopped=await restore('raices/raices.newton',{expresion:'x^2-2',inicial:'0'});
     check(stopped.status==='breakdown' && stopped.result.residual==='2','Newton detenido perdió el residuo');
-    check($('#ws-results').textContent.includes('Último punto calculado') && $('#ws-results').textContent.includes('derivada es cero'),'Newton detenido perdió la explicación');
+    check($('.swal2-title')?.textContent.includes('La derivada es 0') &&
+      $('.swal2-html-container')?.textContent.includes('cambiar la función'), 'Falta la alerta de derivada nula');
+    $('.swal2-confirm').click();
+    await observe(()=>!$('#ws-results').hidden);
+    check($('#ws-results').textContent.includes('Último punto calculado') &&
+      $('#ws-results').textContent.includes('Derivada nula o demasiado pequeña'),'Newton detenido perdió la explicación');
     const riemann=await restore('grafica/calculo.riemann',{expresion:'x^2',inferior:'0',superior:'1',muestra:'medio',n:'4'});
     tab('Resultado');
     const control=$('#ws-riemann-n');

@@ -17,7 +17,7 @@ def grouped(term, minimum):
     return rf"\left({text}\right)" if priority < minimum else text
 
 
-def expression_tex(tree, source=""):
+def expression_tex(tree, source="", *, at_x=None):
     """En el árbol generado, source conserva los literales y permite omitir factores neutros."""
     def visit(node):
         if isinstance(node, ast.Constant):
@@ -25,6 +25,8 @@ def expression_tex(tree, source=""):
             text = number_tex(literal)
             return text, 2 if r"\times" in text else 5
         if isinstance(node, ast.Name):
+            if at_x is not None and node.id == "x":
+                return at_x, 5
             return {"pi": r"\pi", "Ans": r"\mathrm{Ans}"}.get(node.id, node.id), 5
         if isinstance(node, ast.Call):
             name = node.func.id

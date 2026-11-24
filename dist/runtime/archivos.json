@@ -80,6 +80,7 @@
   "motor_matematico/application/flujos_entrada.py",
   "motor_matematico/application/learning.py",
   "motor_matematico/application/linear.py",
+  "motor_matematico/application/newton_summary.py",
   "motor_matematico/application/numerical.py",
   "motor_matematico/application/numerical_catalog.py",
   "motor_matematico/application/procedimientos.py",

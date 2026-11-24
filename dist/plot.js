@@ -5,7 +5,7 @@ import { plotCamera, plotPlayback } from './plot-controls.js';
 const clamp = (value, lower, upper) => Math.min(upper, Math.max(lower, value));
 const tickFormat = new Intl.NumberFormat('es-NI', { maximumSignificantDigits: 3, useGrouping: false });
 
-export function addPlot({ points = [], parametric = false, names = [], diagram, tangents = [], markers = [], iteraciones = [], selection, caption, overlay, cuadros, parametros, playback = true, axisLabels, sampleTimeline }) {
+export function addPlot({ points = [], parametric = false, names = [], diagram, tangents = [], markers = [], iteraciones = [], selection, caption, overlay, cuadros, parametros, playback = true, axisLabels, sampleTimeline, xRange }) {
   const numericPoint = point => point.map(value => value === null ? null : Number(value));
   points = points.map(numericPoint);
   const arrows = diagram?.map(([label,start,end]) => [label,numericPoint(start),numericPoint(end)]);
@@ -36,6 +36,11 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
   };
   [xmin, xmax] = padded(xmin, xmax);
   [ymin, ymax] = padded(ymin, ymax);
+  if (xRange) {
+    [xmin, xmax] = xRange;
+    if (ymin >= 0) ymin = -Math.max(.01, ymax * .09);
+    if (ymax <= 0) ymax = Math.max(.01, -ymin * .09);
+  }
   const w = width - padding * 2;
   const h = height - padding * 2;
   if (parametric || arrows) {
@@ -65,7 +70,7 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
   const timeline = selection ?? sampleTimeline ?? (playback && indices.length ? iterationSelection(indices,indices.length-1) : null);
   const frames = new Map(cuadros?.map(frame => [frame.iteracion,frame]));
   let active, fraction = 1;
-  const camera = plotCamera(canvas, () => canvas.redrawPlot());
+  const camera = plotCamera(canvas, () => canvas.redrawPlot(), {fixed:!!xRange});
   const readout = node('output','ws-graph-reading');
   const chartLabel = canvas.getAttribute('aria-label');
   const axes = axisLabels ?? (arrows || parametric ? ['x','y'] : ['x', names.length ? 'Valor' : 'f(x)']);
@@ -308,7 +313,7 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
   }
   if (arrows) names = arrows.map(([name]) => name).filter(Boolean);
   const figure = node('figure','ws-plot-figure');
-  if (timeline) {
+  if (timeline && !xRange) {
     const player = plotPlayback(timeline,{
       label: selection ? 'Iteración del método' : arrows ? 'Construcción de vectores' : 'Recorrer muestras',
       interval: selection ? 950 : arrows ? 700 : 85, surface:canvas,
@@ -318,7 +323,9 @@ export function addPlot({ points = [], parametric = false, names = [], diagram, 
     figure.pausePlayback = player.pausePlayback;
     if (!selection) figure.append(readout);
   }
-  figure.append(canvas,camera.controls);
+  figure.append(canvas);
+  if (xRange && selection) figure.append(selection.controls());
+  figure.append(camera.controls);
   if (names.length) {
     const captions = node('figcaption','ws-plot-key');
     names.forEach(name => {

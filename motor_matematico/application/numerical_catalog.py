@@ -84,7 +84,7 @@ for method, title in [
     choices = (
         ["cota", "residual", "ambos", "relativo"]
         if method == "biseccion"
-        else ["residual_y_paso", "relativo_y_residual", "residual"] if method == "newton" else ["residual_y_paso", "residual"]
+        else ["residual_y_paso", "relativo_y_residual", "residual", "paso_absoluto"] if method == "newton" else ["residual_y_paso", "residual"]
     )
     NUMERICAL_DATA.append(
         spec(

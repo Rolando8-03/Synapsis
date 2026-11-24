@@ -5,6 +5,7 @@ import { addPlot } from './plot.js';
 import { printReport, reportSection } from './result-print.js';
 import { curveFrames, riemannPlot, sectionPlot } from './integral-visuals.js';
 import { math, matrixFormula, numericTex, vectorFormula } from './math-format.js';
+import { newtonExport, newtonViews } from './newton-results.js';
 
 const LABELS = {
   matrix: 'Matriz resultante', tabla: 'Tabla de iteraciones', rango_A: 'Rango de A',
@@ -607,6 +608,7 @@ function pauseGraphs(content) {
 }
 
 export function renderResult(target, response, choices, originalSystem, onEdit, recalculate, camera, report) {
+  const newton = response.operation_id === 'raices.newton';
   const selectedTab = target.dataset.selectedTab;
   target.replaceChildren();
   const header = node('div', 'ws-panel-heading');
@@ -620,10 +622,10 @@ export function renderResult(target, response, choices, originalSystem, onEdit, 
     pauseGraphs(target.querySelector('#ws-result-content'));
     onEdit();
   });
-  actions.append(edit);
+  if (!newton) actions.append(edit);
   header.append(heading, actions);
   target.append(header);
-  if (response.result?.expresion && response.operation_id !== 'calculo.derivar') {
+  if (!newton && response.result?.expresion && response.operation_id !== 'calculo.derivar') {
     const expression = node('p','ws-active-expression');
     expression.append(node('strong','','Función '),node('code','',response.result.expresion));
     if (response.result.derivada) {
@@ -633,25 +635,29 @@ export function renderResult(target, response, choices, originalSystem, onEdit, 
     }
     target.append(expression);
   }
-  if (response.status !== 'ok' && !originalSystem) {
+  if (!newton && response.status !== 'ok' && !originalSystem) {
     const status = ({iteration_limit:'Máximo de iteraciones alcanzado', stagnated:'El método se estancó',
       infinite:'Infinitas soluciones', inconsistent:'Sistema incompatible', not_applicable:'Método no aplicable',
       cycle_detected:'Se detectó un ciclo', domain_error:'Evaluación fuera del dominio', breakdown:'El método se detuvo', singular:'Matriz singular',
     })[response.status];
     if (status) target.append(node('p','ws-warning',status));
   }
-  if (response.error) target.append(node('p', 'result-error', response.error.message));
-  for (const warning of response.warnings ?? []) target.append(node('p', 'ws-warning', isScalar(warning) ? scalar(warning) : warning.message ?? JSON.stringify(warning)));
+  if (!newton) {
+    if (response.error) target.append(node('p', 'result-error', response.error.message));
+    for (const warning of response.warnings ?? []) target.append(node('p', 'ws-warning', isScalar(warning) ? scalar(warning) : warning.message ?? JSON.stringify(warning)));
+  }
   if (!response.result) return;
   const cards = summaryCards(response);
-  if (cards) target.append(cards);
-  if (report) {
+  if (cards && !newton) target.append(cards);
+  if (report && !newton) {
     const button = node('button','secondary','Exportar PDF');
     button.type = 'button';
     button.addEventListener('click', () => exportResult(target,response,originalSystem,camera,report));
     actions.append(button);
   }
-  const panels = originalSystem ? systemResult(response.result, choices, response.steps) : genericResult(response, recalculate, camera, {showSteps:choices.steps});
+  const panels = newton ? newtonViews(response, table)
+    : originalSystem ? systemResult(response.result, choices, response.steps)
+    : genericResult(response, recalculate, camera, {showSteps:choices.steps});
   const results = node('div', 'ws-result-body');
   const tabs = node('div', 'ws-result-tabs');
   tabs.setAttribute('role', 'tablist');
@@ -700,6 +706,15 @@ export function renderResult(target, response, choices, originalSystem, onEdit, 
   target.append(results);
   const initial = selectedTab || (originalSystem && choices.solution ? 'Solución' : 'Resultado');
   select(Math.max(0, panels.findIndex(([label]) => label === initial)));
+  if (newton) {
+    const footer = node('div', 'ws-actions ws-newton-export');
+    const button = node('button', 'secondary', 'Exportar tabla y procedimiento en PDF');
+    button.type = 'button';
+    button.addEventListener('click', () => newtonExport(response, table));
+    footer.append(button);
+    target.append(footer);
+    return;
+  }
   if (navigator.clipboard?.writeText) {
     const copy = node('button','secondary','Copiar pestaña');
     copy.type = 'button';

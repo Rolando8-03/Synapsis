@@ -319,3 +319,59 @@
 .ws-graph-slider input { flex:1; width:0; min-width:5rem; }
 .ws-graph-reading { color:var(--ws-text); font-variant-numeric:tabular-nums; }
 .ws-plot-figure { display:grid; gap:8px; min-width:0; }
+
+/* La vista de Newton ocupa el ancho de la ventana y conserva el menú. */
+#workspace.ws-newton .ws-layout { display: block; }
+#workspace.ws-newton .ws-main { width: 100%; padding: clamp(14px, 2vw, 32px); }
+#workspace.ws-newton #ws-operation { max-width: none; }
+#workspace.ws-newton .ws-module-select { display: grid; }
+#workspace.ws-newton .ws-nav-label { position: static; width: auto; height: auto; margin: 0; clip-path: none; }
+#workspace.ws-newton .ws-sidebar {
+  position: static; height: auto; padding: 10px clamp(14px, 2vw, 32px);
+  display: flex; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 12px;
+  border-right: 0; border-bottom: 1px solid var(--ws-line); overflow: visible;
+}
+#workspace.ws-newton #ws-sidebar-toggle { display: inline-flex; }
+#workspace.ws-newton #ws-sidebar-toggle[aria-expanded="false"] + #ws-navigation { display: none; }
+#workspace.ws-newton #ws-sidebar-toggle[aria-expanded="true"] + #ws-navigation {
+  display: grid; flex: 1 0 100%; grid-template-columns: minmax(140px, 1fr) minmax(180px, 2fr);
+  align-items: start; gap: 8px 14px;
+}
+#workspace.ws-newton #ws-compact-toggle,
+#workspace.ws-newton #ws-category,
+#workspace.ws-newton #ws-description,
+#workspace.ws-newton #ws-engine { display: none; }
+#workspace.ws-newton #ws-fields {
+  grid-template-columns: minmax(0, 3fr) minmax(245px, 2fr); gap: 16px clamp(18px, 3vw, 40px);
+}
+#workspace.ws-newton #ws-fields > .ws-full-field { grid-column: 1; }
+.ws-newton-parameters, .ws-newton-steps { display: grid; gap: 10px; }
+.ws-newton-parameters .ws-actions { margin-top: 3px; }
+.ws-newton-editor { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; }
+.ws-newton-editor > button { min-height: 39px; padding: 7px 12px; white-space: normal; }
+.ws-newton-summary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.ws-newton-box {
+  min-width: 0; border: 1px solid var(--ws-line); border-radius: 10px;
+  padding: 12px 14px; background: var(--ws-input);
+}
+.ws-newton-box h3 { margin: 0; color: var(--ws-muted); font-size: .95rem; }
+.ws-newton-status { grid-column: 1 / -1; text-align: center; }
+.ws-newton-status.is-success { border-color: #47896b; background: #286a4a24; }
+.ws-newton-status.is-success h3 { color: #88dfaf; }
+.serious[data-serious-theme="light"] .ws-newton-status.is-success h3 { color: #14603a; }
+.ws-newton-status.is-warning { border-color: #b38751; }
+.ws-newton-iteration summary { cursor: pointer; font-weight: 650; }
+.ws-newton-steps { margin: 10px 0; padding-inline-start: 24px; }
+.ws-newton-steps strong { font-size: .9rem; }
+.ws-newton-range { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
+.ws-newton-range button { padding: 7px 12px; min-height: 38px; }
+.ws-newton-graph .ws-plot-figure { width: min(100%, 64rem); margin-inline: auto; }
+.ws-newton-graph .ws-iteration-control { margin-block: 10px; max-width: 15rem; }
+.ws-newton-export { justify-content: flex-start; }
+@media (max-width: 720px) {
+  #workspace.ws-newton #ws-fields, .ws-newton-summary { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 460px) {
+  .ws-newton-range { grid-template-columns: 1fr 1fr; }
+  .ws-newton-range button { grid-column: 1 / -1; }
+}

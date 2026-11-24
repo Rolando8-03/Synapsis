@@ -11,6 +11,7 @@ from ..domain.models import CalculationResult
 from ..parsing.numbers import parse_number
 
 MESSAGES = {
+    "non_convergent": "Se cumplió la tolerancia del paso, pero el residuo sigue por encima de la tolerancia.",
     "iteration_limit": "Se alcanzó el máximo configurado sin satisfacer el criterio.",
     "stagnated": "El método se estancó sin satisfacer el criterio.",
     "breakdown": "No se puede efectuar la división requerida por el método.",

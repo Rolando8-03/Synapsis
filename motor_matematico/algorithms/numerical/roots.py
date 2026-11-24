@@ -24,6 +24,9 @@ def settings(data):
 def roots(method, data, ctx):
     f = Function(data["expresion"], ctx)
     tx, tf, limit = settings(data)
+    absolute_stop = method == "newton" and data.get("criterio") == "paso_absoluto"
+    if absolute_stop and "tolerancia_f" not in data:
+        tf = tx
     if f.binary_functions and min(tx, tf) < F(1, 10**12):
         raise InputError(
             "Las funciones trascendentales binarias requieren tolerancia ≥1e-12."
@@ -263,6 +266,17 @@ def roots(method, data, ctx):
     criterion = data.get("criterio", "residual_y_paso")
     result["criterio"] = criterion
     history = [x]
+    first_slope = None
+    if absolute_stop and derivative is not None:
+        try:
+            first_slope = derivative.value(x)
+        except DomainError as error:
+            return finish("domain_error", "evaluacion_no_admitida: " + str(error), x, fx)
+        if first_slope == 0:
+            result["fallo_derivada"] = {"x": x, "valor": first_slope, "iteracion": 1}
+            ctx.emit("derivada_pequena", "Comprobar la pendiente inicial antes de dividir.",
+                     {"x": x, "f_x": fx, "derivada": first_slope})
+            return finish("breakdown", "derivada_nula_o_demasiado_pequena", x, fx)
     if method == "secante" and f.value(previous) == 0:
         return finish(
             "ok", "residual_cero_en_primera_semilla", previous, f.value(previous)
@@ -281,8 +295,10 @@ def roots(method, data, ctx):
                     _, synthetic, slope = horner(f, F(x), ctx)
                     fx, denominator = decimal(synthetic[-1]), decimal(slope)
                 else:
-                    denominator = derivative.value(x)
+                    denominator = first_slope if k == 1 and first_slope is not None else derivative.value(x)
                 if denominator == 0 or (abs(denominator) <= D("1e-16")*abs(fx)):
+                    if absolute_stop:
+                        result["fallo_derivada"] = {"x": x, "valor": denominator, "iteracion": k}
                     ctx.emit("derivada_pequena","Evaluar el denominador antes de dividir.",
                              {"x":x,"f_x":fx,"derivada":denominator})
                     return finish("breakdown", "derivada_nula_o_demasiado_pequena", x, fx)
@@ -315,6 +331,12 @@ def roots(method, data, ctx):
             return finish("domain_error", "evaluacion_no_admitida: " + str(e), x, fx)
         delta = abs(next_x - x)
         relative = delta / abs(next_x) if next_x else None
+        if absolute_stop:
+            extra["paso_en_tolerancia"] = delta <= decimal(tx)
+            # Mostrá suficientes cifras para que los dos operandos de la
+            # resta se distingan, aun cuando coincidan en la tabla resumida.
+            digits = min(40, max(16, max(x.adjusted(), next_x.adjusted()) - delta.adjusted() + 4)) if delta else 16
+            extra["puntos_desarrollo"] = [format(point, f".{digits}g") for point in (x, next_x)]
         emit(
             {
                 "iteracion": k,
@@ -330,7 +352,11 @@ def roots(method, data, ctx):
                 **extra,
             }
         )
-        if abs(next_f) <= decimal(tf) and (
+        if absolute_stop and extra["paso_en_tolerancia"]:
+            if abs(next_f) > decimal(tf):
+                return finish("non_convergent", "paso_satisfecho_residuo_alto", next_x, next_f)
+            return finish("ok", "criterio_satisfecho", next_x, next_f)
+        if not absolute_stop and abs(next_f) <= decimal(tf) and (
             criterion == "residual" or (relative <= decimal(tx) if relative is not None else delta <= decimal(tx))
             if criterion == "relativo_y_residual" else criterion == "residual" or delta <= decimal(tx)
         ):

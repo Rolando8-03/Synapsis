@@ -1,6 +1,7 @@
 import { motor } from './transport.js';
 import { gridField, node } from './matrix-input.js';
 import { renderResult } from './workspace-results.js';
+import { warnNewtonDerivative } from './newton-results.js';
 import { math } from './math-format.js';
 import { calculusIntent } from './expression-input.mjs';
 
@@ -18,6 +19,7 @@ const visualFields = {
   'grafica.explicita':['expr'], 'grafica.parametrica':['expr', 'y'], 'funciones.evaluar':['expresion'],
 };
 const HISTORY_KEY = 'synapsis-historial-escritorio';
+const newtonFields = new Set(['expresion', 'inicial', 'tolerancia_x', 'max_iteraciones']);
 const exampleMatrix = [['2','1','-1','8'],['-3','-1','2','-11'],['-2','1','2','-3']];
 
 const GROUP_ICONS = {
@@ -82,6 +84,9 @@ export function bindWorkspace(setOpen) {
   const sections = get('ws-module');
   const page = document.documentElement;
   const form = get('ws-form');
+  const formActions = form.querySelector('.ws-actions');
+  const exampleButton = get('ws-example');
+  const clearButton = get('ws-clear');
   const fields = get('ws-fields');
   const header = get('ws-title');
   const status = get('ws-message');
@@ -188,7 +193,7 @@ export function bindWorkspace(setOpen) {
     operations.hidden = next === 'history' || next === 'course';
     historyView.hidden = next !== 'history';
     get('ws-course').hidden = next !== 'course';
-    form.hidden = next === 'result';
+    form.hidden = next === 'result' && state?.op !== 'raices.newton';
     results.hidden = next !== 'result';
     for (const name of ['history', 'course']) {
       get(`ws-${name}-link`).setAttribute('aria-pressed', String(next === name));
@@ -243,7 +248,8 @@ export function bindWorkspace(setOpen) {
     if (updateResult) results.querySelector('.ws-book-controls :is(input,select)')?.focus({preventScroll:true});
     else {
       get('ws-result-title').focus({preventScroll:true});
-      window.scrollTo({top:0,behavior:'instant'});
+      if (state.op === 'raices.newton') results.scrollIntoView({block:'nearest',behavior:'instant'});
+      else window.scrollTo({top:0,behavior:'instant'});
     }
   }
 
@@ -285,7 +291,9 @@ export function bindWorkspace(setOpen) {
     request?.abort();
     get('ws-calculate').disabled = false;
     status.textContent = '';
-    if (!state || view !== 'form') return;
+    if (!state) return;
+    if (view === 'result' && state.op === 'raices.newton') showView('form');
+    if (view !== 'form') return;
     setError('');
     setConditions();
     remember();
@@ -311,7 +319,8 @@ export function bindWorkspace(setOpen) {
       control.updateNotation?.(values);
       const {when, when_any} = control.definition ?? {};
       const matches = condition => Object.entries(condition).every(([name, allowed]) => allowed.includes(values[name]));
-      control.element.hidden = (when && !matches(when)) || (when_any && !when_any.some(matches)) || false;
+      control.element.hidden = (state.op === 'raices.newton' && !newtonFields.has(control.definition?.name))
+        || (when && !matches(when)) || (when_any && !when_any.some(matches)) || false;
     }
   }
 
@@ -320,6 +329,7 @@ export function bindWorkspace(setOpen) {
     if (definition.visual || visualFields[state.op]?.includes(name)) {
       return expressionField(definition, value, draftChanged, {
         differential: state.op === 'calculo.primitiva' ? 'x' : null,
+        inlineEditor: state.op === 'raices.newton' && name === 'expresion',
         variables: state.op === 'grafica.parametrica' ? ['t']
           : state.op === 'calculo.derivada_implicita' ? ['x', 'y'] : undefined,
       });
@@ -383,8 +393,11 @@ export function bindWorkspace(setOpen) {
     const saved = drafts.get(state.op);
     savedFactors = saved?.savedFactors;
     const original = state.op === 'original.sistema';
+    const newton = state.op === 'raices.newton';
+    const parameters = newton ? node('div', 'ws-newton-parameters') : null;
     controls = new Map();
     choiceControls = new Map();
+    form.append(formActions);
     fields.replaceChildren();
     get('ws-engine').textContent = state.op.startsWith('original.') ? 'Motor original · Python' : 'Motor Python';
     if (original) {
@@ -398,9 +411,10 @@ export function bindWorkspace(setOpen) {
       const {name, kind} = definitionField;
       const initial = saved?.values[name] ?? (kind === 'select' || kind === 'boolean' || !definitionField.required
         ? definitionField.default : '');
-      const control = elementField(definitionField,initial);
+      const labels = {inicial:'Valor inicial x₀', tolerancia_x:'Tolerancia del error absoluto'};
+      const control = elementField(newton && labels[name] ? {...definitionField, label:labels[name]} : definitionField,initial);
       controls.set(name,control);
-      fields.append(control.element);
+      (parameters && name !== 'expresion' ? parameters : fields).append(control.element);
     }
     const checks = node('fieldset','ws-options');
     checks.append(node('legend','',original ? '¿Qué querés calcular o ver?' : 'Presentación'));
@@ -430,6 +444,12 @@ export function bindWorkspace(setOpen) {
       checks.append(label);
       fields.append(checks);
     }
+    if (parameters) {
+      checks.hidden = true;
+      clearButton.after(exampleButton);
+      parameters.append(formActions);
+      fields.append(parameters);
+    } else exampleButton.after(clearButton);
     setConditions();
 
   }
@@ -459,7 +479,8 @@ export function bindWorkspace(setOpen) {
 
   async function calculate(reveal = true, updateResult = false) {
     const button = get('ws-calculate');
-    if (!state || !controls.size || (view !== 'form' && !updateResult)) return;
+    if (!state || !controls.size || (view !== 'form' && !updateResult
+        && !(state.op === 'raices.newton' && view === 'result'))) return;
     request?.abort();
     const controller = new AbortController();
     request = controller;
@@ -467,15 +488,20 @@ export function bindWorkspace(setOpen) {
     const original = operation === 'original.sistema';
     const draft = snapshot();
     const cached = responses.get(operation);
-    if (reveal && cached?.key === JSON.stringify(draft)) {
-      request = null;
-      button.disabled = false;
-      record(draft);
-      displayResult(cached.response, draft, original, updateResult, cached.input);
-      return;
-    }
-    setError('');
     try {
+      if (reveal && cached?.key === JSON.stringify(draft)) {
+        if (operation === 'raices.newton') {
+          button.disabled = true;
+          if (cached.response.result?.fallo_derivada) showView('form');
+          await warnNewtonDerivative(cached.response);
+          if (controller.signal.aborted || state?.op !== operation) return;
+          delete results.dataset.selectedTab;
+        }
+        record(draft);
+        displayResult(cached.response, draft, original, updateResult, cached.input);
+        return;
+      }
+      setError('');
       const input = {};
       let notation;
       for (const [name,control] of controls) {
@@ -507,6 +533,7 @@ export function bindWorkspace(setOpen) {
         }
       }
       Object.assign(input, notation);
+      if (operation === 'raices.newton') input.criterio = 'paso_absoluto';
       if (draft.savedFactors) input.factores = draft.savedFactors.factors;
       button.disabled = reveal;
       status.textContent = 'Calculando el resultado…';
@@ -516,6 +543,11 @@ export function bindWorkspace(setOpen) {
       if (controller.signal.aborted || state?.op !== operation) return;
       status.textContent = '';
       if (!response.result) throw new Error(response.error?.message ?? 'El motor no devolvió un resultado.');
+      if (reveal && operation === 'raices.newton') {
+        await warnNewtonDerivative(response);
+        if (controller.signal.aborted || state?.op !== operation) return;
+        delete results.dataset.selectedTab;
+      }
       responses.set(operation, {key:JSON.stringify(draft), response, input});
       if (reveal) {
         record(draft);
@@ -688,6 +720,7 @@ export function bindWorkspace(setOpen) {
     }
     if (state?.op !== op) delete results.dataset.selectedTab;
     state = {module,op,destination};
+    workspace.classList.toggle('ws-newton', op === 'raices.newton');
     sections.value = destination;
     if (newDestination || !sidebar.querySelector('[aria-current]')) operationsSidebar(destination,op);
     for (const link of sidebar.querySelectorAll('.ws-op-link')) {
@@ -696,7 +729,7 @@ export function bindWorkspace(setOpen) {
         link.closest('details').open = true;
       } else link.removeAttribute('aria-current');
     }
-    if (matchMedia('(max-width: 760px)').matches) {
+    if (op === 'raices.newton' || matchMedia('(max-width: 760px)').matches) {
       toggle.setAttribute('aria-expanded','false');
       toggle.textContent = 'Ver operaciones';
     }

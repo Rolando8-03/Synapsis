@@ -114,3 +114,12 @@
 }
 
 .pdf-report .ws-graph-controls { display: none; }
+
+@media print {
+  .pdf-report .ws-newton-summary { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .pdf-report .ws-newton-box { padding: 5px 8px; background: #f5f8fd; border-color: #c9d7e9; }
+  .pdf-report .ws-newton-box h3 { color: #142742; }
+  .pdf-report .ws-newton-iteration { break-inside: auto; margin-bottom: 12px; }
+  .pdf-report .ws-newton-steps { gap: 3px; }
+  .pdf-report .ws-newton-steps li { break-inside: avoid; }
+}
