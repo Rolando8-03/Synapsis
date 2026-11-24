@@ -118,3 +118,22 @@ def substitution(data, ctx):
         step(ctx, 'Evaluar los extremos después de regresar a x.', integral_tex(f,a,b) + '=' + latex(value))
         result['valor'] = str(value)
     return result
+
+
+def shared_definite(data, out, ctx):
+    from motor_matematico.algorithms.calculo import analizar
+    from motor_matematico.algorithms.numerical.symbolic import symbolic_expression
+
+    if not out.get('expresion'):
+        step(ctx, 'Usar Simpson adaptativo cuando las reglas admitidas no dan una primitiva.',
+             tolerancia=out.get('tolerancia_absoluta'), aproximacion=out['valor'])
+        return
+    f, _, _ = function(data['expresion'],ctx)
+    primitive, _, _ = function(out['expresion'],ctx)
+    a, b = (symbolic_expression(analizar(data[key]),ctx) for key in ('inferior','superior'))
+    Fa, Fb = (sp.simplify(primitive.subs(X,point)) for point in (a,b))
+    step(ctx, 'El motor comprobó la continuidad en el intervalo. Escribir una primitiva.',
+         rf'F(x)={latex(primitive)}')
+    step(ctx, 'Aplicar el teorema fundamental y restar las evaluaciones en orden.',
+         integral_tex(f,a,b)+rf'=F({latex(b)})-F({latex(a)})={latex(Fb)}-\left({latex(Fa)}\right)',
+         inferior=str(Fa), superior=str(Fb), valor=out['valor'], exactitud=out['exactitud'])
