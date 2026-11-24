@@ -1,5 +1,7 @@
 import { math } from './math-format.js';
 import { node } from './matrix-input.js';
+import { iterationSelection } from './iteration-selection.js';
+import { plotCamera, plotPlayback } from './plot-controls.js';
 
 const asText = (value, places=3) => String(Number(value.toFixed(places)));
 
@@ -22,23 +24,58 @@ function input(label, value, type='text') {
 }
 
 function imagePair(scene, update) {
-  const body = node('div','ws-book-images');
-  for (const [label,pixels] of [['Original',scene.original], ['Rango '+scene.rango,scene.truncada]]) {
-    const figure = node('figure');
-    const canvas = node('canvas');
-    canvas.width = pixels[0].length;
-    canvas.height = pixels.length;
-    canvas.setAttribute('role','img');
-    canvas.setAttribute('aria-label',label+' en tonos de gris');
-    const context = canvas.getContext('2d');
-    pixels.forEach((row,y) => row.forEach((pixel,x) => {
-      const shade = Math.max(0,Math.min(255,Math.round(pixel)));
-      context.fillStyle = `rgb(${shade} ${shade} ${shade})`;
-      context.fillRect(x,y,1,1);
+  const body = node('div','ws-result-stack');
+  const canvas = node('canvas','ws-book-canvas');
+  canvas.width=670;
+  canvas.height=360;
+  canvas.setAttribute('role','img');
+  canvas.setAttribute('aria-label','Imagen original y reconstrucción de rango '+scene.rango);
+  const original = scene.original;
+  const h = original.length, w = original[0].length;
+  const sources = [original,scene.truncada].map(pixels => {
+    const source = node('canvas');
+    source.width = w;
+    source.height = h;
+    const context = source.getContext('2d');
+    const image = context.createImageData(w,h);
+    pixels.forEach((row,y)=>row.forEach((level,x)=>{
+      const offset = (y*w+x)*4;
+      image.data.set([level,level,level,255],offset);
     }));
-    figure.append(canvas,node('figcaption','',label));
-    body.append(figure);
-  }
+    context.putImageData(image,0,0);
+    return source;
+  });
+  const context=canvas.getContext('2d');
+  const {controls,view}=plotCamera(canvas,()=>canvas.redrawPlot());
+  const rows = Array.from({length:Math.min(h,40)},(_,i)=>Math.ceil((i+1)*h/Math.min(h,40)));
+  const timeline=iterationSelection(rows,rows.length-1);
+  const player=plotPlayback(timeline,{label:'Filas reconstruidas',interval:115,surface:canvas});
+  const readout=node('output','ws-graph-reading');
+  let row;
+  canvas.redrawPlot=()=>{
+    if (!canvas.isConnected) return;
+    const scale=Math.min(288/w,275/h);
+    const width=w*scale,height=h*scale;
+    context.clearRect(0,0,canvas.width,canvas.height);
+    context.save();
+    context.translate(335+view.x,180+view.y);
+    context.scale(view.zoom,view.zoom);
+    context.translate(-335,-180);
+    context.imageSmoothingEnabled=false;
+    context.font='17px system-ui';
+    context.fillStyle=getComputedStyle(canvas).getPropertyValue('--text').trim();
+    context.fillText('Original',28,28);
+    context.fillText('Reconstrucción · rango '+scene.rango,350,28);
+    context.drawImage(sources[0],28,44,width,height);
+    context.drawImage(sources[1],0,0,w,row,350,44,width,row*scale);
+    context.restore();
+  };
+  timeline.subscribe(index=>{
+    row=index;
+    readout.textContent=index+' de '+h+' filas reconstruidas';
+    canvas.redrawPlot();
+  });
+  body.append(player,readout,canvas,controls);
   const [label,slider] = input('Rango de compresión',scene.rango,'range');
   slider.min = 0;
   slider.max = scene.maximo;
@@ -103,9 +140,35 @@ export function bookScene(scene, response, recalculate, view) {
   const showPlanes = scene.tipo === 'planos';
   const config = scene.control;
   const handle = config?.eje === 'intercepto' ? config.punto.map(Number) : null;
-  const movableView = Boolean(scene.ecuaciones) || showPlanes;
+
   let yaw = -.58, pitch = .6, toPixel, fromPixel;
   let preview, drag, paint = 0;
+  const axes = scene.tipo !== 'grafo';
+  const route = response.result?.camino ?? [];
+  const pathEdges = route.slice(1).map((end,i)=>scene.aristas?.find(edge=>edge[0]===route[i]-1 && edge[1]===end-1));
+  const edges = pathEdges.length ? [...scene.aristas.filter(edge=>!edge[3]),...pathEdges] : scene.aristas ?? [];
+  const lines = scene.lineas ?? [];
+  const visibleSegments = scene.tipo === 'contorno' ? lines[0].length-1 : 0;
+  const poses = [
+    ...Array.from({length:visibleSegments || lines.length},(_,i)=>['line',i]),
+    ...(scene.planos ?? []).map((_,i)=>['plane',i]),
+    ...(scene.vectores ?? []).map((_,i)=>['vector',i]),
+    ...edges.map((_,i)=>['edge',i]),
+    ['result',0],
+  ];
+  const selection=iterationSelection(poses.map((_,i)=>i),poses.length-1);
+  const player=plotPlayback(selection,{label:'Construcción de la escena',interval:visibleSegments>8 ? 85 : 320,surface:canvas});
+  const readout=node('output','ws-graph-reading');
+  let active=poses.length-1;
+  selection.subscribe(index=>{
+    active=index;
+    const [part,i]=poses[index];
+    const label={line:'Trazo',plane:'Plano',vector:scene.vectores?.[i]?.[0],edge:'Arista',result:'Construcción completa'}[part];
+    readout.textContent = part==='edge' ? label+' '+scene.etiquetas[edges[i][0]]+' → '+scene.etiquetas[edges[i][1]]+' · '+edges[i][2]
+      : ['line','plane'].includes(part) ? label+' '+(i+1) : label;
+    redraw();
+  });
+  const count = kind => poses.slice(0,active+1).filter(([key])=>key===kind).length;
   function redraw() {
     if (!paint) paint = requestAnimationFrame(() => {
       paint = 0;
@@ -133,7 +196,7 @@ export function bookScene(scene, response, recalculate, view) {
     }
     const vertices = [origin,...lineData.flat(),...planes.flat(),...extra,...spatialIntersection];
     const extent = Math.max(1,...vertices.map(p=>Math.max(Math.abs(p[0]),Math.abs(p[1]))));
-    const bound = movableView ? (view.bound ??= extent) : extent;
+    const bound = view.bound ??= extent;
     const scale = (height/2-27)/bound*view.zoom;
     const centerX = width/2+view.x, centerY = height/2+view.y;
     toPixel = ([x,y]) => [centerX+x*scale,centerY-y*scale];
@@ -164,7 +227,7 @@ export function bookScene(scene, response, recalculate, view) {
     ctx.font = '15px system-ui';
     ctx.textAlign = 'start';
     ctx.lineWidth = 1;
-    if (scene.tipo !== 'grafo') {
+    if (axes) {
       const axes = showPlanes ? [[bound,0,0],[0,bound,0],[0,0,bound]].map(camera)
         : [[bound,0],[0,bound]];
       const axisInk = style().getPropertyValue('--plot-axis').trim();
@@ -176,7 +239,7 @@ export function bookScene(scene, response, recalculate, view) {
       }
     }
     ctx.lineWidth = 2.3;
-    planes.forEach((poly,i) => {
+    planes.slice(0,count('plane')).forEach((poly,i) => {
       const color = colors[i%3];
       ctx.globalAlpha = .32;
       stroke([...poly,poly[0]],color,color);
@@ -185,8 +248,9 @@ export function bookScene(scene, response, recalculate, view) {
       const center = toPixel(poly.reduce(([x,y],[a,b])=>[x+a/4,y+b/4],[0,0]));
       ctx.fillStyle=ink;ctx.fillText(`Plano ${i+1}`,...center);
     });
-    stroke(spatialIntersection,ink);
-    lineData.forEach((line,i)=>{
+    if (active === poses.length-1) stroke(spatialIntersection,ink);
+    const shown = visibleSegments ? (count('line') ? [lineData[0].slice(0,count('line')+1)] : []) : lineData.slice(0,count('line'));
+    shown.forEach((line,i)=>{
       const isHandleLine = handle && i===1;
       if (isHandleLine && preview) {
         const normal = config.normal.map(Number);
@@ -197,11 +261,11 @@ export function bookScene(scene, response, recalculate, view) {
       }
       stroke(line,isHandleLine ? style().getPropertyValue('--highlight').trim() : colors[scene.tramos?.[i].color ?? i%3]);
     });
-    vectors.forEach(([label,p],i)=>{stroke([origin,p],colors[i%3]);dot(p,colors[i%3],label);});
-    marks.forEach(p=>dot(p,ink));
+    vectors.slice(0,count('vector')).forEach(([label,p],i)=>{stroke([origin,p],colors[i%3]);dot(p,colors[i%3],label);});
+    if (active === poses.length-1 || scene.tipo === 'regresion') marks.forEach(p=>dot(p,ink));
     if (scene.tipo==='grafo') {
       const pairs = new Set(scene.aristas.map(([i,j])=>`${i},${j}`));
-      for (const [i,j,label,selected] of scene.aristas) {
+      for (const [i,j,label,selected] of edges.slice(0,count('edge'))) {
         const a = scene.vertices[i], b = scene.vertices[j];
         const color = selected ? colors[1] : colors[0];
         const dx = b[0]-a[0], dy = b[1]-a[1];
@@ -229,29 +293,19 @@ export function bookScene(scene, response, recalculate, view) {
     else if (preview) dot(preview, colors[1]);
   }
 
-  function coordinates(event) {
-    const bounds = canvas.getBoundingClientRect();
-    return [(event.clientX-bounds.left)*canvas.width/bounds.width,
-      (event.clientY-bounds.top)*canvas.height/bounds.height];
-  }
-  if (movableView) {
-    const pan = (dx,dy) => { view.x += dx; view.y += dy; redraw(); };
-    const zoom = factor => { view.zoom = Math.min(6,Math.max(.35,view.zoom*factor)); redraw(); };
-    const reset = () => { Object.assign(view,{zoom:1,x:0,y:0,bound:undefined}); redraw(); };
-    const camera = node('div','ws-book-view');
-    const actions = new Map([
-      ['Acercar',()=>zoom(1.25)], ['Alejar',()=>zoom(1/1.25)], ['Restablecer vista',reset],
-    ]);
-    for (const [label,action] of actions) camera.append(button(label,action));
-    controls.append(camera);
-    canvas.tabIndex = 0;
-    canvas.addEventListener('keydown',event=>{
-      const keys = {ArrowLeft:()=>pan(-24,0),ArrowRight:()=>pan(24,0),
-        ArrowUp:()=>pan(0,-24),ArrowDown:()=>pan(0,24),'+':actions.get('Acercar'),
-        '-':actions.get('Alejar'),Home:reset};
-      if (keys[event.key]) { event.preventDefault(); keys[event.key](); }
-    });
-  }
+  const navigation = plotCamera(canvas,()=>canvas.redrawPlot(),{
+    view,
+    captures: (event,pixel) => Boolean(config) && !event.shiftKey &&
+      (!handle || Math.hypot(...toPixel(handle).map((value,i)=>value-pixel[i]))<=29),
+    onPinch() { drag=null; preview=null; redraw(); },
+    resetView() {
+      yaw=-.58; pitch=.6;
+      if (turns) turns.forEach(([slider,value])=>{slider.value=value;});
+    },
+  });
+  navigation.controls.classList.add('ws-book-view');
+  let turns;
+  if (config) canvas.style.cursor='crosshair';
   if (showPlanes) {
     const [h,azimuth] = input('Giro horizontal','-33','range');
     const [v,elevation] = input('Elevación','34','range');
@@ -259,6 +313,7 @@ export function bookScene(scene, response, recalculate, view) {
     elevation.min=-90;elevation.max=90;elevation.value=34;
     azimuth.addEventListener('input',()=>{yaw=Number(azimuth.value)*Math.PI/180;redraw();});
     elevation.addEventListener('input',()=>{pitch=Number(elevation.value)*Math.PI/180;redraw();});
+    turns=[[azimuth,-33],[elevation,34]];
     controls.append(h,v);
   } else if (scene.selector) {
     const [name,label,values,current] = scene.selector;
@@ -322,31 +377,23 @@ export function bookScene(scene, response, recalculate, view) {
       selectPoint(nearest);
     }
     canvas.addEventListener('pointerdown',event=>{
-      if (event.button !== 0 || drag) return;
-      const pixel = coordinates(event);
-      const pan = handle && Math.hypot(...toPixel(handle).map((value,i)=>value-pixel[i])) > 29;
-      canvas.setPointerCapture(event.pointerId);
-      drag = {id:event.pointerId, pixel, pan};
-      if (!pan) {
-        preview=fromPixel(pixel);
-        if (list) pickPoint();
-        redraw();
-      }
+      if (event.button !== 0 || drag || event.shiftKey || navigation.dragged()) return;
+      const pixel = navigation.pixel(event);
+      if (handle && Math.hypot(...toPixel(handle).map((value,i)=>value-pixel[i])) > 29) return;
+      drag = {id:event.pointerId};
+      preview=fromPixel(pixel);
+      if (list) pickPoint();
+      redraw();
     });
     canvas.addEventListener('pointermove',event=>{
       if (drag?.id !== event.pointerId) return;
-      const pixel = coordinates(event);
-      if (drag.pan) {
-        view.x += pixel[0]-drag.pixel[0];
-        view.y += pixel[1]-drag.pixel[1];
-        drag.pixel = pixel;
-      } else preview=fromPixel(pixel);
+      preview=fromPixel(navigation.pixel(event));
       redraw();
     });
     canvas.addEventListener('lostpointercapture',()=>{drag=null;preview=null;redraw();});
     canvas.addEventListener('pointerup',event=>{
-      if (drag?.id !== event.pointerId || drag.pan) return;
-      const [x,y] = fromPixel(coordinates(event));
+      if (drag?.id !== event.pointerId || navigation.dragged()) return;
+      const [x,y] = fromPixel(navigation.pixel(event));
       preview=null;
       if (handle) fieldX.value=asText(x*config.normal[0]+y*config.normal[1],2);
       else {
@@ -357,14 +404,14 @@ export function bookScene(scene, response, recalculate, view) {
     canvas.style.touchAction='none';
     legend.textContent = handle
       ? 'Arrastrá el punto ámbar para mover la recta. Arrastrá el fondo o usá las flechas para mover la vista. También podés editar el término y pulsar Enter.'
-      : 'Arrastrá en la gráfica o editá los valores para volver a calcular.';
+      : 'Arrastrá para mover el punto. Para desplazar la vista, usá Mayús y arrastrá o usá las flechas.';
   }
   if (scene.leyenda) legend.textContent=scene.leyenda.join(' · ');
   if (scene.enlace) {
     const link=node('a','',scene.enlace[1]);link.href=scene.enlace[0];legend.append(' ',link);
   }
-  canvas.redrawPlot = draw;
-  body.append(canvas,legend,controls,status);
+  canvas.redrawPlot = () => { if (canvas.isConnected) draw(); };
+  body.append(player,readout,canvas,navigation.controls,legend,controls,status);
   if (scene.ecuaciones) {
     const equations = node('div','ws-book-equations');
     for (const value of scene.ecuaciones) equations.append(math(value,value,true));
@@ -372,6 +419,5 @@ export function bookScene(scene, response, recalculate, view) {
     equations.append(node('p','ws-field-help',classification[response.result.clasificacion] || response.result.clasificacion));
     body.append(equations);
   }
-  draw();
   return body;
 }

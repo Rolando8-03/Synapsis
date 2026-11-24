@@ -1,6 +1,9 @@
 package io.github.rolando803.synapsis;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.util.Base64;
+import android.widget.Toast;
 import android.content.pm.ApplicationInfo;
 import android.graphics.Color;
 import android.os.Bundle;
@@ -18,13 +21,16 @@ import androidx.webkit.WebViewAssetLoader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URLConnection;
 import java.util.Collections;
 
 public final class MainActivity extends Activity {
     private static final String HOST = WebViewAssetLoader.DEFAULT_DOMAIN;
     private static final String PREFIX = "/synapsis/";
+    private static final int SAVE_GRAPH = 104;
     private WebView web;
+    private byte[] graphImage;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -78,6 +84,27 @@ public final class MainActivity extends Activity {
     }
 
     private final class ReportPrinter {
+        @JavascriptInterface public void savePng(String encoded) {
+            if (encoded == null || encoded.length() > 2_000_000) return;
+            runOnUiThread(() -> {
+                String address = web.getUrl();
+                if (address == null || !local(Uri.parse(address)) || graphImage != null) return;
+                try {
+                    byte[] image = Base64.decode(encoded, Base64.DEFAULT);
+                    if (image.length < 8 || image[0] != (byte)0x89 || image[1] != 'P'
+                            || image[2] != 'N' || image[3] != 'G') return;
+                    graphImage = image;
+                    Intent picker = new Intent(Intent.ACTION_CREATE_DOCUMENT)
+                            .addCategory(Intent.CATEGORY_OPENABLE).setType("image/png")
+                            .putExtra(Intent.EXTRA_TITLE, "synapsis-grafica.png");
+                    startActivityForResult(picker, SAVE_GRAPH);
+                } catch (IllegalArgumentException | android.content.ActivityNotFoundException error) {
+                    graphImage = null;
+                    Toast.makeText(MainActivity.this, "No se pudo guardar la gráfica.", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
         @JavascriptInterface public void printReport() {
             runOnUiThread(() -> {
                 String address = web.getUrl();
@@ -91,6 +118,21 @@ public final class MainActivity extends Activity {
                         .build();
                 manager.print(name, web.createPrintDocumentAdapter(name), attributes);
             });
+        }
+    }
+
+    @Override protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (request != SAVE_GRAPH) return;
+        byte[] image = graphImage;
+        graphImage = null;
+        if (result != RESULT_OK || data == null || data.getData() == null || image == null) return;
+        try (OutputStream stream = getContentResolver().openOutputStream(data.getData())) {
+            if (stream == null) throw new IOException("No se abrió el destino.");
+            stream.write(image);
+            Toast.makeText(this, "Gráfica guardada.", Toast.LENGTH_SHORT).show();
+        } catch (IOException | SecurityException error) {
+            Toast.makeText(this, "No se pudo guardar la gráfica.", Toast.LENGTH_SHORT).show();
         }
     }
 

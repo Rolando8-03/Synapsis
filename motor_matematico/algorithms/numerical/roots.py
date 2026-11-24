@@ -290,7 +290,7 @@ def roots(method, data, ctx):
                 next_x = x - correction
                 formula = r"x_{k+1}=x_k-m\frac{f(x_k)}{f\prime(x_k)}"
                 extra = {"derivada_x": denominator,
-                         "desarrollo": rf"x_{{{k}}}\approx({x:.10g})-({multiplicity})\frac{{{fx:.10g}}}{{{denominator:.10g}}}\approx {next_x:.10g}"}
+                         "desarrollo": rf"x_{{{k}}}\approx({x:.10g})-({multiplicity})\frac{{{fx:.10g}}}{{{denominator:.10g}}}\approx {next_x:.14g}"}
             else:
                 old_value = f.value(previous)
                 denominator = fx - old_value
@@ -306,7 +306,7 @@ def roots(method, data, ctx):
                     "f_anterior": old_value,
                     "denominador": denominator,
                     "desarrollo": rf"x_{{{k}}}\approx({x:.10g})-({fx:.10g})"
-                                  rf"\frac{{({x:.10g})-({previous:.10g})}}{{{denominator:.10g}}}\approx {next_x:.10g}",
+                                  rf"\frac{{({x:.10g})-({previous:.10g})}}{{{denominator:.10g}}}\approx {next_x:.14g}",
                 }
             if abs(next_x) > D("1e100"):
                 raise DomainError("El iterado excede 1e100.")

@@ -391,7 +391,8 @@ def graph(data, parametric):
     if all(x is None for x,_ in points):
         raise ValueError("La función no tiene puntos reales representables en el intervalo.")
     return {"parametric": parametric, "points": points,
-            "muestras": [[str(start + (stop-start)*i/800), *points[i]] for i in range(0, 801, 100)]}
+            "muestras": [[str(start + (stop-start)*i/800), *points[i]] for i in range(0, 801, 100)],
+            **({"parametros":[str(start + (stop-start)*i/800) for i in range(801)]} if parametric else {})}
 
 def original_program(operation, data):
     for key in ("A", "B"):

@@ -393,11 +393,8 @@ def ode(data,ctx,*,method):
                  r"y_{i+1}=y_i+\Delta y", x=x,pendientes=slopes, incremento=change, siguiente=y,error=error)
     plot = [[real_display(xi),real_display(yi)] for _,xi,yi,_ in rows]
     names = ["Solución numérica"]
-    if h<0:
-        plot.reverse()
     if reference is not None:
-        x_values = sorted(r[1] for r in rows)
-        for point, xi in zip(plot,x_values):
+        for point, (_,xi,_,_) in zip(plot,rows):
             point.append(real_display(reference.subs(X,xi)))
         names.append("Referencia verificada")
     return {"exactitud":"aproximada","valor_final":y,"tabla":rows,

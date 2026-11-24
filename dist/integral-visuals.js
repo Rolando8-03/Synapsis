@@ -1,6 +1,8 @@
 import { node } from './matrix-input.js';
 import { addPlot } from './plot.js';
 import { math } from './math-format.js';
+import { iterationSelection } from './iteration-selection.js';
+import { plotPlayback } from './plot-controls.js';
 
 function framePicker(id, title, description, model) {
   const view = node('div', 'ws-result-stack');
@@ -17,14 +19,22 @@ function framePicker(id, title, description, model) {
   summary.setAttribute('aria-live', 'polite');
   view.append(label, input, summary);
   const overlay = {};
-  const plot = addPlot({ points: model.curva, names: model.etiquetas, overlay, caption: description });
+  const plot = addPlot({ points: model.curva, names: model.etiquetas, overlay, caption: description, playback:false, axisLabels:['x',model.tipo === 'seccion' || model.tipo === 'area' ? 'y' : 'f(x)'] });
   view.append(plot);
   const canvas = plot.matches('canvas') ? plot : plot.querySelector('canvas');
-  return { view, input, summary, overlay, canvas };
+  function play(update, progress) {
+    const selection = iterationSelection(model.cuadros.map((_,i)=>i),Number(input.value));
+    const player = plotPlayback(selection,{interval:420, scrub:false, surface:canvas, progress});
+    view.insertBefore(player,plot);
+    view.pausePlayback = player.pausePlayback;
+    selection.subscribe(index => { input.value = index; update(); });
+    input.addEventListener('input', () => selection.seek(Number(input.value)));
+  }
+  return { view, input, summary, overlay, canvas, play };
 }
 
 export function riemannPlot(model) {
-  const { view, input, summary, overlay, canvas } = framePicker('ws-riemann-n', 'Número de rectángulos',
+  const { view, input, summary, overlay, canvas, play } = framePicker('ws-riemann-n', 'Número de rectángulos',
     'Gráfica de la función y los rectángulos de Riemann', model);
   const update = () => {
     const frame = model.cuadros[Number(input.value)];
@@ -34,13 +44,12 @@ export function riemannPlot(model) {
     overlay.rectangles = frame.puntos.map(([x,y], i) => [frame.particion[i],frame.particion[i+1],x,y]);
     canvas.redrawPlot?.();
   };
-  input.addEventListener('input', update);
-  update();
+  play(update);
   return view;
 }
 
 export function sectionPlot(model) {
-  const { view, input, summary, overlay, canvas } = framePicker('ws-volume-x', 'Posición de la sección',
+  const { view, input, summary, overlay, canvas, play } = framePicker('ws-volume-x', 'Posición de la sección',
     'Curvas, eje de giro y sección seleccionada', model);
   const inset = node('canvas', 'plot ws-cross-section');
   inset.width = 240;
@@ -75,14 +84,13 @@ export function sectionPlot(model) {
     canvas.redrawPlot?.();
     inset.redrawPlot();
   };
-  input.addEventListener('input', update);
-  update();
+  play(update);
   return view;
 }
 
 export function curveFrames(model) {
   const tangent = model.tipo === 'tangente';
-  const {view,input,summary,overlay,canvas} = framePicker(
+  const {view,input,summary,overlay,canvas,play} = framePicker(
     tangent ? 'ws-tangent-x' : 'ws-area-piece',
     tangent ? 'Punto de tangencia' : 'Tramo entre curvas',
     tangent ? 'Función y recta tangente' : 'Región entre las dos curvas',
@@ -101,7 +109,10 @@ export function curveFrames(model) {
     overlay.region = frame.banda;
     canvas.redrawPlot?.();
   }
-  input.addEventListener('input',update);
-  update();
+  play(update,tangent ? undefined : fraction => {
+    const {banda} = model.cuadros[Number(input.value)];
+    overlay.region = banda.slice(0,Math.ceil(banda.length*fraction));
+    canvas.redrawPlot?.();
+  });
   return view;
 }

@@ -45,10 +45,25 @@ El objetivo es que una persona pueda ingresar su problema, elegir qué necesita,
 
 ## Fase 4 · Gráficas animadas del cálculo
 
-- [ ] Inventariar las operaciones con salida gráfica. Conectar cada una, incluida la Graficadora, a una vista interactiva dibujada con los datos del motor. Usar una secuencia de estados ligada al procedimiento. En Newton-Raphson trazar tangente, cruce y siguiente aproximación. En bisección actualizar el intervalo, en integración construir el área y en vectores representar la operación geométrica.
-- [ ] Sincronizar fórmula, tabla y gráfica por índice de paso. Ofrecer reproducción, pausa, velocidad, avance manual, zoom con rueda o pinza, desplazamiento, restablecer y guardar imagen con ejes y unidades. Para funciones sin iteraciones, permitir recorrer la curva y consultar coordenadas. Respetar movimiento reducido con avance manual y detener la animación fuera de vista.
+- [x] Inventariar las operaciones con salida gráfica. Conectar cada una, incluida la Graficadora, a una vista interactiva dibujada con los datos del motor. Usar una secuencia de estados ligada al procedimiento. En Newton-Raphson trazar tangente, cruce y siguiente aproximación. En bisección actualizar el intervalo, en integración construir el área y en vectores representar la operación geométrica.
+- [x] Sincronizar fórmula, tabla y gráfica por índice de paso. Ofrecer reproducción, pausa, velocidad, avance manual, zoom con rueda o pinza, desplazamiento, restablecer y guardar imagen con ejes y unidades. Para funciones sin iteraciones, permitir recorrer la curva y consultar coordenadas. Respetar movimiento reducido con avance manual y detener la animación fuera de vista.
 
 **Prueba de cierre.** Cambiar los datos y verificar que cambien trayectoria y escala. Pausar Newton-Raphson en la segunda iteración y cotejar su tangente con la fila correspondiente. Guardar el encuadre actual y comprobar que al volver sigue siendo manipulable. Una captura o video pregrabado no cumple el criterio de gráfica interactiva.
+
+### Inventario de salidas gráficas
+
+| Salida del motor | Operaciones |
+| --- | --- |
+| Raíces por iteración | `raices.newton`, `raices.biseccion`, `raices.falsa_posicion`, `raices.secante` |
+| Curva y muestras | `grafica.explicita`, `grafica.parametrica` |
+| Series | `errores.acumulacion`, `iterativos.comparar`, `calculo.continuidad`, `libros.markov`, `libros.svd`, `libros.newton`, `libros.lagrange`, `libros.spline`, `libros.euler`, `libros.heun`, `libros.rk4` |
+| Diagramas de vectores | `vectores.paralelogramo`, `libros.espectral` |
+| Tangente, área, suma y secciones | `calculo.derivada_cadena`, `calculo.area`, `calculo.area_bajo_curva`, `calculo.riemann`, `calculo.discos`, `calculo.arandelas` |
+| Escenas de ampliaciones | `libros.intersecciones` (rectas o planos), `libros.transformacion`, `libros.normas`, `libros.area_orientada`, `libros.intervalos`, `libros.punto_fijo`, `libros.compresion`, `libros.regresion`, `libros.red_electrica`, `libros.caminos`, `libros.codigo_binario` |
+
+Son 36 operaciones distintas, con variantes gráficas condicionadas al resultado. `calculo.trabajo` hereda la escena del método elegido cuando este devuelve una. La reproducción recorre muestras o construcciones del cálculo. Las funciones muestran coordenadas, las series con una fila por muestra permiten seleccionarla también desde la tabla y cada aproximación de raíces tiene su fórmula y su fila junto a la gráfica. La cámara modifica el encuadre y el PNG guarda esa vista.
+
+**Evidencia de Newton-Raphson.** Para \(f(x)=x^2-2\) y \(x_0=1\), la segunda fila parte de \((1.5,0.25)\) con pendiente \(3\). El corte y la siguiente aproximación son \(1.4166666666667\) a la precisión de la tabla. Con \(f(x)=x^2-3\) y \(x_0=1.4\) cambian tanto la tangente como el recorrido. Para Newton modificado se distinguen los dos puntos cuando el corte y el iterado no coinciden. La prueba del motor queda en `pruebas/test_graficas_animadas.py` y el recorrido de interfaz en `python -m pruebas.entrega.interfaz --calidad`.
 
 ## Fase 5 · Laboratorio 3D, orden del proyecto y distribución
 
