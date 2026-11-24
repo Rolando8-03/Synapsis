@@ -58,8 +58,8 @@
 }
 #workspace nav .ws-op-link:hover { background: var(--ws-chip); color: var(--ws-text); }
 #workspace nav .ws-op-link[aria-current] {
-  border-color: color-mix(in srgb, var(--ws-accent) 45%, transparent);
-  color: var(--ws-accent); background: var(--ws-chip); font-weight: 650;
+  border-color: color-mix(in srgb, var(--highlight) 45%, transparent);
+  color: var(--highlight); background: var(--ws-chip); font-weight: 650;
 }
 .ws-history-link {
   margin-top: auto; text-align: left; border-radius: 8px; border: 1px solid var(--ws-line);

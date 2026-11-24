@@ -1,3 +1,5 @@
+import { renderingProgress } from './loading-progress.js';
+
 const entry = new URL('./', import.meta.url);
 // Python/Qt sirve dist como raíz. Go Live, Pages y Android conservan la carpeta dist.
 const staticSite = entry.pathname.endsWith('/dist/');
@@ -35,18 +37,21 @@ class WebMotor {
         if (this.worker !== worker) return;
         switch (data.type) {
           case 'progress':
-            if (data.stage > this.progress.stage) {
-              this.report({stage:data.stage, startedAt, stageAt:performance.now()});
+            if (data.stage >= this.progress.stage) {
+              const stageAt = data.stage === this.progress.stage ? this.progress.stageAt : performance.now();
+              this.report({stage:data.stage, startedAt, stageAt,
+                completedItems:data.completedItems, totalItems:data.totalItems});
             }
             break;
           case 'ready':
             clearTimeout(this.timer);
             this.ready = true;
-            this.report(null);
+            this.report(renderingProgress(undefined,this.progress));
             this.dispatch();
             break;
           case 'boot-error':
-            this.fail(new Error('No se pudo iniciar Python. '+data.message));
+            console.error('No se pudo iniciar el motor de Synapsis.',data.message);
+            this.fail(new Error('La carga se interrumpió. Volvé a intentar.'));
             break;
           case 'result':
           case 'request-error':
@@ -80,7 +85,6 @@ class WebMotor {
   }
 
   settle(item, result, error) {
-    if (error) item.onProgress?.(null);
     item.signal?.removeEventListener('abort',item.abort);
     if (error) item.reject(error);
     else item.resolve(result);

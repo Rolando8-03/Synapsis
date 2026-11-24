@@ -11,7 +11,9 @@ Calculadora para escritorio, navegador y Android para estudiar álgebra lineal y
 | Windows instalado | Descargá `Synapsis-Setup.exe` desde los [artefactos de compilación](https://github.com/Rolando8-03/Synapsis/actions/workflows/distribuciones.yml). Instala para tu usuario y crea el acceso en el menú Inicio. Para usar la edición portátil, extraé todo `Synapsis-Windows-x64.zip`. |
 | VS Code y Go Live | Abrí la carpeta de Synapsis, seleccioná el `index.html` raíz y usá **Open with Live Server**. La primera carga descarga el runtime fijado y abre el motor en un trabajador. |
 | Navegador | Abrí [Synapsis en GitHub Pages](https://rolando8-03.github.io/Synapsis/). Las fórmulas, los pasos y las órbitas se calculan con Python en el navegador. |
-| Android | Instalá el APK que genera **Distribuciones de Synapsis**. El APK empaqueta recursos, interfaz y motor Python para usarlos sin conexión. |
+| Android | En los [artefactos de compilación](https://github.com/Rolando8-03/Synapsis/actions/workflows/distribuciones.yml), descargá y extraé `Synapsis-Android-debug` para obtener el `.apk` de prueba. El APK empaqueta los recursos y el motor Python para usarlos sin conexión. |
+
+Para descargar los binarios, iniciá sesión en GitHub y abrí la última ejecución exitosa de **Distribuciones de Synapsis** para `main`. En **Artifacts**, elegí **Synapsis-Windows-x64** o **Synapsis-Android-debug**. Las dos descargas vienen en ZIP. La edición Android de distribución usa la firma del propietario.
 
 Usá Python 3.12 para reproducir los builds automatizados. La instalación inicial de dependencias requiere conexión. El escritorio sirve su interfaz en `127.0.0.1`. También podés ejecutar `python abrir.py --web` para usar ese servidor local con tu navegador. El archivo índice requiere HTTP o HTTPS, como el que proporciona Live Server.
 

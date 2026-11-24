@@ -1,4 +1,4 @@
-import { loadingProgress } from './loading-progress.js';
+import { loadingProgress, renderingProgress } from './loading-progress.js';
 import { motor } from './transport.js';
 import { bindOrbit } from './orbit.js';
 
@@ -207,6 +207,7 @@ function bindScene(section) {
   function ready() {
     pendingKey = undefined;
     note.textContent = '';
+    progress(null);
     retry.hidden = true;
     clock.disabled = false;
     measurements.removeAttribute('aria-busy');
@@ -244,16 +245,16 @@ function bindScene(section) {
       const result = await motor.scene(parameters, {signal:request.signal,
         onProgress(update) {
           if (request.signal.aborted || pendingKey !== key) return;
-          if (update) updateText(note,'');
-          progress(update);
+          progress(update?.stage === 4 ? renderingProgress('Preparando las órbitas',update) : update);
         },
       });
       if (!request.signal.aborted && pendingKey === key) applyScene(key,result);
     } catch (error) {
       if (request.signal.aborted || pendingKey !== key) return;
       note.textContent = scene
-        ? 'El motor orbital no respondió. Se muestran los parámetros anteriores.'
-        : 'El motor orbital no respondió. Podés reintentar la carga.';
+        ? 'No se pudo actualizar la órbita. Se muestran los parámetros anteriores.'
+        : 'No se pudo cargar la órbita.';
+      progress(null);
       measurements.removeAttribute('aria-busy');
       retry.hidden = false;
     } finally {
@@ -285,7 +286,8 @@ function bindScene(section) {
       applyScene(key,cached);
       return;
     }
-    updateText(note,scene ? 'Actualizando órbitas. Se muestran los parámetros anteriores.' : 'Cargando las órbitas…');
+    note.textContent = '';
+    progress(renderingProgress(scene ? 'Actualizando las órbitas' : 'Preparando las órbitas'));
     retry.hidden = true;
     measurements.setAttribute('aria-busy','true');
     if (wait) delay = setTimeout(() => load(key,parameters),wait);

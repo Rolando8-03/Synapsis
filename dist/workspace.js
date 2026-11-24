@@ -1,4 +1,4 @@
-import { loadingProgress } from './loading-progress.js';
+import { loadingProgress, renderingProgress } from './loading-progress.js';
 import { motor } from './transport.js';
 import { gridField, node } from './matrix-input.js';
 import { renderResult } from './workspace-results.js';
@@ -123,8 +123,13 @@ export function bindWorkspace(setOpen) {
   function getCatalog() {
     if (!catalogPromise) catalogPromise = motor.catalog({
       onProgress: motorProgress,
+    }).then(result => {
+      catalog = result;
+      if (workspace.hidden) startup = null;
+      return result;
     }).catch(error => {
       catalogPromise = null;
+      startup = null;
       throw error;
     });
     return catalogPromise;
@@ -414,6 +419,9 @@ export function bindWorkspace(setOpen) {
     const draft = snapshot();
     const cached = responses.get(operation);
     if (reveal && cached?.key === JSON.stringify(draft)) {
+      request = null;
+      motorProgress(null);
+      button.disabled = false;
       record(draft);
       displayResult(cached.response, draft, original, updateResult);
       return;
@@ -448,7 +456,7 @@ export function bindWorkspace(setOpen) {
       }
       if (draft.savedFactors) input.factores = draft.savedFactors.factors;
       button.disabled = reveal;
-      status.textContent = 'Calculando…';
+      motorProgress(renderingProgress('Calculando el resultado'));
       const response = await motor.calculate({
         operation, input, steps:input.objetivo === 'escalonada' || draft.options.steps,
       }, {signal:controller.signal,
@@ -461,7 +469,7 @@ export function bindWorkspace(setOpen) {
       if (reveal) {
         record(draft);
         displayResult(response, draft, original, updateResult);
-      } else status.textContent = 'Cálculo listo. Presioná Resolver para ver el resultado.';
+      }
     } catch (error) {
       if (controller.signal.aborted) return;
       status.textContent = '';
@@ -470,7 +478,8 @@ export function bindWorkspace(setOpen) {
       setError(message);
     } finally {
       if (request === controller) {
-        progress(null);
+        request = null;
+        motorProgress(null);
         button.disabled = false;
       }
     }
@@ -546,11 +555,24 @@ export function bindWorkspace(setOpen) {
     compactToggle.querySelector('.ws-nav-label').textContent = label;
   }
 
+  function openingError(message, retry) {
+    motorProgress(null);
+    status.textContent = message;
+    const action = node('button','secondary','Reintentar');
+    action.type = 'button';
+    action.addEventListener('click',retry);
+    status.append(' ',action);
+  }
+
   async function sync({focus = true, compute = false, restore = null} = {}) {
     const [module, requested] = location.hash.slice(1).split('/');
     const revision = ++generation;
     clearTimeout(automatic);
-    request?.abort();
+    if (request) {
+      request.abort();
+      request = null;
+      motorProgress(null);
+    }
     if (!cards.has(module)) {
       progress(null);
       const wasOpen = !workspace.hidden;
@@ -579,29 +601,26 @@ export function bindWorkspace(setOpen) {
     setOpen(true);
     get('ws-history-link').disabled = true;
     get('ws-course-link').disabled = true;
-    status.textContent = startup ? '' : 'Cargando herramientas…';
-    progress(startup);
+    view = 'form';
+    status.textContent = '';
+    setError('');
+    operations.hidden = historyView.hidden = get('ws-course').hidden = true;
+    motorProgress(startup ?? renderingProgress('Abriendo la calculadora'));
     try {
-      catalog = await getCatalog();
-    } catch (error) {
-      if (revision !== generation) return;
-      status.textContent = error.message;
-      const retry = node('button','secondary','Reintentar');
-      retry.type = 'button';
-      retry.addEventListener('click', () => sync());
-      status.append(' ', retry);
-      operations.hidden = true;
-      historyView.hidden = true;
+      await getCatalog();
+    } catch {
+      if (revision === generation) openingError('No se pudo abrir la calculadora.', () => sync());
       return;
     }
     if (revision !== generation) return;
     const ids = catalog.modules[module].flatMap(([, ids]) => ids);
     const op = ids.includes(requested) ? requested : ids[0];
     if ((visualFields[op] || catalog.operations[op].fields.some(field => field.visual)) && !expressionField) {
+      motorProgress(renderingProgress('Abriendo el editor matemático',startup));
       try {
         ({expressionField} = await import('./derivative-field.js'));
       } catch {
-        if (revision === generation) status.textContent = 'No se pudo abrir el editor matemático. Volvé a abrir la operación.';
+        if (revision === generation) openingError('No se pudo abrir el editor.', () => location.reload());
         return;
       }
       if (revision !== generation) return;
@@ -630,6 +649,7 @@ export function bindWorkspace(setOpen) {
     status.textContent = '';
     get('ws-calculate').disabled = false;
     renderForm(definition);
+    motorProgress(null);
     get('ws-history-link').disabled = false;
     get('ws-course-link').disabled = false;
     scrollTo({top:0,behavior:'instant'});
