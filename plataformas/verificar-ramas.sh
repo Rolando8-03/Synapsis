@@ -18,7 +18,12 @@ for head in "${heads[@]}"; do
   git cat-file -e "$sha^{commit}"
   printf '%s %s · commits exclusivos de main y de la rama, comparados por parche\n' "$ref" "$sha"
   git rev-list --left-right --cherry-pick --count "$GITHUB_SHA...$sha"
-  git diff --shortstat "$GITHUB_SHA...$sha"
+  if git merge-base "$GITHUB_SHA" "$sha" >/dev/null; then
+    git diff --shortstat "$GITHUB_SHA...$sha"
+  else
+    printf '%s\n' 'Historial independiente. Diferencias entre las dos revisiones:'
+    git diff --shortstat "$GITHUB_SHA" "$sha"
+  fi
   leases+=("--force-with-lease=$ref:$sha")
   deletions+=(":$ref")
 done
