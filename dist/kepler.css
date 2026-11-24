@@ -1,0 +1,55 @@
+.kepler-lab { --orbit-a: #85c1ff; --orbit-b: #ffcb85; }
+.kepler-lab h2 { margin: 0; font: 680 clamp(1.8rem, 4vw, 3.2rem)/1.12 var(--display); }
+.kepler-lab h3 { margin: 0; font-size: 1rem; }
+.kepler-laws { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 0; margin: 20px 0; list-style: none; }
+.kepler-laws li { padding: 13px; border: 1px solid var(--line); border-radius: 10px; background: #111d2a; }
+.kepler-laws p, .kepler-note { color: var(--muted); line-height: 1.5; margin: 6px 0 0; font-size: .87rem; }
+.kepler-layout { display: grid; grid-template-columns: minmax(235px, .65fr) minmax(0, 1.35fr); gap: 18px; align-items: start; }
+.kepler-controls { min-width: 0; }
+.kepler-controls .orbit-sliders { margin-top: 0; }
+#kepler-status:empty { display: none; }
+.kepler-figure { min-width: 0; margin: 0; }
+.kepler-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 6px 13px 12px; color: var(--muted); font-size: .8rem; }
+.kepler-legend span::before { content: ''; display: inline-block; width: .75rem; height: .55rem; margin-right: .4rem; border-bottom: 2px solid var(--swatch); }
+.kepler-legend-a, .kepler-legend-current { --swatch: var(--orbit-a); }
+.kepler-legend-b { --swatch: var(--orbit-b); }
+.kepler-legend-reference { --swatch: #c5afea; }
+.kepler-legend .kepler-legend-b::before { border-bottom-style: dashed; }
+.kepler-chart :is(ellipse, path, line) { stroke-width: 1.55; vector-effect: non-scaling-stroke; }
+.kepler-track-a { stroke: var(--orbit-a); fill: none; }
+.kepler-track-b { stroke: var(--orbit-b); stroke-dasharray: 5 5; fill: none; }
+.kepler-sector-current { stroke: var(--orbit-a); fill: #70b6ff40; }
+.kepler-sector-reference { stroke: #c5afea; stroke-dasharray: 3 3; fill: #b99be64a; }
+.kepler-chart .kepler-color-a { color: var(--orbit-a); }
+.kepler-chart .kepler-color-b { color: var(--orbit-b); }
+.kepler-chart .kepler-sun { color: #ffdf98; }
+.kepler-chart :is(text, circle) { fill: currentColor; }
+#kepler-foci circle { fill: #111d2a; stroke: currentColor; stroke-width: 1.5; }
+.kepler-measurements { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; margin-top: 18px; }
+.kepler-measurements > div { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.kepler-table { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.kepler-table :is(th,td) { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+.kepler-table th { font-weight: 550; }
+.kepler-table td { color: #d0e4ff; }
+.kepler-legacy { margin-top: 14px; color: var(--muted); }
+.kepler-legacy summary { cursor: pointer; width: fit-content; padding: 9px 0; }
+@media (max-width: 800px) {
+  .kepler-layout, .kepler-measurements { grid-template-columns: 1fr; }
+}
+@media (max-width: 540px) {
+  .kepler-laws { grid-template-columns: 1fr; gap: 6px; }
+  .kepler-chart text { font-size: 22px; }
+  .kepler-table { font-size: .78rem; }
+  .kepler-table :is(th,td) { padding-inline: 4px; }
+}
+.kepler-clock { min-inline-size: 0; margin: 16px 0 12px; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line); }
+.kepler-clock legend { color: #d0e4ff; padding: 0 8px 0 0; font-weight: 650; }
+.kepler-clock .orbit-actions { gap: 6px; }
+.kepler-clock .orbit-actions button { padding: 7px 10px; min-height: 38px; }
+.kepler-clock button:disabled { opacity: .52; cursor: default; }
+.kepler-work { margin-top: 16px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.kepler-work summary { cursor: pointer; font-weight: 650; }
+.kepler-calculations { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; margin-top: 12px; }
+.kepler-work ol { padding-inline-start: 1.3rem; margin: 8px 0 12px; }
+.kepler-work li { padding: 4px 0; font-size: .85rem; line-height: 1.5; color: #d0e4ff; }
+@media (max-width: 800px) { .kepler-calculations { grid-template-columns: 1fr; gap: 4px; } }

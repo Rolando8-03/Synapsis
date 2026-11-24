@@ -44,7 +44,7 @@ class Handler(SimpleHTTPRequestHandler):
         if self.headers.get("Host") != self.address():
             self.send_error(403)
             return
-        if self.path not in {"/api/calcular", "/api/kepler"}:
+        if self.path not in {"/api/calcular", "/api/kepler", "/api/kepler/escena"}:
             self.send_error(404)
             return
         if (self.headers.get("Origin") not in (None, f"http://{self.address()}")
@@ -61,6 +61,10 @@ class Handler(SimpleHTTPRequestHandler):
             if self.path == "/api/kepler":
                 from kepler import orbital_frames
                 self.send_json(orbital_frames(int(data["ley"]), float(data["forma"])))
+            elif self.path == "/api/kepler/escena":
+                from kepler import scene_frames
+                self.send_json(scene_frames(float(data["excentricidad"]), float(data["semieje_b"]),
+                                            float(data.get("excentricidad_b", .30))))
             else:
                 self.send_json(calculate(data.get("operation"), data.get("input"), data.get("steps") is not False))
         except (ValueError, KeyError, TypeError, ArithmeticError, DomainError, InputError, ResourceLimitError) as error:

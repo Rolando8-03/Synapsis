@@ -12,3 +12,31 @@ Reutilizá `eccentric_anomaly`, `point`, `sector` y la caché de `kepler.py` don
 | K06 | Conectar un reloj y sus controles a todas las mediciones. | Reproducir, pausar, avanzar, retroceder y arrastrar tiempo conserva sincronía. La lectura está accesible con animación pausada. |
 | K07 | Añadir el procedimiento del instante seleccionado. | Con los mismos datos mostrar semieje menor, anomalía, posición, área barrida y período con fórmulas, unidades y sustituciones. |
 | K08 | Validar fluidez de la escena combinada. | Medir antes/después con el mismo equipo y parámetros. Reusar muestras al pausar o repetir, descartar respuestas obsoletas al arrastrar y detener repintado al salir. |
+
+## Evidencia de cierre
+
+En **Órbita** se abre la escena combinada. **Experimentos por ley** conserva los ejercicios individuales. El modelo usa UA, años y un Sol fijo con $\mu=4\pi^2$ UA³/año². El reloj ofrece 12 años simulados con pasos de 0,01 años. La excentricidad de A y el semieje de B se ajustan en la escena. A tiene $a=1$ UA y B comienza con $a=2,25$ UA y $e=0,30$.
+
+| ID | Caso comprobado |
+| --- | --- |
+| K01 | Se rechazan semiejes o parámetros gravitacionales no positivos, excentricidades fuera de $[0,1)$ y sistemas de unidades distintos. Las posiciones se calculan en UA y luego se proyectan al dibujo. |
+| K02 | Una órbita de $a=2$ UA con $e=0$ mantiene su distancia al Sol. En la elipse se verifica la suma de distancias a los dos focos. Para $e=1-2^{-40}$ se comprueba el residuo de la ecuación de Kepler cerca del perihelio. |
+| K03 | Con $e_A=0,55$, los sectores de 0,08 años que terminan en perihelio y afelio barren 0,2099 UA². Sus rapideces finales son 11,6611 y 3,3855 UA/año. Se comprueba también el intervalo $[0,96;1,04]$ al cruzar una vuelta. |
+| K04 | Pasar de $a=1$ a $a=2$ UA da un período $2^{3/2}$ veces mayor y mantiene $T^2/a^3=1$ año²/UA³. Cambiar $e$ con $a$ fijo mantiene el período. |
+| K05 | Los tres enunciados, las dos trayectorias, los focos, los dos sectores y las mediciones aparecen juntos. La ruta de los experimentos individuales sigue disponible. |
+| K06 | Reproducir, pausar, avanzar, retroceder, volver al perihelio y seleccionar 6,43 años actualizan las dos órbitas y las mediciones con la misma muestra. Con movimiento reducido, los pasos y el deslizador siguen accesibles. |
+| K07 | La lectura de 6,43 años usa la misma muestra que el gráfico para desarrollar $b$, $M$, $E$, la posición, la rapidez, el área con $\Delta E$ continuo y el período. |
+| K08 | El arrastre realiza una sola solicitud. Volver a parámetros ya cargados reutiliza las muestras. Una respuesta demorada a propósito se descarta después de otro ajuste. En 1,2 s de reproducción se observaron 30 actualizaciones del planeta A. Durante 0,5 s fuera de vista se observaron cero. |
+
+### Medición antes y después de K08
+
+Comparación local en el mismo equipo con Chromium 153 y una ventana de 1360 × 950. Se usó la escena combinada de K07 como base. En ambas versiones se fijó $a_B=2,25$ UA y $e_B=0,30$. Cada corrida aplicó doce valores a $e_A$ de 0,56 a 0,67, separados por 20 ms. Después alternó seis veces entre 0,55 y 0,67. Las duraciones incluyen la espera hasta que el reloj vuelve a estar listo. Se reporta la mediana de tres corridas.
+
+| Medida | K07 | K08 |
+| --- | ---: | ---: |
+| Solicitudes de escena durante el arrastre | 12 | 1 |
+| Duración del arrastre hasta que el reloj está listo | 721 ms | 350 ms |
+| Solicitudes en seis cambios entre parámetros ya consultados | 6 | 0 |
+| Tiempo mediano para aplicar un ajuste ya consultado | 77,8 ms | 0,2 ms |
+
+Las pruebas de modelo están en [test_kepler.py](../../pruebas/test_kepler.py). Se verificaron además los controles en Chromium y la vista móvil de 390 px. Referencia de los enunciados de las tres leyes en [NASA, Gravity & Mechanics](https://science.nasa.gov/learn/basics-of-space-flight/chapter3-3/).
