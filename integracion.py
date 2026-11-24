@@ -39,6 +39,8 @@ def elementary(f, variable=X, ctx=None):
     """Integrar sumas de potencias, exponenciales y seno/coseno afines."""
     result = sp.S.Zero
     for term in sp.Add.make_args(f):
+        if term == 0:
+            continue
         coefficient, core = term.as_independent(variable, as_Add=False)
         if core == 1:
             primitive, rule = coefficient*variable, 'constante'

@@ -74,13 +74,20 @@ def catalog_entries(field, spec):
         [expression('x',label='Función f(x)'),*bounds('-1','1'),mode()], uses.area)
     add(GEOMETRY, 'discos', 'Volumen por discos',
         'Girás la región entre una curva polinómica y el eje horizontal y = c.', [
-            expression('x',label='Frontera f(x)'), *bounds(), field('eje','Altura c del eje',default='0'),mode(),
+            expression('x',label='Frontera f(x)'), *bounds(), field('eje','Altura c del eje · 0 si se omite',required=False),mode(),
         ], uses.volume)
     add(GEOMETRY, 'arandelas', 'Volumen por arandelas',
         'Girás la región entre dos polinomios alrededor del eje horizontal y = c.', [
             expression('x+2',label='Frontera f(x)'),expression('x+1','segunda','Frontera g(x)'),
-            *bounds(),field('eje','Altura c del eje',default='0'),mode(),
+            *bounds(),field('eje','Altura c del eje · 0 si se omite',required=False),mode(),
         ], partial(uses.volume,washers=True))
+    add(GEOMETRY, 'longitud_arco', 'Longitud de arco',
+        'Obtené el elemento de arco de una curva polinómica.',
+        [expression('3*x/4',label='Curva f(x)'),*bounds('0','4'),mode()], uses.arc_or_surface)
+    add(GEOMETRY, 'superficie_revolucion', 'Superficie de revolución',
+        'Girás una curva polinómica alrededor de un eje horizontal y = c.',
+        [expression('x+1',label='Curva f(x)'),*bounds(),field('eje','Altura c del eje · 0 si se omite',required=False),mode()],
+        partial(uses.arc_or_surface,surface=True))
     return entries, handlers, list(groups.items())
 
 

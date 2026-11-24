@@ -7,7 +7,8 @@ import sympy as sp
 from calculo_i import X, exact, finite_roots, function, interval, midpoint, require_interval
 from curso import polynomial
 from integracion import elementary, integral_tex, latex, step
-from motor_matematico.algorithms.calculo import analizar, evaluar
+from motor_matematico.algorithms.calculo import analizar, evaluar, integral_numerica
+from motor_matematico.algorithms.numerical.symbolic import FunctionNotation
 from motor_matematico.domain.models import DomainError
 
 
@@ -183,7 +184,7 @@ def radial_slice(first, second):
 
 def volume(data, ctx, *, washers=False):
     a, b, _ = interval(data)
-    axis = exact(data.get('eje','0'))
+    axis = exact(data.get('eje') or '0')
     f = polynomial(data['expresion'],(X,))
     g = polynomial(data['segunda'],(X,)) if washers else axis
     d, e = f-axis, g-axis
@@ -228,4 +229,70 @@ def volume(data, ctx, *, washers=False):
                        'segmento':[plot_number(value) for value in (x,y,z)]})
     result['visual_integral'] = {'tipo':'seccion', 'curva':curve, 'cuadros':frames, 'inicial':32,
                                   'etiquetas':['f(x)','g(x)','Eje de giro'] if washers else ['f(x)','Eje de giro']}
+    return result
+
+
+def quadratic_arc_primitive(weight, slope):
+    factor = sp.diff(slope,X)
+    if factor == 0:
+        return elementary(sp.expand(weight))*sp.sqrt(1+slope**2)
+    u = sp.Symbol('u',real=True)
+    root = sp.sqrt(1+u**2)
+    bases = [(u*root+sp.asinh(u))/2, root**3/3,
+             (u*root*(2*u**2+1)-sp.asinh(u))/8]
+    polynomial_in_u = sp.Poly(weight.subs(X,(u-slope.subs(X,0))/factor),u)
+    primitive = sum(c*bases[k] for (k,),c in polynomial_in_u.terms())/factor
+    return primitive.subs(u,slope)
+
+
+def arc_or_surface(data, ctx, *, surface=False):
+    a, b, _ = interval(data)
+    f = polynomial(data['expresion'],(X,))
+    slope = sp.diff(f,X)
+    arc = sp.sqrt(1+slope**2)
+    step(ctx,'Derivar la curva para construir el elemento de arco.',
+         rf"f'(x)={latex(slope)},\quad ds=\sqrt{{1+\left(f'(x)\right)^2}}\,dx={latex(arc)}\,dx")
+    integrand, quantity = arc, 'L'
+    if surface:
+        axis = exact(data.get('eje') or '0')
+        radius = sp.Abs(f-axis)
+        integrand, quantity = 2*sp.pi*radius*arc, 'S'
+        step(ctx,'Multiplicar la circunferencia de radio igual a la distancia al eje por el elemento de arco.',
+             rf'y={latex(axis)},\quad R={latex(radius)},\quad 2\pi R={latex(2*sp.pi*radius)},\quad dS=2\pi R\,ds')
+    formula = quantity + '=' + integral_tex(integrand,a,b)
+    step(ctx,'Integrar sobre el intervalo de la curva.',formula)
+    straight = not slope.has(X)
+    if straight and not surface:
+        delta = f.subs(X,b)-f.subs(X,a)
+        distance = sp.sqrt((b-a)**2+delta**2)
+        if sp.simplify(distance-(b-a)*arc) != 0:
+            raise DomainError('La longitud y la distancia entre extremos deben coincidir para una recta.')
+        step(ctx,'Para un segmento recto el integrando es constante y la longitud coincide con la distancia entre extremos.',
+             r'(b-a)\sqrt{1+m^2}=\sqrt{(b-a)^2+(f(b)-f(a))^2}')
+    result = {'formula_latex':formula,'unidades':'longitud al cuadrado' if surface else 'longitud'}
+    if not wants_value(data):
+        return result
+    intervals = partition(a,b,f-axis) if surface else [(a,b)]
+    exact_result = sp.degree(f,X) <= 2
+    value = sp.S.Zero if exact_result else 0.0
+    for l,r in intervals:
+        weight = sp.S.One
+        if surface:
+            displacement = f-axis
+            if displacement.subs(X,midpoint(l,r))<0:
+                displacement = -displacement
+            weight = 2*sp.pi*displacement
+        if exact_result:
+            value += evaluate_primitive(quadratic_arc_primitive(weight,slope),l,r)
+        else:
+            expression = FunctionNotation().doprint(weight*arc)
+            value += integral_numerica(analizar(expression,variable=True),plot_number(l),plot_number(r))
+    value = sp.simplify(value) if exact_result else float(value)
+    relation = '=' if exact_result else r'\approx '
+    rendered = latex(value) if exact_result else format(value,'.10g')
+    result.update(valor=str(value), exactitud='exacta' if exact_result else 'aproximada')
+    if straight and not surface:
+        result['distancia_extremos'] = str(distance)
+    step(ctx,'Evaluar la integral ' + ('exactamente.' if exact_result else 'con Simpson adaptativo.'),
+         formula+relation+rendered)
     return result
