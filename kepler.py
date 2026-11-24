@@ -64,9 +64,11 @@ def eccentric_anomaly(mean, e):
             lo = angle
         slope = 1-e+2*e*sin(angle/2)**2
         candidate = angle-residual/slope
+        if candidate == angle:
+            break
         if not lo < candidate < hi:
             candidate = (lo+hi)/2
-        if candidate == angle or hi-lo <= 4e-15*max(hi,1e-15):
+        if hi-lo <= 4e-15*max(hi,1e-15):
             angle = candidate
             break
         angle = candidate
@@ -104,6 +106,36 @@ def planet_positions(first, second, time):
     if first.mu != second.mu or first.units != second.units:
         raise ValueError('Las dos órbitas deben compartir el cuerpo dominante y las unidades.')
     return position(first,time), position(second,time)
+
+
+@dataclass(frozen=True)
+class SweptSector:
+    start_time: float
+    end_time: float
+    start: Position
+    end: Position
+    delta_anomaly: float
+    area: float
+
+
+def _measure_sector(orbit, start_time, end_time, end):
+    start = position(orbit,start_time)
+    delta = tau*(end.turns-start.turns)+(end.anomaly-start.anomaly)
+    angle = delta-orbit.e*(sin(end.anomaly)-sin(start.anomaly))
+    return SweptSector(start_time,end_time,start,end,delta,orbit.a*orbit.b*angle/2)
+
+
+def measure_sector(orbit, start_time, end_time):
+    if not start_time < end_time:
+        raise ValueError('El final del sector debe seguir al inicio.')
+    return _measure_sector(orbit,start_time,end_time,position(orbit,end_time))
+
+
+def equal_sectors(orbit, time, current_position):
+    duration = orbit.period*.08
+    reference = time-orbit.period/2
+    return (_measure_sector(orbit,time-duration,time,current_position),
+            measure_sector(orbit,reference-duration,reference))
 
 
 def point(angle, major, minor):
