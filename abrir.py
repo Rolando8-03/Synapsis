@@ -8,14 +8,15 @@ import os
 from pathlib import Path
 import sys
 from threading import Thread
+from traceback import format_exception
 from urllib.parse import urlsplit
 import webbrowser
-
 
 
 def motor_api():
     import motor_api as api
     return api
+
 
 ROOT = Path(__file__).resolve().parent
 LOCAL_PORT = 47836
@@ -159,6 +160,11 @@ def show_startup_error(error):
     message = "Synapsis no pudo arrancar. " + (str(error) or type(error).__name__)
     if sys.stderr is not None:
         print(message, file=sys.stderr)
+    if log := os.environ.get("SYNAPSIS_INFORME_ARRANQUE"):
+        try:
+            Path(log).write_text("".join(format_exception(error)), encoding="utf-8")
+        except OSError:
+            pass
     if "--sin-abrir" in sys.argv or "--web" in sys.argv:
         return
     try:

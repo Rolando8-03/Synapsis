@@ -38,6 +38,10 @@ jobs:
           python-version: '3.12'
       - run: python -m plataformas.web --check
       - run: python -m plataformas.web --output build/web
+      - name: Instalar bibliotecas Linux de Qt WebEngine
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends libegl1 libgl1 libgbm1 libnss3 libasound2t64 libxkbfile1 libxkbcommon0 libxcb-dri3-0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2
       - name: Comprobar la web estática con paridad Python y prefijo de Pages
         env:
           QT_QPA_PLATFORM: offscreen

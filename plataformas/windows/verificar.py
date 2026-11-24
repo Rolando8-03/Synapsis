@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import socket
 import subprocess
+from tempfile import TemporaryDirectory
 from time import monotonic, sleep
 from urllib.error import URLError
 from urllib.parse import urlsplit
@@ -89,37 +90,49 @@ def verify(executable, script=None):
     env['QTWEBENGINE_REMOTE_DEBUGGING'] = f'127.0.0.1:{port}'
     env['QTWEBENGINE_CHROMIUM_FLAGS'] = '--disable-gpu --proxy-server=127.0.0.1:1'
     cwd = script.parent if script else executable.parent
-    with subprocess.Popen(args, cwd=cwd, env=env) as process:
-        try:
-            target = wait_for(lambda: page_target(port, process), 'No se abrió la ventana Qt ni su motor local.')
-            connection = create_connection(target['webSocketDebuggerUrl'], timeout=15, suppress_origin=True)
-            try:
-                wait_for(lambda: evaluate(connection, 'document.querySelector("#workspace") !== null'),
-                         'No se cargó la interfaz local.')
-                evaluate(connection, EXERCISE)
-                title = wait_for(lambda: (title if (title := evaluate(connection, 'document.title')).startswith('ARRANQUE ') else None),
-                                 'No terminó el ejercicio con MathLive y KaTeX.')
-                if title != 'ARRANQUE OK':
-                    raise RuntimeError(title)
-                data = evaluate(connection, '''(async () => {
-                  const {motor} = await import(new URL('./transport.js', location.href));
-                  const names = {catalogo:'catalog', calcular:'calculate', kepler:'orbit', 'kepler/escena':'scene'};
-                  return Promise.all(CASES.map(([name,body]) => motor[names[name]](body ?? undefined)));
-                })()'''.replace('CASES', json.dumps(CASES)), await_promise=True)
-                compare(reference(), data)
-            finally:
-                connection.close()
-            close_window(process.pid)
-            if process.wait(timeout=10) != 0:
-                raise RuntimeError('Synapsis no se cerró correctamente.')
-        finally:
-            if process.poll() is None:
-                process.terminate()
+    with TemporaryDirectory(prefix='synapsis-arranque-') as scratch:
+        log = Path(scratch) / 'arranque.txt'
+        env['SYNAPSIS_INFORME_ARRANQUE'] = str(log)
+        with subprocess.Popen(args, cwd=cwd, env=env) as process:
+            verify_window(process, port, log)
     with socket.socket() as probe:
         probe.settimeout(1)
         if probe.connect_ex(('127.0.0.1', web_port)) == 0:
             raise RuntimeError('La ventana dejó abierto el puerto local.')
     print(json.dumps({'ventana': 'Synapsis', 'derivada': '3*x^2', 'casos': len(CASES), 'puerto_cerrado': True}))
+
+
+def verify_window(process, port, log):
+    def opened():
+        if log.is_file():
+            raise RuntimeError(log.read_text(encoding='utf-8'))
+        return page_target(port, process)
+
+    try:
+        target = wait_for(opened, 'No se abrió la ventana Qt ni su motor local.')
+        connection = create_connection(target['webSocketDebuggerUrl'], timeout=15, suppress_origin=True)
+        try:
+            wait_for(lambda: evaluate(connection, 'document.querySelector("#workspace") !== null'),
+                     'No se cargó la interfaz local.')
+            evaluate(connection, EXERCISE)
+            title = wait_for(lambda: (title if (title := evaluate(connection, 'document.title')).startswith('ARRANQUE ') else None),
+                             'No terminó el ejercicio con MathLive y KaTeX.')
+            if title != 'ARRANQUE OK':
+                raise RuntimeError(title)
+            data = evaluate(connection, '''(async () => {
+              const {motor} = await import(new URL('./transport.js', location.href));
+              const names = {catalogo:'catalog', calcular:'calculate', kepler:'orbit', 'kepler/escena':'scene'};
+              return Promise.all(CASES.map(([name,body]) => motor[names[name]](body ?? undefined)));
+            })()'''.replace('CASES', json.dumps(CASES)), await_promise=True)
+            compare(reference(), data)
+        finally:
+            connection.close()
+        close_window(process.pid)
+        if process.wait(timeout=10) != 0:
+            raise RuntimeError('Synapsis no se cerró correctamente.')
+    finally:
+        if process.poll() is None:
+            process.terminate()
 
 
 def main():
