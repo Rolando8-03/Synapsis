@@ -61,9 +61,46 @@ function diagram(find) {
   };
 }
 
+function orbitalProcedure(find) {
+  const element = find('work');
+  const stepsA = find('work-a');
+  const stepsB = find('work-b');
+  const area = find('work-area');
+  const time = find('work-time');
+  let previous;
+  const showLines = (list, lines) => {
+    while (list.children.length < lines.length) list.append(document.createElement('li'));
+    lines.forEach((line,i) => { list.children[i].textContent = line; });
+  };
+  function draw(scene, frame) {
+    if (!element.open || (previous?.scene === scene && previous.frame === frame)) return;
+    previous = {scene,frame};
+    time.textContent = `t = ${format(frame.t)} años. Los ángulos se expresan en radianes y se muestran redondeados.`;
+    for (const [i,id] of ids.entries()) {
+      const {a,b,e,periodo} = scene[id];
+      const {M,E,p,r,v} = frame[id];
+      showLines(i === 0 ? stepsA : stepsB,[
+        `Semieje menor · b = a√(1 − e²) = ${format(a)}√(1 − ${format(e)}²) ≈ ${format(b)} UA.`,
+        `Anomalía media · M = (2πt/T) módulo 2π = (2π × ${format(frame.t)}/${format(periodo)}) módulo 2π ≈ ${format(M)} rad.`,
+        `Anomalía excéntrica · al resolver E − ${format(e)} sen E = ${format(M)} resulta E ≈ ${format(E)} rad.`,
+        `Posición (x, y) · x = a(cos E − e), y = b sen E. Con E ≈ ${format(E)}, (x, y) ≈ (${format(p[0])}, ${format(p[1])}) UA.`,
+        `Rapidez · v = √[μ(2/r − 1/a)] ≈ ${format(v)} UA/año con r ≈ ${format(r)} UA.`,
+        `Período · T = 2π√(a³/μ) = 2π√(${format(a)}³/${format(scene.mu)}) ≈ ${format(periodo)} años.`,
+      ]);
+    }
+    const {a,b,e} = scene.A;
+    showLines(area,[frame.actual,frame.referencia].map(sector => {
+      const {E_inicial,E_final,delta_E} = sector;
+      return `[${interval(sector)}] años · Área = ab[ΔE − e(sen E₂ − sen E₁)]/2 ≈ ${format(a)} × ${format(b)}/2 × [${format(delta_E)} − ${format(e)}(sen ${format(E_final)} − sen ${format(E_inicial)})] ≈ ${format(sector.area)} UA².`;
+    }));
+  }
+  return {element,draw};
+}
+
 function bindScene(section) {
   const find = id => section.querySelector(`#kepler-${id}`);
   const plot = diagram(find);
+  const procedure = orbitalProcedure(find);
   const e = find('e');
   const a = find('a');
   const eValue = find('e-value');
@@ -113,6 +150,7 @@ function bindScene(section) {
     back.disabled = index === 0;
     forward.disabled = index === scene.frames.length-1;
     draw(frame);
+    procedure.draw(scene,frame);
   }
 
   function tick(now) {
@@ -162,6 +200,7 @@ function bindScene(section) {
     note.textContent = 'Cargando las órbitas…';
     retry.hidden = true;
     measurements.hidden = true;
+    procedure.element.hidden = true;
     find('model').setAttribute('hidden','');
     try {
       const response = await fetch('/api/kepler/escena', {
@@ -188,6 +227,7 @@ function bindScene(section) {
       show(index);
       sync();
       measurements.hidden = false;
+      procedure.element.hidden = false;
       note.textContent = '';
     } catch (error) {
       if (request.signal.aborted) return;
@@ -196,6 +236,9 @@ function bindScene(section) {
     }
   }
 
+  procedure.element.addEventListener('toggle', () => {
+    if (scene) procedure.draw(scene,scene.frames[index]);
+  });
   e.addEventListener('input',load);
   a.addEventListener('input',load);
   retry.addEventListener('click',load);
