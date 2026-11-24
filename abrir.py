@@ -4,16 +4,21 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import errno
 import json
+import os
 from pathlib import Path
+import sys
 from threading import Thread
+from traceback import format_exception
 from urllib.parse import urlsplit
 import webbrowser
 
-from backend import calculate, catalog
-from motor_matematico.domain.models import DomainError, InputError, ResourceLimitError
+
+def motor_api():
+    import motor_api as api
+    return api
+
 
 ROOT = Path(__file__).resolve().parent
-MAX_BODY = 131_072
 LOCAL_PORT = 47836
 
 class Handler(SimpleHTTPRequestHandler):
@@ -38,7 +43,8 @@ class Handler(SimpleHTTPRequestHandler):
         if self.headers.get("Host") != self.address():
             self.send_error(403)
         elif self.path == "/api/catalogo":
-            self.send_json(catalog())
+            status, reply = motor_api().invoke("catalogo")
+            self.send_json(reply, status)
         elif self.path.startswith("/api/"):
             self.send_error(404)
         else:
@@ -48,7 +54,9 @@ class Handler(SimpleHTTPRequestHandler):
         if self.headers.get("Host") != self.address():
             self.send_error(403)
             return
-        if self.path not in {"/api/calcular", "/api/kepler", "/api/kepler/escena"}:
+        api = motor_api()
+        action = self.path.removeprefix("/api/")
+        if not self.path.startswith("/api/") or action not in api.OPERATIONS or action == "catalogo":
             self.send_error(404)
             return
         if (self.headers.get("Origin") not in (None, f"http://{self.address()}")
@@ -57,22 +65,17 @@ class Handler(SimpleHTTPRequestHandler):
             return
         try:
             size = int(self.headers.get("Content-Length", 0))
-            if not 0 < size <= MAX_BODY:
+            if not 0 < size <= api.MAX_BODY:
                 raise ValueError("La solicitud está vacía o excede el tamaño admitido.")
-            data = json.loads(self.rfile.read(size))
-            if not isinstance(data, dict):
-                raise ValueError("Solicitud no válida.")
-            if self.path == "/api/kepler":
-                from kepler import orbital_frames
-                self.send_json(orbital_frames(int(data["ley"]), float(data["forma"])))
-            elif self.path == "/api/kepler/escena":
-                from kepler import scene_frames
-                self.send_json(scene_frames(float(data["excentricidad"]), float(data["semieje_b"]),
-                                            float(data.get("excentricidad_b", .30))))
-            else:
-                self.send_json(calculate(data.get("operation"), data.get("input"), data.get("steps") is not False))
-        except (ValueError, KeyError, TypeError, ArithmeticError, DomainError, InputError, ResourceLimitError) as error:
-            self.send_json({"status": "invalid_input", "error": {"message": str(error) or "Revisá los datos de entrada."}}, 400)
+            try:
+                data = json.loads(self.rfile.read(size))
+            except ValueError as error:
+                self.send_json(api.bad_request(error), 400)
+                return
+            status, reply = api.invoke(action, data)
+            self.send_json(reply, status)
+        except ValueError as error:
+            self.send_json(api.bad_request(error), 400)
         except (BrokenPipeError, ConnectionResetError):
             pass
 
@@ -92,7 +95,7 @@ def desktop(url):
         from PySide6.QtWebEngineWidgets import QWebEngineView
         from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
     except ImportError as error:
-        raise SystemExit("Falta PySide6. En Windows ejecutá Abrir-Synapsis.cmd para instalarlo.") from error
+        raise RuntimeError("Falta PySide6. Instalá las dependencias de requirements.txt.") from error
 
     class LocalPage(QWebEnginePage):
         def acceptNavigationRequest(self, destination, kind, main_frame):
@@ -124,6 +127,7 @@ def main():
     parser.add_argument("--sin-abrir", action="store_true", help="Servir los recursos sin abrir una ventana.")
     parser.add_argument("--puerto", type=int, help="Puerto local opcional.")
     flags = parser.parse_args()
+    motor_api()
     handler = partial(Handler, directory=str(ROOT / "dist"))
     try:
         service = ThreadingHTTPServer(("127.0.0.1", flags.puerto if flags.puerto is not None else LOCAL_PORT), handler)
@@ -133,7 +137,8 @@ def main():
         service = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     with service as server:
         url = f"http://127.0.0.1:{server.server_port}/"
-        print(f"Synapsis: {url}", flush=True)
+        if sys.stdout is not None:
+            print(f"Synapsis: {url}", flush=True)
         if flags.sin_abrir or flags.web:
             if not flags.sin_abrir:
                 Thread(target=webbrowser.open, args=(url,), daemon=True).start()
@@ -151,5 +156,34 @@ def main():
             worker.join()
 
 
+def show_startup_error(error):
+    message = "Synapsis no pudo arrancar. " + (str(error) or type(error).__name__)
+    if sys.stderr is not None:
+        print(message, file=sys.stderr)
+    if log := os.environ.get("SYNAPSIS_INFORME_ARRANQUE"):
+        try:
+            Path(log).write_text("".join(format_exception(error)), encoding="utf-8")
+        except OSError:
+            pass
+    if "--sin-abrir" in sys.argv or "--web" in sys.argv:
+        return
+    try:
+        from PySide6.QtWidgets import QApplication, QMessageBox
+        app = QApplication.instance() or QApplication([])
+        QMessageBox.critical(None, "Synapsis", message)
+    except (ImportError, RuntimeError):
+        if os.name == "nt":
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, message, "Synapsis", 0x10)
+
+
+def launch():
+    try:
+        return main()
+    except (OSError, ImportError, RuntimeError) as error:
+        show_startup_error(error)
+        return 1
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(launch())

@@ -1,3 +1,4 @@
+import { motor } from './transport.js';
 import { gridField, node } from './matrix-input.js';
 import { renderResult } from './workspace-results.js';
 import { math } from './math-format.js';
@@ -81,6 +82,9 @@ export function bindWorkspace(setOpen) {
   const header = get('ws-title');
   const status = get('ws-message');
   const results = get('ws-results');
+  window.addEventListener('synapsis:pause', () => {
+    results.querySelector('#ws-result-content')?.firstElementChild?.pausePlayback?.();
+  });
   const operations = get('ws-operation');
   const historyView = get('ws-history');
   const toggle = get('ws-sidebar-toggle');
@@ -107,9 +111,8 @@ export function bindWorkspace(setOpen) {
   let choiceControls = new Map();
 
   function getCatalog() {
-    if (!catalogPromise) catalogPromise = fetch('/api/catalogo').then(response => {
-      if (!response.ok) throw new Error('El catálogo de Python no está disponible.');
-      return response.json();
+    if (!catalogPromise) catalogPromise = motor.catalog({
+      onProgress(message) { if (!workspace.hidden) status.textContent = message; },
     }).catch(error => {
       catalogPromise = null;
       throw error;
@@ -435,9 +438,11 @@ export function bindWorkspace(setOpen) {
       if (draft.savedFactors) input.factores = draft.savedFactors.factors;
       button.disabled = reveal;
       status.textContent = 'Calculando…';
-      const http = await fetch('/api/calcular',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({operation,input,steps:input.objetivo === 'escalonada' || draft.options.steps})});
-      const response = await http.json();
+      const response = await motor.calculate({
+        operation, input, steps:input.objetivo === 'escalonada' || draft.options.steps,
+      }, {signal:controller.signal,
+        onProgress(message) { if (!controller.signal.aborted) status.textContent = message; },
+      });
       if (controller.signal.aborted || state?.op !== operation) return;
       status.textContent = '';
       if (!response.result) throw new Error(response.error?.message ?? 'El motor no devolvió un resultado.');
@@ -449,7 +454,7 @@ export function bindWorkspace(setOpen) {
     } catch (error) {
       if (controller.signal.aborted) return;
       status.textContent = '';
-      const message = error instanceof SyntaxError ? 'El servicio local de Python no respondió correctamente.' : error.message;
+      const message = error instanceof SyntaxError ? 'El motor de Python no respondió correctamente.' : error.message;
       if (updateResult) return message;
       setError(message);
     } finally {
@@ -565,7 +570,10 @@ export function bindWorkspace(setOpen) {
     } catch (error) {
       if (revision !== generation) return;
       status.textContent = error.message;
-      status.append(' Abrí el proyecto con el lanzador de Synapsis.');
+      const retry = node('button','secondary','Reintentar');
+      retry.type = 'button';
+      retry.addEventListener('click', () => sync());
+      status.append(' ', retry);
       operations.hidden = true;
       historyView.hidden = true;
       return;

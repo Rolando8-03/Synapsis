@@ -1,3 +1,4 @@
+import { motor } from './transport.js';
 const CENTER_Y = 174;
 const TIME_LIMIT = 12;
 const decimal = new Intl.NumberFormat('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -150,12 +151,7 @@ export function bindOrbit(section) {
     request = controller;
     const previousMessage = note.textContent;
     try {
-      const response = await fetch('/api/kepler', {
-        method:'POST', signal:controller.signal, headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ley:law, forma:current.shape}),
-      });
-      if (!response.ok) throw new Error('Servicio orbital no disponible.');
-      const result = await response.json();
+      const result = await motor.orbit({ley:law, forma:current.shape}, {signal:controller.signal});
       if (controller.signal.aborted) return;
       if (cache.size >= 12) cache.delete(cache.keys().next().value);
       cache.set(key,result);
@@ -163,7 +159,7 @@ export function bindOrbit(section) {
       draw();
       sync();
     } catch (error) {
-      if (!controller.signal.aborted) note.textContent = `${previousMessage} El motor local de órbitas no respondió.`;
+      if (!controller.signal.aborted) note.textContent = `${previousMessage} El motor de órbitas no respondió.`;
     }
   }
 
@@ -289,6 +285,7 @@ export function bindOrbit(section) {
     sync();
   }, { threshold: .16 }).observe(section.querySelector('.orbit-visual'));
   document.addEventListener('visibilitychange', sync);
+  window.addEventListener('synapsis:pause', () => { running = false; sync(); });
   showLaw(1);
 
   return {

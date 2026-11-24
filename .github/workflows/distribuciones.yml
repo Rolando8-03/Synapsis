@@ -1,0 +1,222 @@
+name: Distribuciones de Synapsis
+on:
+  pull_request:
+    paths:
+      - '**.py'
+      - 'dist/**'
+      - 'index.html'
+      - 'plataformas/**'
+      - 'requirements*.txt'
+      - '.github/workflows/distribuciones.yml'
+      - '.github/workflows/pages.yml'
+  push:
+    branches: [main]
+    paths:
+      - '**.py'
+      - 'dist/**'
+      - 'index.html'
+      - 'plataformas/**'
+      - 'requirements*.txt'
+      - '.github/workflows/distribuciones.yml'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+    inputs:
+      publicar:
+        description: Publicar la entrega firmada desde main
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m plataformas.web --check
+      - run: python -m plataformas.web --output build/web
+      - name: Instalar bibliotecas Linux de Qt WebEngine
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends libegl1 libgl1 libgbm1 libnss3 libasound2t64 libxkbfile1 libxkbcommon0 libxcb-dri3-0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2
+      - name: Comprobar la web estática con paridad Python y prefijo de Pages
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QTWEBENGINE_DISABLE_SANDBOX: '1'
+          QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu --disable-dev-shm-usage
+        run: |
+          python -m pip install -r requirements.txt
+          python -m plataformas.verificar_web --directorio build/web --prefijo
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Synapsis-web
+          path: build/web
+          include-hidden-files: true
+          if-no-files-found: error
+  fuentes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generar ZIP completo y suma SHA-256
+        run: |
+          version=$(cat plataformas/VERSION)
+          mkdir -p build/fuentes
+          git archive --format=zip --prefix=Synapsis/ -o "build/fuentes/Synapsis-$version.zip" "$GITHUB_SHA"
+          printf '%s\n' "$GITHUB_SHA" > build/fuentes/REVISION
+          (cd build/fuentes && sha256sum ./*.zip REVISION > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Synapsis-fuentes
+          path: build/fuentes
+          if-no-files-found: error
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    env:
+      QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt -r plataformas/windows/requirements-build.txt
+      - name: Generar el ejecutable y el instalador
+        run: |
+          if (!(Get-Command ISCC.exe -ErrorAction SilentlyContinue) -and !(Test-Path "${env:ProgramFiles(x86)}/Inno Setup 6/ISCC.exe")) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          ./plataformas/windows/compilar.ps1
+      - name: Abrir Python sin consola desde el destino del acceso directo
+        run: |
+          $Shortcut = ./plataformas/windows/acceso-directo.ps1
+          try {
+            $Link = (New-Object -ComObject WScript.Shell).CreateShortcut($Shortcut)
+            if ((Split-Path $Link.TargetPath -Leaf) -ne 'pythonw.exe') { throw 'El acceso directo no usa pythonw.' }
+            python -m plataformas.windows.verificar $Link.TargetPath --script abrir.py
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } finally { Remove-Item $Shortcut }
+      - name: Instalar, probar y desinstalar Synapsis
+        run: ./plataformas/windows/verificar-instalador.ps1
+      - uses: actions/upload-artifact@v4
+        if: '!cancelled()'
+        with:
+          name: Synapsis-Windows-x64
+          path: |
+            build/windows/Synapsis-Windows-x64.zip
+            build/windows/Synapsis-Setup.exe
+          if-no-files-found: error
+  android:
+    needs: web
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - uses: actions/download-artifact@v4
+        with:
+          name: Synapsis-web
+          path: build/web
+      - name: Preparar el SDK Android del runner
+        run: |
+          sdk="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          printf 'ANDROID_HOME=%s\n' "$sdk" >> "$GITHUB_ENV"
+          tool="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$tool"
+          "$tool" --sdk_root="$sdk" 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Generar APK de depuración y verificar su firma
+        run: |
+          gradle -p plataformas/android --no-daemon assembleDebug
+          mkdir -p build/android
+          cp plataformas/android/app/build/outputs/apk/debug/app-debug.apk build/android/Synapsis-Android-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose build/android/Synapsis-Android-debug.apk
+          python - <<'PYAPK'
+          from zipfile import ZipFile
+          with ZipFile('build/android/Synapsis-Android-debug.apk') as apk:
+              for asset in ('index.html', 'dist/index.html', 'dist/runtime/empaquetado.json',
+                            'dist/runtime/python.zip', 'dist/runtime/pyodide/pyodide.asm.wasm'):
+                  if apk.getinfo('assets/' + asset).file_size == 0:
+                      raise SystemExit('El recurso está vacío: ' + asset)
+          PYAPK
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Synapsis-Android-debug
+          path: build/android/Synapsis-Android-debug.apk
+          if-no-files-found: error
+      - name: Generar APK release firmado
+        if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
+        env:
+          SYNAPSIS_ANDROID_KEYSTORE_BASE64: ${{ secrets.SYNAPSIS_ANDROID_KEYSTORE_BASE64 }}
+          SYNAPSIS_ANDROID_STORE_PASSWORD: ${{ secrets.SYNAPSIS_ANDROID_STORE_PASSWORD }}
+          SYNAPSIS_ANDROID_KEY_ALIAS: ${{ secrets.SYNAPSIS_ANDROID_KEY_ALIAS }}
+          SYNAPSIS_ANDROID_KEY_PASSWORD: ${{ secrets.SYNAPSIS_ANDROID_KEY_PASSWORD }}
+        run: |
+          for variable in SYNAPSIS_ANDROID_KEYSTORE_BASE64 SYNAPSIS_ANDROID_STORE_PASSWORD SYNAPSIS_ANDROID_KEY_ALIAS SYNAPSIS_ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!variable}" ]]; then
+              echo "::error::Configurá el secreto $variable para firmar la entrega Android."
+              exit 1
+            fi
+          done
+          umask 077
+          export SYNAPSIS_ANDROID_KEYSTORE="$RUNNER_TEMP/synapsis-release.keystore"
+          trap 'rm -f "$SYNAPSIS_ANDROID_KEYSTORE"' EXIT
+          printf '%s' "$SYNAPSIS_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$SYNAPSIS_ANDROID_KEYSTORE"
+          unset SYNAPSIS_ANDROID_KEYSTORE_BASE64
+          gradle -p plataformas/android --no-daemon assembleRelease
+          cp plataformas/android/app/build/outputs/apk/release/app-release.apk build/android/Synapsis-Android.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs build/android/Synapsis-Android.apk
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
+        with:
+          name: Synapsis-Android-release
+          path: build/android/Synapsis-Android.apk
+          if-no-files-found: error
+  release:
+    if: github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main'
+    needs: [web, windows, android, fuentes]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Synapsis-Windows-x64
+          path: build/release
+      - uses: actions/download-artifact@v4
+        with:
+          name: Synapsis-Android-release
+          path: build/release
+      - uses: actions/download-artifact@v4
+        with:
+          name: Synapsis-web
+          path: build/web
+      - name: Publicar archivos y sumas SHA-256
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(cat plataformas/VERSION)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          site='https://rolando8-03.github.io/Synapsis/'
+          published=$(curl --fail --silent --show-error --retry 3 -H 'Cache-Control: no-cache' "${site}version-compilada.json?sha=$GITHUB_SHA" | jq -er .revision)
+          if [[ "$published" != "$GITHUB_SHA" ]]; then
+            echo '::error::Pages debe publicar el mismo commit de main antes de crear esta entrega.'
+            exit 1
+          fi
+          git archive --format=zip --prefix=Synapsis/ -o "build/release/Synapsis-$version.zip" "$GITHUB_SHA"
+          (cd build/web && zip -qr "../release/Synapsis-web-$version.zip" .)
+          (cd build/release && sha256sum ./* > SHA256SUMS)
+          printf 'Commit %s\n\nSitio publicado %s\n\nVerificá las descargas con SHA256SUMS.\n' "$GITHUB_SHA" "$site" > build/release-notas.md
+          gh release create "v$version" --target "$GITHUB_SHA" --title "Synapsis $version" --notes-file build/release-notas.md build/release/*

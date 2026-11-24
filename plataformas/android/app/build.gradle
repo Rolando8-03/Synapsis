@@ -1,0 +1,62 @@
+plugins {
+    id 'com.android.application' version '8.9.2'
+}
+
+def webDir = file(providers.gradleProperty("synapsisWebDir").getOrElse("../../../build/web"))
+def releaseKeys = ["SYNAPSIS_ANDROID_KEYSTORE","SYNAPSIS_ANDROID_STORE_PASSWORD",
+                   "SYNAPSIS_ANDROID_KEY_ALIAS","SYNAPSIS_ANDROID_KEY_PASSWORD"]
+def hasReleaseKeys = releaseKeys.every { System.getenv(it) }
+def appVersion = providers.gradleProperty("synapsisVersion").getOrElse(
+    rootProject.file("../VERSION").text.trim())
+def versionParts = appVersion.tokenize('.').collect { it as int }
+if (versionParts.size() != 3 || versionParts.any { it<0 || it>999 }) {
+    throw new GradleException("Elegí una versión X.Y.Z de hasta tres cifras por componente.")
+}
+
+android {
+    namespace 'io.github.rolando803.synapsis'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'io.github.rolando803.synapsis'
+        minSdk 26
+        targetSdk 35
+        versionName appVersion
+        versionCode Math.max(1, versionParts[0]*1000000 + versionParts[1]*1000 + versionParts[2])
+    }
+    signingConfigs {
+        if (hasReleaseKeys) {
+            release {
+                storeFile file(System.getenv("SYNAPSIS_ANDROID_KEYSTORE"))
+                storePassword System.getenv("SYNAPSIS_ANDROID_STORE_PASSWORD")
+                keyAlias System.getenv("SYNAPSIS_ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("SYNAPSIS_ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        debug { applicationIdSuffix '.debug'; versionNameSuffix '-debug' }
+        release {
+            if (hasReleaseKeys) signingConfig signingConfigs.release
+        }
+    }
+    sourceSets {
+        main.assets.srcDir(layout.buildDirectory.dir("generated/synapsisAssets"))
+    }
+    androidResources { noCompress += ["wasm", "whl", "zip"] }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+def packWeb = tasks.register("packSynapsisWeb", Sync) {
+    from webDir
+    into layout.buildDirectory.dir("generated/synapsisAssets")
+    doFirst {
+        if (!new File(webDir, "dist/runtime/empaquetado.json").isFile()) {
+            throw new GradleException("Generá primero la web local con python -m plataformas.web --output y pasá -PsynapsisWebDir.")
+        }
+    }
+}
+tasks.named("preBuild").configure { dependsOn packWeb }
+dependencies { implementation "androidx.webkit:webkit:1.12.1" }
