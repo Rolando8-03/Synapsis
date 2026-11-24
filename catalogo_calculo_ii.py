@@ -34,6 +34,12 @@ def catalog_entries(field, spec):
             field('potencia_coseno','Exponente del coseno','integer','2',False,
                   when={'familia':['seno_coseno']}),
         ], methods.trig_powers)
+    add(TECHNIQUES, 'sustitucion_trigonometrica', 'Sustitución trigonométrica',
+        'Integrá el radical de la familia elegida. El parámetro a debe ser positivo.', [
+            field('familia','Radical','select','diferencia',choices=['diferencia'],
+                  choice_labels={'diferencia':'√(a² − x²)'}),
+            field('parametro','Parámetro a',default='2'),
+        ], methods.trig_substitution)
     return entries, handlers, list(groups.items())
 
 

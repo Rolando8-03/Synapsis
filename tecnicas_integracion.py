@@ -197,3 +197,33 @@ def trig_powers(data, ctx):
         f, value, domain = secant_cosecant(m,sp.sec if family=='secante' else sp.csc,ctx)
         return primitive_result(f,value,domain,ctx)
     raise ValueError('Elegí una familia de potencias trigonométricas.')
+
+
+def trig_substitution(data, ctx):
+    a = exact(data['parametro'])
+    if a <= 0:
+        raise ValueError('El parámetro a debe ser positivo.')
+    theta = sp.Symbol('theta', real=True)
+    family = data['familia']
+    if family == 'diferencia':
+        radicand = a**2-X**2
+        domain, angles = sp.Interval(-a,a), r'-\pi/2\le\theta\le\pi/2'
+        transform = a*sp.sin(theta)
+        reduced_root = a*sp.cos(theta)
+        in_theta = a**2*(theta+sp.sin(theta)*sp.cos(theta))/2
+        inverse = sp.asin(X/a)
+        value = (X*sp.sqrt(radicand)+a**2*inverse)/2
+        identity = r'1-\sin^2\theta=\cos^2\theta,\quad \cos\theta\ge0'
+    else:
+        raise ValueError('Elegí una familia de radicales.')
+    root = sp.sqrt(radicand)
+    dx = sp.diff(transform,theta)
+    step(ctx, 'Elegir la sustitución y restringir θ para fijar el signo del radical.',
+         rf'x={latex(transform)},\quad {angles},\quad dx={latex(dx)}\,d\theta', dominio=str(domain))
+    step(ctx, 'Aplicar la identidad y extraer la raíz con el signo del intervalo.',
+         rf'{identity},\quad \sqrt{{{latex(radicand)}}}={latex(reduced_root)}')
+    step(ctx, 'Multiplicar por el diferencial e integrar en θ.',
+         rf'\int {latex(reduced_root*dx)}\,d\theta={latex(in_theta)}+C')
+    step(ctx, 'Regresar a x con la función inversa y el radical original.',
+         rf'\theta={latex(inverse)},\quad F(x)={latex(value)}')
+    return primitive_result(root,value,domain,ctx)
