@@ -78,11 +78,12 @@ svg { display: block; }
   border-bottom: 1px solid #c1d6f318;
 }
 .bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; height: var(--bar); gap: 24px; }
-.brand { display: inline-flex; align-items: center; gap: 10px; width: fit-content; font: 700 1.45rem/1 var(--display); letter-spacing: -.055em; }
+.brand { color: var(--text); display: inline-flex; align-items: center; gap: 10px; width: fit-content; font: 700 1.45rem/1 var(--display); letter-spacing: -.055em; }
 .brand svg { width: 26px; color: var(--gold); }
 nav { display: flex; gap: 33px; align-self: stretch; }
 nav a { display: grid; align-items: center; position: relative; color: var(--muted); font-size: .91rem; }
 nav a:hover, nav a[aria-current] { color: var(--accent); }
+.topbar nav a[aria-current] { color: var(--gold); }
 nav a[aria-current]::after {
   position: absolute; content: ""; height: 2px; width: 14px; border-radius: 2px;
   background: var(--accent); bottom: 14px; left: calc(50% - 7px);
