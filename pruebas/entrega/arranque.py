@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from urllib.parse import urlsplit
 
-from PySide6.QtCore import QTimer, qVersion
+from PySide6.QtCore import QBuffer, QIODevice, QTimer, qVersion
 from PySide6.QtPdf import QPdfDocument
 from PySide6.QtWebEngineCore import QWebEngineUrlRequestInterceptor
 from PySide6 import QtWebEngineCore, QtWebEngineWidgets
@@ -105,10 +105,15 @@ def main():
             QTimer.singleShot(0, window.close)
 
         def check_pdf(self, path, success):
-            pdf = QPdfDocument(self)
-            if not success or pdf.load(path) != QPdfDocument.Error.None_:
+            if not success:
                 self.completed("ARRANQUE ERROR No se guardó el PDF de Kepler")
                 return
+            pdf = QPdfDocument(self)
+            buffer = QBuffer(pdf)
+            # Qt PDF lee una copia para que el archivo de la prueba pueda borrarse en Windows.
+            buffer.setData(Path(path).read_bytes())
+            buffer.open(QIODevice.OpenModeFlag.ReadOnly)
+            pdf.load(buffer)
             try:
                 content = "\n".join(pdf.getAllText(i).text() for i in range(pdf.pageCount()))
             finally:
