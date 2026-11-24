@@ -3,6 +3,7 @@ from functools import partial
 
 import tecnicas_integracion as methods
 import aplicaciones_integrales as uses
+import modelos_integrales as models
 
 TECHNIQUES = 'Técnicas de integración'
 DEFINITE = 'Integral definida y áreas'
@@ -88,6 +89,29 @@ def catalog_entries(field, spec):
         'Girás una curva polinómica alrededor de un eje horizontal y = c.',
         [expression('x+1',label='Curva f(x)'),*bounds(),field('eje','Altura c del eje · 0 si se omite',required=False),mode()],
         partial(uses.arc_or_surface,surface=True))
+    rod_fields = [*bounds('0','3'), field('densidad_izquierda','Densidad lineal inicial',default='1'),
+                  field('densidad_derecha','Densidad lineal final',default='3')]
+    add(PHYSICS, 'masa_barra', 'Masa de una barra',
+        'Obtené la masa de una barra cuya densidad varía linealmente.', rod_fields, models.rod)
+    add(PHYSICS, 'centro_masa', 'Momento y centro de masa de una barra',
+        'Obtené el momento respecto a un origen y la posición del centro de masa.',
+        [*rod_fields,field('origen','Origen del momento · 0 si se omite',required=False)], partial(models.rod,center=True))
+    add(PHYSICS, 'centroide', 'Centroide de una lámina uniforme',
+        'Usá dos fronteras polinómicas y el intervalo donde se encuentra la lámina.', [
+            expression('1-x^2',label='Frontera f(x)'),expression('0','segunda','Frontera g(x)'),*bounds('-1','1'),
+        ], models.centroid)
+    add(PHYSICS, 'trabajo_resorte', 'Trabajo en un resorte',
+        'Medí la elongación desde la longitud natural del resorte.', [
+            field('constante','Constante elástica k',default='12'),
+            field('inferior','Elongación inicial',default='0'),field('superior','Elongación final',default='1/2'),mode(),
+        ], models.spring)
+    add(PHYSICS, 'trabajo_bombeo', 'Bombeo en un cono invertido',
+        'Medí las alturas desde el vértice inferior. Si omitís el peso específico, queda como γ.', [
+            field('altura','Altura del tanque',default='4'),field('radio','Radio en el borde',default='2'),
+            field('relleno','Altura del líquido · tanque lleno si se omite',required=False),
+            field('salida','Altura de salida · al borde si se omite',required=False),
+            field('peso_especifico','Peso específico del líquido',required=False),mode(),
+        ], models.pumping)
     return entries, handlers, list(groups.items())
 
 
