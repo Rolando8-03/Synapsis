@@ -27,8 +27,8 @@ def catalog_entries(field, spec):
         [expression('1/(x*(x+1))')], methods.partial_fractions)
     add(TECHNIQUES, 'potencias_trigonometricas', 'Potencias trigonométricas',
         'Elegí la familia y escribí sus exponentes enteros de 0 a 12.', [
-            field('familia','Familia','select','seno_coseno',choices=['seno_coseno'],
-                  choice_labels={'seno_coseno':'Seno y coseno'}),
+            field('familia','Familia','select','seno_coseno',choices=['seno_coseno','tangente','cotangente'],
+                  choice_labels={'seno_coseno':'Seno y coseno','tangente':'Tangente','cotangente':'Cotangente'}),
             field('potencia','Exponente de la primera función','integer','3'),
             field('potencia_coseno','Exponente del coseno','integer','2',False,
                   when={'familia':['seno_coseno']}),

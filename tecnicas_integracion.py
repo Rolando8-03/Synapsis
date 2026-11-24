@@ -1,7 +1,7 @@
 """Métodos con desarrollo algebraico para Cálculo II."""
 import sympy as sp
 
-from calculo_i import X, function
+from calculo_i import R, X, condition_set, exact, function
 from integracion import elementary, latex, primitive_result, step
 from motor_matematico.domain.models import DomainError
 
@@ -114,7 +114,6 @@ def partial_fractions(data, ctx):
 
 
 def exponent(value, label):
-    from calculo_i import exact
     n = exact(value)
     if not n.is_Integer or not 0 <= n <= 12:
         raise ValueError(f'{label} debe ser un entero entre 0 y 12.')
@@ -148,10 +147,32 @@ def sine_cosine(m, n, ctx):
     return elementary(sp.expand(adjusted),u,ctx).subs(u,inner)
 
 
+def tangent_cotangent(m, fn, ctx):
+    z = fn(X)
+    tangent = fn == sp.tan
+    orientation = 1 if tangent else -1
+    axis = sp.cos(X) if tangent else sp.sin(X)
+    identity = r'\tan^2x=\sec^2x-1,\quad d(\tan x)=\sec^2x\,dx' if tangent else (
+               r'\cot^2x=\csc^2x-1,\quad d(\cot x)=-\csc^2x\,dx')
+    step(ctx, 'Reservar el cuadrado de la secante o cosecante para el diferencial.', identity)
+    value = -orientation*sp.log(sp.Abs(axis)) if m % 2 else X
+    step(ctx, 'La reducción de dos en dos termina en exponente uno si es impar, o cero si es par.',
+         rf'I_{{{m%2}}}={latex(value)}')
+    for j in range(2+m%2,m+1,2):
+        value = orientation*z**(j-1)/(j-1)-value
+        step(ctx, 'Integrar la potencia de la variable sustituida y restar la potencia anterior.',
+             rf'I_{{{j}}}={latex(value)}')
+    return z**m, value, condition_set(axis,X,'no_cero') if m else R
+
+
 def trig_powers(data, ctx):
     m = exponent(data['potencia'], 'El primer exponente')
     n = exponent(data.get('potencia_coseno','0'), 'El exponente del coseno')
-    if data['familia'] != 'seno_coseno':
-        raise ValueError('Elegí una familia de potencias trigonométricas.')
-    f = sp.sin(X)**m*sp.cos(X)**n
-    return primitive_result(f,sine_cosine(m,n,ctx),sp.S.Reals,ctx)
+    family = data['familia']
+    if family == 'seno_coseno':
+        f = sp.sin(X)**m*sp.cos(X)**n
+        return primitive_result(f,sine_cosine(m,n,ctx),R,ctx)
+    if family in ('tangente','cotangente'):
+        f, value, domain = tangent_cotangent(m,sp.tan if family=='tangente' else sp.cot,ctx)
+        return primitive_result(f,value,domain,ctx)
+    raise ValueError('Elegí una familia de potencias trigonométricas.')

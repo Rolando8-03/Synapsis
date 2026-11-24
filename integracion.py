@@ -18,13 +18,10 @@ def integral_tex(f, a, b, variable=X):
 
 
 def verify(f, primitive, domain, ctx, variable=X):
-    difference = sp.diff(primitive, variable) - f
     # En un intervalo donde h no se anula, d ln|h|/dx = h'/h.
-    for log in primitive.atoms(sp.log):
-        argument = log.args[0]
-        if argument.func == sp.Abs:
-            h = argument.args[0]
-            difference = difference.subs(sp.diff(log, variable), sp.diff(h, variable)/h)
+    logs = {log: sp.log(log.args[0].args[0], evaluate=False)
+            for log in primitive.atoms(sp.log) if log.args[0].func == sp.Abs}
+    difference = sp.diff(primitive.xreplace(logs), variable) - f
     reduced = sp.simplify(difference)
     if reduced != 0 and sp.trigsimp(reduced) != 0:
         raise DomainError('No se pudo comprobar la primitiva en los intervalos indicados.')
