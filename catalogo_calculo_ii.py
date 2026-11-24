@@ -23,6 +23,10 @@ def catalog_entries(field, spec):
     def bounds(a='0', b='1'):
         return [field('inferior','Desde',default=a),field('superior','Hasta',default=b)]
 
+    def mode():
+        return field('entrega','Resultado solicitado','select','plantear',choices=['plantear','resolver'],
+                     choice_labels={'plantear':'Solo plantear','resolver':'Plantear y resolver'})
+
     add(TECHNIQUES, 'por_partes', 'Integral por partes',
         'Usá un polinomio multiplicado por exp, seno o coseno de argumento afín, o por ln(x).',
         [expression('x*exp(x)')], methods.by_parts)
@@ -63,6 +67,9 @@ def catalog_entries(field, spec):
             field('unidad_cantidad','Unidad de la cantidad','text','m',False),
             field('unidad_tiempo','Unidad de la variable','text','s',False),
         ], uses.net_change)
+    add(DEFINITE, 'area_bajo_curva', 'Área bajo una curva',
+        'Separá el área geométrica de la integral con signo.',
+        [expression('x',label='Función f(x)'),*bounds('-1','1'),mode()], uses.area)
     return entries, handlers, list(groups.items())
 
 

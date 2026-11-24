@@ -676,35 +676,3 @@ def average(data, ctx):
          integral=result["valor"], exactitud=result["exactitud"])
     return {"valor":str(value) if relation == "=" else format(float(value),".12g"),
             "integral":result["valor"],"exactitud":result["exactitud"],"formula_latex":formula}
-
-
-def area(data, ctx):
-    a,b,region=interval(data)
-    f=polynomial(data["expresion"],(X,))
-    g=polynomial(data.get("segunda") or "0",(X,))
-    difference=sp.expand(f-g)
-    crossings=sorted(finite_roots(difference,sp.Interval.open(a,b))) if difference else []
-    bounds=[a,*crossings,b]
-    total=sp.S.Zero
-    if data["entrega"] not in ("plantear","resolver"):
-        raise ValueError("Elegí plantear o resolver.")
-    integral=sp.integrate(difference,X) if data["entrega"] == "resolver" else None
-    terms=[]
-    for left,right in zip(bounds,bounds[1:]):
-        value=difference.subs(X,midpoint(left,right))
-        sign=-1 if value<0 else 1
-        term=rf"\int_{{{sp.latex(left)}}}^{{{sp.latex(right)}}}\left({sp.latex(sign*difference)}\right)\,dx"
-        emit(ctx,"Determinar la función superior en este subintervalo.",term,
-             superior="f" if sign==1 else "g", muestra=str(midpoint(left,right)))
-        terms.append(term)
-        if integral is not None:
-            total += sign*(integral.subs(X,right)-integral.subs(X,left))
-    formula="A="+"+".join(terms)
-    intersections = [a,*crossings,b] if difference else []
-    result={"formula_latex":formula,
-            "cruces":[str(x) for x in intersections if difference.subs(X,x)==0],
-            "curvas_coincidentes":difference == 0}
-    if integral is not None:
-        result["area"]=str(sp.simplify(total))
-        emit(ctx,"Evaluar las integrales y sumar sus áreas.",formula+"="+sp.latex(total))
-    return result

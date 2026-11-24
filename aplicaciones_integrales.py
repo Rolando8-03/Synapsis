@@ -4,7 +4,8 @@ from math import isfinite
 
 import sympy as sp
 
-from calculo_i import X, exact, function, interval, require_interval
+from calculo_i import X, exact, finite_roots, function, interval, midpoint, require_interval
+from curso import polynomial
 from integracion import elementary, integral_tex, latex, step
 from motor_matematico.algorithms.calculo import analizar, evaluar
 from motor_matematico.domain.models import DomainError
@@ -108,4 +109,67 @@ def net_change(data, ctx):
         step(ctx,'Sumar el cambio neto al valor inicial.',
              rf'Q(b)=Q(a)+\Delta Q={latex(initial)}+\left({latex(change)}\right)={latex(final)}')
         result.update(valor_final=str(final),valor_inicial=str(initial))
+    return result
+
+
+def partition(a, b, *expressions):
+    interior = set()
+    for expression in expressions:
+        if expression != 0:
+            interior.update(finite_roots(expression,sp.Interval.open(a,b)))
+    cuts = [a,*sorted(interior),b]
+    return list(zip(cuts,cuts[1:]))
+
+
+def area(data, ctx):
+    second = str(data.get('segunda') or '').strip()
+    g = polynomial(second,(X,)) if second else sp.S.Zero
+    f, domain, _ = function(data['expresion'],ctx)
+    difference = sp.simplify(f-g)
+    left, right = (str(data.get(key,'')).strip() for key in ('inferior','superior'))
+    if left and right:
+        a, b, region = interval(data)
+    elif left or right:
+        raise ValueError('Indicá los dos extremos para seleccionar la región.')
+    else:
+        if not second or difference==0 or not difference.is_polynomial(X):
+            raise DomainError('Indicá el intervalo de la región. La detección automática requiere dos curvas polinómicas distintas.')
+        crossings = sorted(finite_roots(difference))
+        if len(crossings) < 2:
+            raise DomainError('Se requieren dos cruces para encerrar una región. Indicá los límites.')
+        if len(crossings) > 2:
+            regions = ', '.join(f'[{p}, {q}]' for p,q in zip(crossings,crossings[1:]))
+            raise DomainError(f'Elegí la región con sus dos límites. Tramos entre cruces: {regions}.')
+        a, b = crossings
+        region = sp.Interval(a,b)
+    require_interval(domain,region)
+    spans = partition(a,b,difference)
+    crossings = [str(x) for x in [a,*(r for _,r in spans)] if difference!=0 and difference.subs(X,x).equals(0)]
+    if crossings:
+        step(ctx, 'Igualar las curvas para identificar los cruces en la región.',
+             latex(f)+'='+latex(g), cruces=crossings)
+    sign_integral = integral_tex(difference,a,b)
+    if not second:
+        step(ctx, 'La integral con signo resta los aportes por debajo del eje. Para el área, esas alturas se hacen positivas.',
+             sign_integral)
+    terms = []
+    total = sp.S.Zero
+    evaluate = wants_value(data)
+    for l,r in spans:
+        mid = midpoint(l,r)
+        sign = -1 if difference.subs(X,mid)<0 else 1
+        height = sign*difference
+        term = integral_tex(height,l,r)
+        step(ctx, 'Comparar las alturas en este tramo para restar la curva inferior de la superior.',term,
+             superior='f' if sign==1 else ('g' if second else 'eje x'), muestra=str(mid))
+        terms.append(term)
+        if evaluate:
+            total += exact_integral(height,l,r)
+    formula = 'A=' + '+'.join(terms)
+    result = {'formula_latex':formula, 'cruces':crossings, 'curvas_coincidentes':difference==0}
+    if evaluate:
+        result['area'] = str(sp.simplify(total))
+        if not second:
+            result['integral_con_signo'] = str(exact_integral(difference,a,b))
+        step(ctx, 'Evaluar las integrales y sumar sus áreas geométricas.',formula+'='+latex(sp.simplify(total)))
     return result
